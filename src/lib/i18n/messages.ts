@@ -90,7 +90,8 @@ export const messages = {
       shareButton: "共有する",
       shareTitle: "作品を共有",
       shareDescription: "以下のリンクをコピーまたはSNSで共有できます",
-      shareSuccess: "共有用リンクを作成しました"
+      shareSuccess: "共有用リンクを作成しました",
+      openGallery: "ギャラリーを開く"
     },
     ar: {
       title: "AR Display",
@@ -236,7 +237,8 @@ export const messages = {
       shareButton: "Share",
       shareTitle: "Share your creation",
       shareDescription: "Copy the link below or share to a social network",
-      shareSuccess: "Share link ready"
+      shareSuccess: "Share link ready",
+      openGallery: "Open Gallery"
     },
     ar: {
       title: "AR Display",

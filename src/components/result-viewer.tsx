@@ -164,6 +164,10 @@ export function ResultViewer() {
     trackEvent("share_action", { action: "share_sheet", locale });
   };
 
+  const handleOpenGallery = () => {
+    router.push(`/${locale}/gallery`);
+  };
+
   return (
     <div className="flex flex-col">
       <Header
@@ -223,6 +227,11 @@ export function ResultViewer() {
             </Button>
             <Button type="button" onClick={handleShare} className="flex-1 justify-center" showArrow={false}>
               {t("shareButton")}
+            </Button>
+          </div>
+          <div className="flex gap-3">
+            <Button type="button" onClick={handleOpenGallery} className="w-full justify-center" showArrow>
+              {t("openGallery")}
             </Button>
           </div>
           {saveMessage ? <p className="text-xs text-textSecondary">{saveMessage}</p> : null}
