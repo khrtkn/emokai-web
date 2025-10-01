@@ -1,21 +1,21 @@
 import { notFound } from 'next/navigation';
 import { Divider, Header, InstructionBanner, MessageBlock, RichInput, ImageOption, StoryCard, ProgressBar } from '@/components/ui';
 import Image from 'next/image';
-import Ref01 from '@/../docs/UI_Reference/01_ScreenMessage.png';
-import Ref02 from '@/../docs/UI_Reference/02_ScreenMessage.png';
-import Ref03 from '@/../docs/UI_Reference/03_ScreenMessage.png';
-import Ref04 from '@/../docs/UI_Reference/04_ScreenMessage.png';
-import Ref05 from '@/../docs/UI_Reference/05_ScreenMessage.png';
-import Ref06 from '@/../docs/UI_Reference/06_ScreenInput.png';
-import Ref07 from '@/../docs/UI_Reference/07_ScreenInput.png';
-import Ref08 from '@/../docs/UI_Reference/08_ScreenInput.png';
-import Ref09 from '@/../docs/UI_Reference/09_ScreenInput.png';
-import Ref10 from '@/../docs/UI_Reference/10_ScreenInput.png';
-import Ref11 from '@/../docs/UI_Reference/11_ScreenImageSelection.png';
-import Ref12 from '@/../docs/UI_Reference/12_ScreenImageSelection.png';
-import Ref13 from '@/../docs/UI_Reference/13_ScreenImageSelection.png';
-import Ref14 from '@/../docs/UI_Reference/14_ScreenEmokaiCard.png';
-import Ref15 from '@/../docs/UI_Reference/15_ScreenCamera.png';
+import Ref01 from '../../../../../docs/UI_Reference/01_ScreenMessage.png';
+import Ref02 from '../../../../../docs/UI_Reference/02_ScreenMessage.png';
+import Ref03 from '../../../../../docs/UI_Reference/03_ScreenMessage.png';
+import Ref04 from '../../../../../docs/UI_Reference/04_ScreenMessage.png';
+import Ref05 from '../../../../../docs/UI_Reference/05_ScreenMessage.png';
+import Ref06 from '../../../../../docs/UI_Reference/06_ScreenInput.png';
+import Ref07 from '../../../../../docs/UI_Reference/07_ScreenInput.png';
+import Ref08 from '../../../../../docs/UI_Reference/08_ScreenInput.png';
+import Ref09 from '../../../../../docs/UI_Reference/09_ScreenInput.png';
+import Ref10 from '../../../../../docs/UI_Reference/10_ScreenInput.png';
+import Ref11 from '../../../../../docs/UI_Reference/11_ScreenImageSelection.png';
+import Ref12 from '../../../../../docs/UI_Reference/12_ScreenImageSelection.png';
+import Ref13 from '../../../../../docs/UI_Reference/13_ScreenImageSelection.png';
+import Ref14 from '../../../../../docs/UI_Reference/14_ScreenEmokaiCard.png';
+import Ref15 from '../../../../../docs/UI_Reference/15_ScreenCamera.png';
 
 type Props = { params: { locale: string; id: string } };
 
