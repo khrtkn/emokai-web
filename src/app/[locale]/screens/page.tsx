@@ -30,13 +30,13 @@ export default function ScreensList({ params }: Props) {
       <ul className="grid grid-cols-1 gap-3">
         {list.map((it) => (
           <li key={it.id}>
-            <Link
-              href={`/${locale}/screens/${it.id}`}
-              className="flex items-center justify-between rounded-xl border border-divider px-4 py-3 text-textPrimary transition hover:border-accent"
-            >
-              <span>{it.label}</span>
-              <span className="text-xs text-textSecondary">/{locale}/screens/{it.id}</span>
-            </Link>
+              <Link
+                href={`/${locale}/emokai/step/${Number(it.id)}`}
+                className="flex items-center justify-between rounded-xl border border-divider px-4 py-3 text-textPrimary transition hover:border-accent"
+              >
+                <span>{it.label}</span>
+                <span className="text-xs text-textSecondary">/{locale}/emokai/step/{Number(it.id)}</span>
+              </Link>
           </li>
         ))}
       </ul>
