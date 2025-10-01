@@ -1,3 +1,4 @@
+"use client";
 import Link from 'next/link';
 import { Divider, Header, InstructionBanner, MessageBlock, RichInput, ImageOption } from '@/components/ui';
 
@@ -7,7 +8,6 @@ function StepLabel({ text }: { text?: string }) {
   if (!text) return null;
   return <p className="text-xs text-textSecondary">{text}</p>;
 }
-
 function Section({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
     <section className="space-y-3">
@@ -281,4 +281,3 @@ export default function EmokaiStepPage({ params }: Props) {
     </main>
   );
 }
-
