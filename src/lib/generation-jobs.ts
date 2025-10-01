@@ -20,13 +20,38 @@ export type StoryResult = {
 };
 
 export async function generateModel(characterOptionId: string): Promise<ModelResult> {
-  // TODO: call TripoAPI for 3D model generation
-  await wait(1500);
-  return {
-    id: characterOptionId,
-    url: `/models/${characterOptionId}.fbx`,
-    polygons: 4800
-  };
+  const useLiveApis = process.env.NEXT_PUBLIC_USE_APIS === "true";
+
+  if (!useLiveApis) {
+    await wait(1500);
+    return {
+      id: characterOptionId,
+      url: `/models/${characterOptionId}.fbx`,
+      polygons: 4800
+    };
+  }
+
+  const response = await fetch("/api/tripo/model", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ characterId: characterOptionId })
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to generate model: ${text}`);
+  }
+
+  const json = await response.json();
+  const model = json?.model as ModelResult | undefined;
+
+  if (!model || typeof model.id !== "string" || typeof model.url !== "string" || typeof model.polygons !== "number") {
+    throw new Error("Tripo model response malformed");
+  }
+
+  return model;
 }
 
 export async function generateComposite(
