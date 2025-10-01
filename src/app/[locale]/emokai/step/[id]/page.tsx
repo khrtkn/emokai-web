@@ -827,20 +827,22 @@ export default function EmokaiStepPage({ params }: Props) {
                 <p className="text-sm text-textSecondary">{noCollectionText}</p>
               ) : (
                 <div className="grid gap-3">
-                  {collection.map((entry) => (
+                {collection.map((entry) => {
+                  const placeLabel = entry.placeOptionLabel ?? entry.placeDescription ?? "";
+                  const placeDisplay = placeLabel || "—";
+                  const emotionDisplay = entry.emotions.length ? entry.emotions.join(isJa ? " / " : ", ") : "—";
+
+                  return (
                     <div key={entry.id} className="rounded-2xl border border-divider p-4 text-sm text-textSecondary">
                       <div className="mb-3 h-40 w-full rounded-xl bg-[rgba(237,241,241,0.06)]" />
                       <p className="font-semibold text-textPrimary">{entry.name}</p>
-                      <p>{isJa ? `感情: ${entry.emotions.join(" / ") || "—"}` : `Emotion: ${entry.emotions.join(", ") || "—"}`}</p>
-                      <p>
-                        {isJa
-                          ? `場所: ${entry.placeOptionLabel ?? entry.placeDescription || "—"}`
-                          : `Place: ${entry.placeOptionLabel ?? entry.placeDescription || "—"}`}
-                      </p>
+                      <p>{isJa ? `感情: ${emotionDisplay}` : `Emotion: ${emotionDisplay}`}</p>
+                      <p>{isJa ? `場所: ${placeDisplay}` : `Place: ${placeDisplay}`}</p>
                       <p className="text-xs opacity-70">{formatDate(entry.createdAt, locale)}</p>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
+              </div>
               )}
               <div className="pt-2">
                 <button type="button" className={secondaryButtonClass} onClick={() => router.push(next(1))}>
