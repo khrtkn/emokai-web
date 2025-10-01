@@ -1,5 +1,6 @@
 import { ProcessedImage } from "@/lib/image";
 import { withRetry } from "@/lib/errors";
+import { isLiveApisEnabled } from "@/lib/env/client";
 
 export type StageOption = {
   id: string;
@@ -18,9 +19,7 @@ export async function createStageOptions(
   description: string,
   processedImage: ProcessedImage
 ): Promise<StageOption[]> {
-  const useLiveApis = process.env.NEXT_PUBLIC_USE_APIS === "true";
-
-  if (!useLiveApis) {
+  if (!isLiveApisEnabled()) {
     return withRetry(async () => {
       await new Promise((resolve) => setTimeout(resolve, 1200));
 

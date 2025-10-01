@@ -1,4 +1,5 @@
 import type { Locale } from "@/lib/i18n/messages";
+import { isLiveApisEnabled } from "@/lib/env/client";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -20,9 +21,7 @@ export type StoryResult = {
 };
 
 export async function generateModel(characterOptionId: string): Promise<ModelResult> {
-  const useLiveApis = process.env.NEXT_PUBLIC_USE_APIS === "true";
-
-  if (!useLiveApis) {
+  if (!isLiveApisEnabled()) {
     await wait(1500);
     return {
       id: characterOptionId,
@@ -58,9 +57,7 @@ export async function generateComposite(
   stageSelectionId: string | null,
   characterOptionId: string
 ): Promise<CompositeResult> {
-  const useLiveApis = process.env.NEXT_PUBLIC_USE_APIS === "true";
-
-  if (!useLiveApis) {
+  if (!isLiveApisEnabled()) {
     await wait(2000);
     return {
       id: `${stageSelectionId ?? "stage"}-${characterOptionId}`,
@@ -92,9 +89,7 @@ export async function generateComposite(
 }
 
 export async function generateStory(description: string, locale: Locale): Promise<StoryResult> {
-  const useLiveApis = process.env.NEXT_PUBLIC_USE_APIS === "true";
-
-  if (!useLiveApis) {
+  if (!isLiveApisEnabled()) {
     await wait(800);
     const base =
       locale === "ja"

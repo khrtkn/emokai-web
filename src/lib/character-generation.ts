@@ -5,6 +5,7 @@ export type CharacterOption = {
 };
 
 import { withRetry } from "@/lib/errors";
+import { isLiveApisEnabled } from "@/lib/env/client";
 
 function toSvgDataUri(seed: string) {
   const hue = Math.abs(Array.from(seed).reduce((acc, char) => acc + char.charCodeAt(0), 0)) % 360;
@@ -24,9 +25,7 @@ function randomId() {
 }
 
 export async function createCharacterOptions(description: string): Promise<CharacterOption[]> {
-  const useLiveApis = process.env.NEXT_PUBLIC_USE_APIS === "true";
-
-  if (!useLiveApis) {
+  if (!isLiveApisEnabled()) {
     return withRetry(async () => {
       await new Promise((resolve) => setTimeout(resolve, 1200));
       return Array.from({ length: 4 }).map((_, index) => {
