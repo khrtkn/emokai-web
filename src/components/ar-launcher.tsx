@@ -91,18 +91,14 @@ export function ARLauncher() {
     router.push(`/${locale}/gallery`);
   };
 
+  const canLaunch = viewerMode === "ar" ? permissionState === "granted" : true;
+  const launchLabel = viewerMode === "ar" ? t("launchAR") : t("openViewer");
+  const primaryButtonClass =
+    "w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
+
   return (
     <div className="flex flex-col">
-      <Header
-        title={t("title")}
-        action={{
-          type: "button",
-          label: viewerMode === "ar" ? t("launchAR") : t("openViewer"),
-          onClick: handleLaunch,
-          disabled: viewerMode === "ar" ? permissionState !== "granted" : false,
-          showArrow: true
-        }}
-      />
+      <Header title={t("title")} />
       <Divider />
       <div className="space-y-6 px-4 py-6 sm:px-6">
         <InstructionBanner tone={error ? "error" : "default"}>
@@ -165,6 +161,16 @@ export function ARLauncher() {
             </div>
           }
         />
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={handleLaunch}
+            disabled={!canLaunch}
+            className={primaryButtonClass}
+          >
+            {launchLabel}
+          </button>
+        </div>
       </div>
     </div>
   );

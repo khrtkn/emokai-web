@@ -12,14 +12,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     <button
       ref={ref}
       className={clsx(
-        "gradient-border-button transition",
-        disabled ? "cursor-not-allowed opacity-50" : "hover:opacity-90",
+        "inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       disabled={disabled}
       {...props}
     >
-      <span className="flex items-center gap-2 text-sm">
+      <span className="flex items-center gap-2">
         {leadingIcon}
         {children}
         {trailingIcon}
