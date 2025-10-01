@@ -92,15 +92,40 @@ export async function generateComposite(
 }
 
 export async function generateStory(description: string, locale: Locale): Promise<StoryResult> {
-  // TODO: call OpenAI API for narrative generation
-  await wait(800);
-  const base =
-    locale === "ja"
-      ? "これはプロトタイプの物語です。キャラクターは星屑から生まれ、心優しくも勇敢な性格を持っています。"
-      : "This is a prototype story. The character was born from stardust and carries a kind yet brave heart.";
-  return {
-    id: `${locale}-${Date.now()}`,
-    locale,
-    content: base
-  };
+  const useLiveApis = process.env.NEXT_PUBLIC_USE_APIS === "true";
+
+  if (!useLiveApis) {
+    await wait(800);
+    const base =
+      locale === "ja"
+        ? "これはプロトタイプの物語です。キャラクターは星屑から生まれ、心優しくも勇敢な性格を持っています。"
+        : "This is a prototype story. The character was born from stardust and carries a kind yet brave heart.";
+    return {
+      id: `${locale}-${Date.now()}`,
+      locale,
+      content: base
+    };
+  }
+
+  const response = await fetch("/api/openai/story", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ description, locale })
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to generate story: ${text}`);
+  }
+
+  const json = await response.json();
+  const story = json?.story as StoryResult | undefined;
+
+  if (!story || typeof story.id !== "string" || typeof story.content !== "string") {
+    throw new Error("OpenAI story response malformed");
+  }
+
+  return story;
 }
