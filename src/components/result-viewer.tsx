@@ -168,6 +168,10 @@ export function ResultViewer() {
     router.push(`/${locale}/gallery`);
   };
 
+  const handleCreateNew = () => {
+    router.push(`/${locale}/start`);
+  };
+
   return (
     <div className="flex flex-col">
       <Header
@@ -232,6 +236,9 @@ export function ResultViewer() {
           <div className="flex gap-3">
             <Button type="button" onClick={handleOpenGallery} className="w-full justify-center" showArrow>
               {t("openGallery")}
+            </Button>
+            <Button type="button" onClick={handleCreateNew} className="w-full justify-center" showArrow>
+              {t("createNew")}
             </Button>
           </div>
           {saveMessage ? <p className="text-xs text-textSecondary">{saveMessage}</p> : null}

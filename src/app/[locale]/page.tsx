@@ -1,4 +1,5 @@
 import Link from "next/link";
+import HomeGalleryShortcut from "@/components/HomeGalleryShortcut";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ export default function HomePage() {
         >
           Start in English
         </Link>
+        <HomeGalleryShortcut />
       </div>
     </main>
   );

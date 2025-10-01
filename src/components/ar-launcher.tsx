@@ -83,6 +83,14 @@ export function ARLauncher() {
     router.push(`/${locale}/ar/session?mode=${viewerMode}`);
   };
 
+  const handleBackToResult = () => {
+    router.push(`/${locale}/result`);
+  };
+
+  const handleOpenGallery = () => {
+    router.push(`/${locale}/gallery`);
+  };
+
   return (
     <div className="flex flex-col">
       <Header
@@ -138,6 +146,22 @@ export function ARLauncher() {
               >
                 {viewerMode === "ar" ? t("switchFallback") : t("switchAR")}
               </button>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={handleBackToResult}
+                  className="rounded-lg border border-divider px-4 py-2 text-xs text-textSecondary hover:border-accent"
+                >
+                  {t("backToResult")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenGallery}
+                  className="rounded-lg border border-divider px-4 py-2 text-xs text-textSecondary hover:border-accent"
+                >
+                  {t("openGallery")}
+                </button>
+              </div>
             </div>
           }
         />

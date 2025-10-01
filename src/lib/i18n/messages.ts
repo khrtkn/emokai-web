@@ -92,6 +92,8 @@ export const messages = {
       shareDescription: "以下のリンクをコピーまたはSNSで共有できます",
       shareSuccess: "共有用リンクを作成しました",
       openGallery: "ギャラリーを開く"
+      ,
+      createNew: "もう一度作成"
     },
     ar: {
       title: "AR Display",
@@ -128,6 +130,8 @@ export const messages = {
       launchAR: "ARを起動",
       openViewer: "3Dビューアを開く",
       missingResults: "結果データが見つかりませんでした",
+      backToResult: "結果画面に戻る",
+      openGallery: "ギャラリーを開く",
       session: {
         title: "ARセッション",
         fallbackTitle: "3Dビューア",
@@ -239,6 +243,8 @@ export const messages = {
       shareDescription: "Copy the link below or share to a social network",
       shareSuccess: "Share link ready",
       openGallery: "Open Gallery"
+      ,
+      createNew: "Create another"
     },
     ar: {
       title: "AR Display",
@@ -275,6 +281,8 @@ export const messages = {
       launchAR: "Launch AR",
       openViewer: "Open 3D viewer",
       missingResults: "Couldn't load generation results",
+      backToResult: "Back to Result",
+      openGallery: "Open Gallery",
       session: {
         title: "AR Session",
         fallbackTitle: "3D Viewer",
