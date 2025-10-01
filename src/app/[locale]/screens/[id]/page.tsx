@@ -1,5 +1,21 @@
 import { notFound } from 'next/navigation';
 import { Divider, Header, InstructionBanner, MessageBlock, RichInput, ImageOption, StoryCard, ProgressBar } from '@/components/ui';
+import Image from 'next/image';
+import Ref01 from '@/../docs/UI_Reference/01_ScreenMessage.png';
+import Ref02 from '@/../docs/UI_Reference/02_ScreenMessage.png';
+import Ref03 from '@/../docs/UI_Reference/03_ScreenMessage.png';
+import Ref04 from '@/../docs/UI_Reference/04_ScreenMessage.png';
+import Ref05 from '@/../docs/UI_Reference/05_ScreenMessage.png';
+import Ref06 from '@/../docs/UI_Reference/06_ScreenInput.png';
+import Ref07 from '@/../docs/UI_Reference/07_ScreenInput.png';
+import Ref08 from '@/../docs/UI_Reference/08_ScreenInput.png';
+import Ref09 from '@/../docs/UI_Reference/09_ScreenInput.png';
+import Ref10 from '@/../docs/UI_Reference/10_ScreenInput.png';
+import Ref11 from '@/../docs/UI_Reference/11_ScreenImageSelection.png';
+import Ref12 from '@/../docs/UI_Reference/12_ScreenImageSelection.png';
+import Ref13 from '@/../docs/UI_Reference/13_ScreenImageSelection.png';
+import Ref14 from '@/../docs/UI_Reference/14_ScreenEmokaiCard.png';
+import Ref15 from '@/../docs/UI_Reference/15_ScreenCamera.png';
 
 type Props = { params: { locale: string; id: string } };
 
@@ -18,11 +34,32 @@ export default function ScreenDemo({ params }: Props) {
   const num = parseInt(id, 10);
   if (Number.isNaN(num) || num < 1 || num > 15) notFound();
 
+  const refs: Record<number, any> = {
+    1: Ref01,
+    2: Ref02,
+    3: Ref03,
+    4: Ref04,
+    5: Ref05,
+    6: Ref06,
+    7: Ref07,
+    8: Ref08,
+    9: Ref09,
+    10: Ref10,
+    11: Ref11,
+    12: Ref12,
+    13: Ref13,
+    14: Ref14,
+    15: Ref15
+  };
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-canvas">
       <Header title={title} />
       <Divider />
       <div className="space-y-6 px-4 py-6 sm:px-6">
+        <div className="overflow-hidden rounded-2xl border border-divider">
+          <Image src={refs[num]} alt={`UI Reference ${id}`} placeholder="blur" />
+        </div>
         {num <= 5 && (
           <>
             <InstructionBanner tone={num === 3 ? 'error' : 'default'}>
@@ -110,4 +147,3 @@ export default function ScreenDemo({ params }: Props) {
     </main>
   );
 }
-

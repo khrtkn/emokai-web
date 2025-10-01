@@ -2,10 +2,25 @@ import Link from 'next/link';
 
 type Props = { params: { locale: string } };
 
-const list = Array.from({ length: 15 }).map((_, i) => {
-  const id = String(i + 1).padStart(2, '0');
-  return { id, label: `Screen ${id}` };
-});
+const labels: Record<string, string> = {
+  '01': '01_ScreenMessage',
+  '02': '02_ScreenMessage',
+  '03': '03_ScreenMessage',
+  '04': '04_ScreenMessage',
+  '05': '05_ScreenMessage',
+  '06': '06_ScreenInput',
+  '07': '07_ScreenInput',
+  '08': '08_ScreenInput',
+  '09': '09_ScreenInput',
+  '10': '10_ScreenInput',
+  '11': '11_ScreenImageSelection',
+  '12': '12_ScreenImageSelection',
+  '13': '13_ScreenImageSelection',
+  '14': '14_ScreenEmokaiCard',
+  '15': '15_ScreenCamera'
+};
+
+const list = Object.keys(labels).map((id) => ({ id, label: labels[id] }));
 
 export default function ScreensList({ params }: Props) {
   const { locale } = params;
@@ -19,7 +34,7 @@ export default function ScreensList({ params }: Props) {
               href={`/${locale}/screens/${it.id}`}
               className="flex items-center justify-between rounded-xl border border-divider px-4 py-3 text-textPrimary transition hover:border-accent"
             >
-              <span>{it.id}</span>
+              <span>{it.label}</span>
               <span className="text-xs text-textSecondary">/{locale}/screens/{it.id}</span>
             </Link>
           </li>
@@ -28,4 +43,3 @@ export default function ScreensList({ params }: Props) {
     </main>
   );
 }
-
