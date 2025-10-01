@@ -22,8 +22,8 @@ export function ImageOption({ id, image, label, selected, onSelect, disabled }: 
       type="button"
       onClick={handleClick}
       disabled={disabled}
-      className={`group relative flex w-full flex-col overflow-hidden rounded-2xl border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-        selected ? "border-accent" : "border-divider hover:border-accent"
+      className={`group relative flex w-full flex-col overflow-hidden rounded-xl border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+        selected ? "border-transparent ring-2 ring-accent" : "border-divider hover:border-accent"
       } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
     >
       <div className="aspect-square w-full overflow-hidden bg-[rgba(237,241,241,0.05)]">
