@@ -1,0 +1,241 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
+
+import { Divider, Header, InstructionBanner, MessageBlock, StoryCard, Button } from "@/components/ui";
+import ShareSheet from "@/components/share-sheet";
+import { GENERATION_RESULTS_KEY } from "@/lib/storage-keys";
+import { releaseGenerationLock } from "@/lib/session-lock";
+import { checkDailyLimit } from "@/lib/rate-limit";
+import { saveCreation } from "@/lib/persistence";
+import { trackEvent } from "@/lib/analytics";
+
+interface GenerationResults {
+  characterId: string;
+  description: string;
+  results: {
+    model: {
+      id: string;
+      url: string;
+      polygons: number;
+    };
+    composite: {
+      id: string;
+      url: string;
+    };
+    story: {
+      id: string;
+      locale: string;
+      content: string;
+    };
+  };
+  completedAt: number;
+}
+
+type Step = "story" | "composite" | "ar";
+
+const STEP_SEQUENCE: Step[] = ["story", "composite", "ar"];
+
+export function ResultViewer() {
+  const t = useTranslations("result");
+  const locale = useLocale();
+  const router = useRouter();
+
+  const [results, setResults] = useState<GenerationResults | null>(null);
+  const [step, setStep] = useState<Step>("story");
+  const [error, setError] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error" | "limit">("idle");
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [shareDetails, setShareDetails] = useState<{ url: string; expiresAt?: string } | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem(GENERATION_RESULTS_KEY);
+    if (!raw) {
+      setError(t("missing"));
+      return;
+    }
+    try {
+      const parsed: GenerationResults = JSON.parse(raw);
+      setResults(parsed);
+    } catch (err) {
+      console.error(err);
+      setError(t("parseError"));
+    }
+  }, [t]);
+
+  useEffect(() => {
+    return () => {
+      releaseGenerationLock();
+    };
+  }, []);
+
+  const storyContent = results?.results.story.content ?? "";
+  const compositeUrl = results?.results.composite.url ?? "";
+  const modelUrl = results?.results.model.url ?? "";
+
+  const actionLabel = useMemo(() => {
+    if (step === "ar") {
+      return t("goToAR");
+    }
+    return t("next");
+  }, [step, t]);
+
+  const actionDisabled = useMemo(() => {
+    if (!results) return true;
+    if (step === "story") {
+      return !storyContent;
+    }
+    if (step === "composite") {
+      return !compositeUrl;
+    }
+    if (step === "ar") {
+      return !modelUrl;
+    }
+    return false;
+  }, [step, results, storyContent, compositeUrl, modelUrl]);
+
+  const saveLabel = useMemo(() => {
+    if (saveStatus === "saving") return t("saving");
+    if (saveStatus === "saved") return t("saved");
+    if (saveStatus === "error") return t("saveError");
+    if (saveStatus === "limit") return t("limitReached", { hours: checkDailyLimit().resetInHours });
+    return t("saveButton");
+  }, [saveStatus, t]);
+
+  const handleAction = () => {
+    if (!results) return;
+    if (step === "story") {
+      setStep(compositeUrl ? "composite" : "ar");
+      return;
+    }
+    if (step === "composite") {
+      setStep("ar");
+      return;
+    }
+    if (step === "ar") {
+      trackEvent("ar_launch", { source: "result", locale });
+      router.push(`/${locale}/ar`);
+    }
+  };
+
+  const licenseFooter = t("licenseNotice");
+
+  const handleSave = () => {
+    if (shareDetails) {
+      setSaveStatus("saved");
+      setSaveMessage(t("saved"));
+      trackEvent("share_action", { action: "save_cached", locale });
+      return;
+    }
+
+    const limit = checkDailyLimit();
+    if (!limit.allowed) {
+      setSaveStatus("limit");
+      setSaveMessage(t("limitReached", { hours: limit.resetInHours }));
+      return;
+    }
+
+    setSaveStatus("saving");
+    const result = saveCreation();
+    if (result.success) {
+      const shareUrl = result.shareUrl ?? "";
+      setShareDetails({ url: shareUrl, expiresAt: result.expiresAt });
+      setSaveStatus("saved");
+      setSaveMessage(t("saved"));
+      trackEvent("share_action", { action: "save", locale });
+    } else {
+      setSaveStatus("error");
+      setSaveMessage(t("saveError"));
+    }
+  };
+
+  const handleShare = () => {
+    if (!shareDetails) {
+      handleSave();
+      if (!shareDetails) {
+        return;
+      }
+    }
+    setSaveMessage(t("shareSuccess"));
+    setShareOpen(true);
+    trackEvent("share_action", { action: "share_sheet", locale });
+  };
+
+  return (
+    <div className="flex flex-col">
+      <Header
+        title={t("title")}
+        action={{
+          type: "button",
+          label: actionLabel,
+          onClick: handleAction,
+          disabled: actionDisabled,
+          showArrow: true
+        }}
+      />
+      <Divider />
+      <div className="space-y-6 px-4 py-6 sm:px-6">
+        <InstructionBanner tone={error ? "error" : "default"}>
+          {error ?? t(`step.${step}`)}
+        </InstructionBanner>
+        {step === "story" && storyContent ? (
+          <StoryCard
+            numberLabel={`No. ${results?.characterId ?? "--"}`}
+            characterName={t("storyTitle")}
+            hostName={t("storyHost")}
+            story={<p>{storyContent}</p>}
+            footer={licenseFooter}
+          />
+        ) : null}
+        {step === "composite" && compositeUrl ? (
+          <div className="space-y-4">
+            <img
+              src={compositeUrl}
+              alt={t("compositeAlt")}
+              className="w-full rounded-3xl border border-divider object-cover"
+            />
+            <p className="text-xs text-textSecondary">{licenseFooter}</p>
+          </div>
+        ) : null}
+        {step === "ar" ? (
+          <MessageBlock
+            title={t("arTitle")}
+            body={
+              <div className="space-y-3 text-textSecondary">
+                <p>{t("arInstruction")}</p>
+                <ul className="list-disc space-y-1 pl-5">
+                  <li>{t("arTip1")}</li>
+                  <li>{t("arTip2")}</li>
+                  <li>{t("arTip3")}</li>
+                </ul>
+              </div>
+            }
+            footer={licenseFooter}
+          />
+        ) : null}
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-3">
+            <Button type="button" onClick={handleSave} className="flex-1 justify-center" showArrow={false}>
+              {saveLabel}
+            </Button>
+            <Button type="button" onClick={handleShare} className="flex-1 justify-center" showArrow={false}>
+              {t("shareButton")}
+            </Button>
+          </div>
+          {saveMessage ? <p className="text-xs text-textSecondary">{saveMessage}</p> : null}
+        </div>
+      </div>
+      <ShareSheet
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        shareUrl={shareDetails?.url ?? ""}
+        description={t("shareDescription")}
+      />
+    </div>
+  );
+}
+
+export default ResultViewer;
