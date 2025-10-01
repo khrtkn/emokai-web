@@ -24,15 +24,41 @@ function randomId() {
 }
 
 export async function createCharacterOptions(description: string): Promise<CharacterOption[]> {
-  return withRetry(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    return Array.from({ length: 4 }).map((_, index) => {
-      const id = `${randomId()}-${index + 1}`;
-      return {
-        id,
-        previewUrl: toSvgDataUri(`${index + 1}`),
-        prompt: description
-      };
+  const useLiveApis = process.env.NEXT_PUBLIC_USE_APIS === "true";
+
+  if (!useLiveApis) {
+    return withRetry(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      return Array.from({ length: 4 }).map((_, index) => {
+        const id = `${randomId()}-${index + 1}`;
+        return {
+          id,
+          previewUrl: toSvgDataUri(`${index + 1}`),
+          prompt: description
+        };
+      });
     });
+  }
+
+  const response = await fetch("/api/nanobanana/character", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ description })
   });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to generate character options: ${text}`);
+  }
+
+  const json = await response.json();
+  const options = json?.options as CharacterOption[] | undefined;
+
+  if (!options || !Array.isArray(options)) {
+    throw new Error("Nanobanana character response malformed");
+  }
+
+  return options.map((option) => ({ ...option, prompt: description }));
 }

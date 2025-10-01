@@ -33,12 +33,37 @@ export async function generateComposite(
   stageSelectionId: string | null,
   characterOptionId: string
 ): Promise<CompositeResult> {
-  // TODO: call Google NanobananaAPI for composite image
-  await wait(2000);
-  return {
-    id: `${stageSelectionId ?? "stage"}-${characterOptionId}`,
-    url: `/composites/${characterOptionId}.webp`
-  };
+  const useLiveApis = process.env.NEXT_PUBLIC_USE_APIS === "true";
+
+  if (!useLiveApis) {
+    await wait(2000);
+    return {
+      id: `${stageSelectionId ?? "stage"}-${characterOptionId}`,
+      url: `/composites/${characterOptionId}.webp`
+    };
+  }
+
+  const response = await fetch("/api/nanobanana/composite", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ stageId: stageSelectionId, characterId: characterOptionId })
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to generate composite: ${text}`);
+  }
+
+  const json = await response.json();
+  const composite = json?.composite as CompositeResult | undefined;
+
+  if (!composite || typeof composite.id !== "string" || typeof composite.url !== "string") {
+    throw new Error("Nanobanana composite response malformed");
+  }
+
+  return composite;
 }
 
 export async function generateStory(description: string, locale: Locale): Promise<StoryResult> {
