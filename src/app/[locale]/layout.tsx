@@ -2,8 +2,8 @@ import { notFound } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
 import { ReactNode } from "react";
 
-import { useLifecycleCleanup } from "@/hooks/use-lifecycle-cleanup";
 import { AnalyticsProvider } from "@/components/analytics-provider";
+import { LifecycleBoundary } from "@/components/LifecycleBoundary";
 import { getMessages, isLocale, locales } from "@/lib/i18n/messages";
 
 type LocaleLayoutProps = {
@@ -35,7 +35,4 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   );
 }
 
-function LifecycleBoundary({ children }: { children: ReactNode }) {
-  useLifecycleCleanup();
-  return <>{children}</>;
-}
+// Client boundary moved to a client component in src/components/LifecycleBoundary.tsx

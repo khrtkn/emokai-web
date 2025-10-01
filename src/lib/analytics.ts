@@ -3,17 +3,39 @@ const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? process.e
 declare global {
   interface Window {
     dataLayer: Record<string, unknown>[];
+    gtag?: (...args: unknown[]) => void;
+  }
+  interface Document {
+    dataLayer?: Record<string, unknown>[];
+  }
+}
+
+function pushToDataLayer(data: Record<string, unknown>) {
+  if (typeof window !== "undefined" && window.dataLayer) {
+    window.dataLayer.push(data);
+    return;
+  }
+  if (typeof document !== "undefined") {
+    const globalAny = document as Document & { dataLayer?: Record<string, unknown>[] };
+    globalAny.dataLayer = globalAny.dataLayer || [];
+    globalAny.dataLayer.push(data);
   }
 }
 
 export function initAnalytics() {
-  if (typeof window === "undefined") return;
-  if (!GA_MEASUREMENT_ID) return;
-  if (document.querySelector("script[data-analytics='ga4']")) return;
+  if (typeof window === "undefined") {
+    return;
+  }
+  if (!GA_MEASUREMENT_ID) {
+    return;
+  }
+  if (document.querySelector("script[data-analytics='ga4']")) {
+    return;
+  }
 
   window.dataLayer = window.dataLayer || [];
-  window.dataLayer.push({ js: new Date() });
-  window.dataLayer.push({ config: GA_MEASUREMENT_ID });
+  pushToDataLayer({ js: new Date() });
+  pushToDataLayer({ config: GA_MEASUREMENT_ID });
 
   const script = document.createElement("script");
   script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
@@ -37,14 +59,11 @@ export type AnalyticsEvent =
   | "ar_launch";
 
 export function trackEvent(event: AnalyticsEvent, params: Record<string, unknown> = {}) {
-  if (typeof window === "undefined") return;
-  if (!window.dataLayer) {
-    window.dataLayer = [];
+  if (typeof window === "undefined") {
+    return;
   }
+  window.dataLayer = window.dataLayer || [];
   window.dataLayer.push({ event, ...params });
-  if (process.env.NODE_ENV !== "production") {
-    console.info("[analytics]", event, params);
-  }
 }
 
 export function trackError(step: string, error: unknown) {
@@ -53,4 +72,3 @@ export function trackError(step: string, error: unknown) {
     message: error instanceof Error ? error.message : String(error)
   });
 }
-*** End Patch

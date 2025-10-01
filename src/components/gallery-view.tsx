@@ -77,7 +77,7 @@ export function GalleryView() {
       payload: creation
     }));
     setItems(mapped);
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;

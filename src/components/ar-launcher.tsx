@@ -32,7 +32,7 @@ export function ARLauncher() {
     setSupport(capability);
     setViewerMode(capability === "supported" ? "ar" : "fallback");
     trackEvent("ar_launch", { source: "launcher_mount", capability, locale });
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     if (support === "unsupported") {

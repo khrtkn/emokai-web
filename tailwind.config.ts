@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import plugin from "tailwindcss/plugin";
 
 const config: Config = {
   content: [
@@ -29,15 +30,13 @@ const config: Config = {
     }
   },
   plugins: [
-    function ({ addUtilities }) {
-      addUtilities(
-        {
-          ".animate-marquee": {
-            animation: "marquee 15s linear infinite"
-          }
+    plugin(({ addUtilities }) => {
+      addUtilities({
+        ".animate-marquee": {
+          animation: "marquee 15s linear infinite"
         }
-      );
-    }
+      });
+    })
   ]
 };
 
