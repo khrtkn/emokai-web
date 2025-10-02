@@ -3,6 +3,7 @@ import { incrementDailyLimit } from "@/lib/rate-limit";
 import { scheduleRetention } from "@/lib/lifecycle";
 import { GENERATION_RESULTS_KEY, STAGE_SELECTION_KEY, CHARACTER_SELECTION_KEY } from "@/lib/storage-keys";
 import { getCachedImage } from "@/lib/image-cache";
+import type { CompositeResult } from "@/lib/generation-jobs";
 
 export type CreationPayload = {
   stageSelection: unknown;
@@ -61,7 +62,23 @@ export function saveCreation(): SaveResult {
 
   const stageData = JSON.parse(stageSelection);
   const characterData = JSON.parse(characterSelection);
-  const resultsData = JSON.parse(results);
+  const resultsData = JSON.parse(results) as {
+    results?: {
+      composite?: CompositeResult;
+      [key: string]: unknown;
+    };
+    [key: string]: unknown;
+  };
+
+  const compositeResult = resultsData?.results?.composite;
+  if (compositeResult && compositeResult.cacheKey) {
+    const cachedComposite = getCachedImage(compositeResult.cacheKey);
+    if (cachedComposite) {
+      compositeResult.imageBase64 = cachedComposite.base64;
+      compositeResult.mimeType = cachedComposite.mimeType;
+      compositeResult.url = `data:${cachedComposite.mimeType};base64,${cachedComposite.base64}`;
+    }
+  }
 
   const stageCacheKey = stageData?.selectedOption?.cacheKey as string | undefined;
   const characterCacheKey = characterData?.selectedOption?.cacheKey as string | undefined;

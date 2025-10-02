@@ -15,8 +15,9 @@ export type ModelResult = {
 export type CompositeResult = {
   id: string;
   url: string;
-  imageBase64: string;
   mimeType: string;
+  imageBase64?: string;
+  cacheKey?: string;
 };
 
 export type StoryResult = {

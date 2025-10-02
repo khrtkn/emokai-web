@@ -39,7 +39,8 @@ import {
 } from '@/lib/session-lock';
 import type { Locale } from '@/lib/i18n/messages';
 import { saveCreation, listCreations, type CreationPayload } from '@/lib/persistence';
-import { getCachedImage } from '@/lib/image-cache';
+import { cacheImage, getCachedImage } from '@/lib/image-cache';
+import { isLiveApisEnabled } from '@/lib/env/client';
 
 const MIN_TEXT_LENGTH = 10;
 const TOTAL_STEPS = 15;
@@ -189,20 +190,25 @@ function readGenerationPayload(): StoredGenerationPayload | null {
     }
 
     const results = { ...(parsed.results ?? {}) } as GenerationResults;
-    const compositeOriginal = results.composite as
-      | (CompositeResult & { mimeType?: string })
-      | undefined;
+    const compositeOriginal = results.composite as CompositeResult | undefined;
     const composite = compositeOriginal ? { ...compositeOriginal } : undefined;
 
-    if (composite?.imageBase64 && (!composite.url || !composite.url.startsWith('data:'))) {
-      const mime = composite.mimeType || 'image/png';
-      composite.url = `data:${mime};base64,${composite.imageBase64}`;
-    } else if (
-      composite?.url &&
-      !/^https?:/i.test(composite.url) &&
-      !composite.url.startsWith('data:')
-    ) {
-      composite.url = '';
+    if (composite) {
+      const cached = composite.cacheKey ? getCachedImage(composite.cacheKey) : null;
+
+      if (cached) {
+        composite.url =
+          cached.objectUrl ?? `data:${cached.mimeType};base64,${cached.base64}`;
+      } else if (composite.imageBase64 && (!composite.url || !composite.url.startsWith('data:'))) {
+        const mime = composite.mimeType || 'image/png';
+        composite.url = `data:${mime};base64,${composite.imageBase64}`;
+      } else if (
+        composite.url &&
+        !/^https?:/i.test(composite.url) &&
+        !composite.url.startsWith('data:')
+      ) {
+        composite.url = '';
+      }
     }
 
     const normalized: StoredGenerationPayload = {
@@ -277,6 +283,7 @@ export default function EmokaiStepPage({ params }: Props) {
   const localeKey: Locale = locale === 'ja' ? 'ja' : 'en';
   const isJa = localeKey === 'ja';
   const router = useRouter();
+  const liveApisEnabled = isLiveApisEnabled();
 
   const rawStep = Number(id);
   const step = useMemo(() => {
@@ -401,7 +408,7 @@ export default function EmokaiStepPage({ params }: Props) {
   const registerLabel = isJa ? '保存' : 'Save';
   const summonLabel = isJa ? '呼び出す' : 'Summon';
   const createAnotherLabel = isJa ? '新しくつくる' : 'Create new';
-  const generatingLabel = isJa ? 'ととのえています…' : 'Preparing...';
+  const generatingLabel = isJa ? '交信しています...' : 'Imagining...';
 
   const stepLabelText = useMemo(() => {
     if (step >= 2 && step <= 9) {
@@ -815,12 +822,55 @@ export default function EmokaiStepPage({ params }: Props) {
     const mergeResults = (partial: Partial<GenerationResults>) => {
       setGenerationResults((prev) => {
         const base = prev ?? initialPayload;
+        const nextResults: GenerationResults = { ...base.results };
+
+        if (partial.model) {
+          nextResults.model = partial.model;
+        }
+
+        if (partial.story) {
+          nextResults.story = partial.story;
+        }
+
+        if (partial.composite) {
+          const incoming = partial.composite;
+          const cacheKey = incoming.cacheKey ?? `composite-${characterSelection.id}`;
+
+          let derivedUrl = incoming.url;
+
+          if (incoming.imageBase64) {
+            try {
+              derivedUrl = cacheImage(cacheKey, incoming.imageBase64, incoming.mimeType);
+            } catch (error) {
+              console.warn('Failed to cache composite image', error);
+            }
+          } else {
+            const cached = getCachedImage(cacheKey);
+            if (cached) {
+              derivedUrl = cached.objectUrl ?? `data:${cached.mimeType};base64,${cached.base64}`;
+            }
+          }
+
+          const normalizedComposite: CompositeResult = {
+            ...incoming,
+            cacheKey,
+            url: derivedUrl ?? incoming.url,
+          };
+
+          if (incoming.imageBase64 && liveApisEnabled) {
+            normalizedComposite.imageBase64 = undefined;
+          }
+
+          nextResults.composite = normalizedComposite;
+        }
+
         const nextPayload: StoredGenerationPayload = {
           characterId: base.characterId || characterSelection.id,
           description: characterPrompt,
-          results: { ...base.results, ...partial },
+          results: nextResults,
           completedAt: base.completedAt,
         };
+
         persistGenerationPayload(nextPayload);
         return nextPayload;
       });
@@ -832,9 +882,7 @@ export default function EmokaiStepPage({ params }: Props) {
     const compositeErrorMessage = isJa
       ? '合成画像の生成に失敗しました。'
       : 'Failed to generate the composite image.';
-    const storyErrorMessage = isJa
-      ? '物語の生成に失敗しました。'
-      : 'Failed to generate the story.';
+    const storyErrorMessage = isJa ? '物語の生成に失敗しました。' : 'Failed to generate the story.';
 
     const modelPromise = generateModel({
       characterId: characterSelection.id,
@@ -900,8 +948,10 @@ export default function EmokaiStepPage({ params }: Props) {
       }
     } catch (error) {
       console.error(error);
-      setGenerationError((prev) =>
-        prev ?? (isJa ? 'うまくいきませんでした。もう一度ためしてください。' : 'Something went wrong.'),
+      setGenerationError(
+        (prev) =>
+          prev ??
+          (isJa ? 'うまくいきませんでした。もう一度ためしてください。' : 'Something went wrong.'),
       );
       trackError('jobs_step11', error);
     } finally {
@@ -933,10 +983,9 @@ export default function EmokaiStepPage({ params }: Props) {
   );
 
   const compositeReady =
-    generationState.composite === 'complete' && !!generationResults?.results.composite;
-  const storyReady = generationState.story === 'complete' && !!generationResults?.results.story;
-  const modelReady = generationState.model === 'complete' && !!generationResults?.results.model;
-  const anyReady = compositeReady || storyReady || modelReady;
+    generationState.composite === 'complete' && !!generationResults?.results?.composite;
+  const storyReady = generationState.story === 'complete' && !!generationResults?.results?.story;
+  const modelReady = generationState.model === 'complete' && !!generationResults?.results?.model;
 
   const handleRegister = () => {
     setSaveStatus('saving');
@@ -1016,7 +1065,7 @@ export default function EmokaiStepPage({ params }: Props) {
       </div>
       {stageStatus === 'generating' && (
         <MessageBlock
-          title={isJa ? '景色をととのえています' : 'Preparing scenery'}
+          title={isJa ? '景色を映し出しています' : 'Preparing scenery'}
           body={<p>{isJa ? 'もう少しだけお待ちください。' : 'One moment.'}</p>}
         />
       )}
@@ -1104,7 +1153,7 @@ export default function EmokaiStepPage({ params }: Props) {
       )}
       {characterStatus === 'generating' && (
         <MessageBlock
-          title={isJa ? 'エモカイをととのえています' : 'Preparing Emokai'}
+          title={isJa ? 'エモカイを呼び出しています' : 'Preparing Emokai'}
           body={<p>{isJa ? 'もう少しだけお待ちください。' : 'One moment.'}</p>}
         />
       )}
@@ -1143,17 +1192,17 @@ export default function EmokaiStepPage({ params }: Props) {
   const renderGenerationStep = () => (
     <section className="space-y-4">
       <h2 className="text-base font-semibold text-textPrimary">
-        {isJa ? 'エモカイをととのえています…' : 'Preparing your Emokai...'}
+        {isJa ? 'エモカイを呼び出しています…' : 'Preparing your Emokai...'}
       </h2>
       <p className="text-sm text-textSecondary">
         {isJa
-          ? 'あなたの気持ちを手がかりに、すがたと物語をととのえています。'
-      : 'Shaping the figure and story from your feelings.'}
+          ? 'あなたの気持ちを手がかりに、エモカイと物語を呼び出しています。'
+          : 'Shaping the figure and story from your feelings.'}
       </p>
       <ProgressBar stages={progressStages} />
       {generationError ? (
         <p className="text-xs text-[#ffb9b9]">{generationError}</p>
-      ) : anyReady ? (
+      ) : storyReady || compositeReady || modelReady ? (
         <p className="text-xs text-textSecondary opacity-70">
           {isJa ? 'できあがった順番に進めます。' : 'Jump ahead as each piece finishes.'}
         </p>
@@ -1162,43 +1211,63 @@ export default function EmokaiStepPage({ params }: Props) {
           {isJa ? 'もう少しだけお待ちください。' : 'Almost there—hold tight.'}
         </p>
       )}
-      <div className="space-y-2 pt-2">
-        <button
-          type="button"
-          className={`${primaryButtonClass} ${compositeReady ? '' : 'opacity-50 pointer-events-none'}`}
-          disabled={!compositeReady}
-          onClick={() => router.push(`/${locale}/emokai/step/12`)}
-        >
-          {isJa ? '合成をみる' : 'View composite'}
-        </button>
-        <button
-          type="button"
-          className={`${secondaryButtonClass} ${storyReady ? '' : 'opacity-50 pointer-events-none'}`}
-          disabled={!storyReady}
-          onClick={() => router.push(`/${locale}/emokai/step/13`)}
-        >
-          {isJa ? '物語を読む' : 'Read story'}
-        </button>
-        <button
-          type="button"
-          className={`${secondaryButtonClass} ${modelReady ? '' : 'opacity-50 pointer-events-none'}`}
-          disabled={!modelReady}
-          onClick={() => router.push(`/${locale}/emokai/step/14`)}
-        >
-          {isJa ? 'ARで呼び出す' : 'Summon in AR'}
-        </button>
-      </div>
+      {(() => {
+        const nextAction = (() => {
+          if (storyReady) {
+            return {
+              label: isJa ? '物語を読む' : 'Read story',
+              step: 13,
+              ready: true,
+            } as const;
+          }
+          if (compositeReady) {
+            return {
+              label: isJa ? '合成写真を見る' : 'View composite',
+              step: 12,
+              ready: true,
+            } as const;
+          }
+          if (modelReady) {
+            return {
+              label: isJa ? 'ARで呼び出す' : 'Summon in AR',
+              step: 14,
+              ready: true,
+            } as const;
+          }
+          return {
+            label: isJa ? '準備中…' : 'Preparing…',
+            step: 12,
+            ready: false,
+          } as const;
+        })();
+
+        if (!nextAction.ready) {
+          return null;
+        }
+
+        return (
+          <div className="pt-2">
+            <button
+              type="button"
+              className={primaryButtonClass}
+              onClick={() => router.push(`/${locale}/emokai/step/${nextAction.step}`)}
+            >
+              {nextAction.label}
+            </button>
+          </div>
+        );
+      })()}
     </section>
   );
 
   const renderDiscoveryStep = () => (
     <section className="space-y-4">
       <h2 className="text-base font-semibold text-textPrimary">
-        {isJa ? '見つかりました' : 'Found!'}
+        {isJa ? '新しいエモカイを検知しました！' : 'Found!'}
       </h2>
       <p className="text-sm text-textSecondary">
         {isJa
-          ? 'あなたのエモカイが姿を見せました。記録をまとめています。'
+          ? 'あなたのエモカイが姿を見せました。'
           : 'Your Emokai has appeared. Getting the record ready.'}
       </p>
       <div className="aspect-square w-full overflow-hidden rounded-2xl border border-divider bg-[rgba(237,241,241,0.08)]">

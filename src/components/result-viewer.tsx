@@ -11,31 +11,33 @@ import { releaseGenerationLock } from "@/lib/session-lock";
 import { checkDailyLimit } from "@/lib/rate-limit";
 import { saveCreation } from "@/lib/persistence";
 import { trackEvent } from "@/lib/analytics";
+import { getCachedImage } from "@/lib/image-cache";
 
 interface GenerationResults {
   characterId: string;
   description: string;
   results: {
-    model: {
+    model?: {
       id: string;
       url: string;
       polygons: number | null;
       previewUrl: string | null;
       meta: Record<string, unknown> | null;
     };
-    composite: {
+    composite?: {
       id: string;
       url: string;
-      imageBase64: string;
       mimeType: string;
+      imageBase64?: string;
+      cacheKey?: string;
     };
-    story: {
+    story?: {
       id: string;
       locale: string;
       content: string;
     };
   };
-  completedAt: number;
+  completedAt: number | null;
 }
 
 type Step = "story" | "composite" | "ar";
@@ -62,13 +64,22 @@ export function ResultViewer() {
       return;
     }
     try {
-      const parsed: GenerationResults = JSON.parse(raw);
+      const parsed = JSON.parse(raw) as GenerationResults;
       const composite = parsed?.results?.composite;
-      if (composite?.imageBase64 && (!composite.url || !composite.url.startsWith("data:"))) {
-        composite.url = `data:${composite.mimeType};base64,${composite.imageBase64}`;
-      }
-      if (composite && !composite.imageBase64 && composite.url && !/^https?:/i.test(composite.url) && !composite.url.startsWith("data:")) {
-        composite.url = "";
+      if (composite) {
+        const cached = composite.cacheKey ? getCachedImage(composite.cacheKey) : null;
+        if (cached) {
+          composite.url =
+            cached.objectUrl ?? `data:${cached.mimeType};base64,${cached.base64}`;
+        } else if (composite.imageBase64 && (!composite.url || !composite.url.startsWith("data:"))) {
+          composite.url = `data:${composite.mimeType};base64,${composite.imageBase64}`;
+        } else if (
+          composite.url &&
+          !/^https?:/i.test(composite.url) &&
+          !composite.url.startsWith("data:")
+        ) {
+          composite.url = "";
+        }
       }
       setResults(parsed);
     } catch (err) {
@@ -83,9 +94,9 @@ export function ResultViewer() {
     };
   }, []);
 
-  const storyContent = results?.results.story.content ?? "";
-  const compositeUrl = results?.results.composite.url ?? "";
-  const modelUrl = results?.results.model.url ?? "";
+  const storyContent = results?.results?.story?.content ?? "";
+  const compositeUrl = results?.results?.composite?.url ?? "";
+  const modelUrl = results?.results?.model?.url ?? "";
 
   const actionLabel = useMemo(() => {
     if (step === "ar") {
@@ -119,11 +130,17 @@ export function ResultViewer() {
   const handleAction = () => {
     if (!results) return;
     if (step === "story") {
-      setStep(compositeUrl ? "composite" : "ar");
+      if (compositeUrl) {
+        setStep("composite");
+      } else if (modelUrl) {
+        setStep("ar");
+      }
       return;
     }
     if (step === "composite") {
-      setStep("ar");
+      if (modelUrl) {
+        setStep("ar");
+      }
       return;
     }
     if (step === "ar") {
