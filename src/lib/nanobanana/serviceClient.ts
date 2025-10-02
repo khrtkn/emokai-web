@@ -80,8 +80,14 @@ export class NanobananaClient {
   }
 
   async generateStage(request: StageRequest): Promise<GeminiImage[]> {
-    // Use explicit image generation request as per documentation
-    const prompt = `Generate an image of: ${request.prompt}`;
+    // 場所の思い出から背景画像を生成するプロンプト
+    const prompt = `ユーザーの思い出や経験から独特で魅力的な場所の背景を創造してください：
+場所の情景: ${request.prompt}
+Convert the location story to an image generation prompt.
+- Photorealistic background/stage
+- No people or characters
+- Natural lighting
+- Wide shot landscape/environment`;
 
     const parts: GeminiPart[] = [{ text: prompt }];
 
@@ -95,7 +101,12 @@ export class NanobananaClient {
       });
       // Update the text prompt to reference the image
       parts[1] = {
-        text: `Based on the style of this image, generate a new background/stage image: ${request.prompt}`,
+        text: `この画像のスタイルを参考に、新しい背景画像を生成してください：
+場所の情景: ${request.prompt}
+Convert to an image generation prompt.
+- Similar style to reference image
+- Photorealistic background/stage
+- No people or characters`,
       };
     }
 
@@ -103,8 +114,14 @@ export class NanobananaClient {
   }
 
   async generateCharacter(request: CharacterRequest): Promise<GeminiImage[]> {
-    // Use explicit image generation request
-    const prompt = `Generate an image of: ${request.prompt}`;
+    // キャラクター生成用のプロンプト（妖怪スタイル）
+    const prompt = `ユーザーの思い出や経験から独特で魅力的なキャラクターを創造してください：
+思い出や経験：${request.prompt}
+Convert the character story to an image generation prompt.
+- 3d model render
+- No background (pure white)
+- Soft studio lighting
+- Full body visible`;
 
     const parts: GeminiPart[] = [{ text: prompt }];
 
@@ -116,7 +133,13 @@ export class NanobananaClient {
         },
       });
       parts[1] = {
-        text: `Based on the style of this image, generate a new character image: ${request.prompt}`,
+        text: `この画像のスタイルを参考に、新しいキャラクター画像を生成してください：
+思い出や経験：${request.prompt}
+Convert to an image generation prompt.
+- Similar style to reference image
+- 3d model render
+- No background (pure white)
+- Full body visible`,
       };
     }
 
@@ -172,19 +195,32 @@ export class NanobananaClient {
         lastError = error as Error;
         console.warn(`Attempt ${attempt + 1} failed:`, error);
 
-        // If we're getting text instead of images, try more explicit prompting
-        if (lastError.message.includes('text instead of an image')) {
+        // If we're getting text instead of images or no images, try more explicit prompting
+        if (
+          lastError.message.includes('text instead of an image') ||
+          lastError.message.includes('no inline image data')
+        ) {
           // Modify the prompt to be more explicit
           const textPartIndex = parts.findIndex((p) => 'text' in p);
           if (textPartIndex !== -1) {
             const textPart = parts[textPartIndex] as GeminiTextPart;
-            parts[textPartIndex] = {
-              text: `Generate an image. Create a visual image. ${textPart.text}. Output an image.`,
-            };
+
+            // Progressively make the prompt more explicit
+            if (attempt === 0) {
+              // First retry: Add explicit "generate image" instruction
+              parts[textPartIndex] = {
+                text: `Generate an image. ${textPart.text} Create and output a visual image.`,
+              };
+            } else if (attempt === 1) {
+              // Second retry: Use very direct language
+              parts[textPartIndex] = {
+                text: `CREATE AN IMAGE NOW. Generate a photorealistic image. ${textPart.text.replace(/Generate an image\.|Create and output a visual image\./g, '')} OUTPUT AN IMAGE.`,
+              };
+            }
           }
         }
 
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
@@ -210,11 +246,11 @@ export class NanobananaClient {
       ],
       generationConfig: {
         // Based on official documentation
-        responseModalities: ['TEXT', 'IMAGE'],
+        responseModalities: ['IMAGE', 'TEXT'], // IMAGE first to prioritize image generation
         candidateCount: 1,
-        temperature: 1.0,
-        topK: 40,
-        topP: 0.95,
+        temperature: 0.8, // Slightly lower for more consistent results
+        topK: 32, // Slightly lower for more focused generation
+        topP: 0.9, // Slightly lower for more focused generation
       },
     };
 
