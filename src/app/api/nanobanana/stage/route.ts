@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    return NextResponse.json({ error: "Failed to generate stage options" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Failed to generate stage options";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
