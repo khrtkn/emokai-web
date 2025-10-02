@@ -23,10 +23,10 @@ describe('stage-generation', () => {
     const options = await promise;
     expect(options).toHaveLength(4);
     for (const opt of options) {
-      expect(opt.previewUrl).toBe('blob:preview');
+      expect(opt.previewUrl.startsWith('blob:') || opt.previewUrl.startsWith('data:')).toBe(true);
       expect(opt.prompt).toBe('a rooftop garden');
       expect(typeof opt.id).toBe('string');
-      expect(opt.imageBase64.length).toBeGreaterThan(0);
+      expect(opt.cacheKey).toMatch(/^stage-/);
       expect(opt.mimeType).toBe('image/webp');
     }
   });

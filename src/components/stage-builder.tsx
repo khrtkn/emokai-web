@@ -19,6 +19,7 @@ import { ProcessedImage, processStageReference } from "@/lib/image";
 import { createStageOptions } from "@/lib/stage-generation";
 import { STAGE_SELECTION_KEY } from "@/lib/storage-keys";
 import type { StageOption } from "@/lib/stage-generation";
+import { getCachedImage } from "@/lib/image-cache";
 
 const MAX_DESCRIPTION = 300;
 type GenerationStatus = "idle" | "moderating" | "ready" | "uploading" | "generating" | "error";
@@ -46,13 +47,22 @@ export function StageBuilder() {
     const selectedOption = options.find((option) => option.id === selectedId);
     if (!selectedOption) return;
 
+    const cacheKey = selectedOption.cacheKey ?? `stage-selected-${selectedOption.id}`;
+    const cacheEntry = getCachedImage(cacheKey);
+    if (!cacheEntry) return;
+
+    const previewUrl =
+      selectedOption.previewUrl ||
+      cacheEntry.objectUrl ||
+      `data:${cacheEntry.mimeType};base64,${cacheEntry.base64}`;
+
     const payload = {
       selectedId,
       selectedOption: {
         id: selectedOption.id,
-        imageBase64: selectedOption.imageBase64,
-        mimeType: selectedOption.mimeType,
-        previewUrl: selectedOption.previewUrl,
+        cacheKey,
+        mimeType: cacheEntry.mimeType,
+        previewUrl,
         prompt: selectedOption.prompt
       },
       timestamp: Date.now()

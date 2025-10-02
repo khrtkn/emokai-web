@@ -1,13 +1,14 @@
 import { ProcessedImage } from "@/lib/image";
 import { withRetry } from "@/lib/errors";
 import { isLiveApisEnabled } from "@/lib/env/client";
+import { cacheImage } from "@/lib/image-cache";
 
 export type StageOption = {
   id: string;
   previewUrl: string;
   prompt: string;
-  imageBase64: string;
   mimeType: string;
+  cacheKey: string;
 };
 
 function randomId() {
@@ -73,22 +74,28 @@ export async function createStageOptions(
 
       return Array.from({ length: 4 }).map((_, index) => {
         if (processedImage) {
+          const id = `${randomId()}-${index + 1}`;
+          const cacheKey = `stage-${id}`;
+          const previewUrl = cacheImage(cacheKey, base64!, mimeType) ?? processedImage.webpUrl;
           return {
-            id: `${randomId()}-${index + 1}`,
-            previewUrl: processedImage.webpUrl,
+            id,
+            cacheKey,
+            previewUrl,
             prompt: description,
-            imageBase64: base64!,
             mimeType
-          } as StageOption;
+          } satisfies StageOption;
         }
         const placeholder = createPlaceholderSvg(description, index);
+        const id = `${randomId()}-${index + 1}`;
+        const cacheKey = `stage-${id}`;
+        const previewUrl = cacheImage(cacheKey, placeholder.base64, "image/svg+xml");
         return {
-          id: `${randomId()}-${index + 1}`,
-          previewUrl: placeholder.dataUri,
+          id,
+          cacheKey,
+          previewUrl,
           prompt: description,
-          imageBase64: placeholder.base64,
           mimeType: "image/svg+xml"
-        } as StageOption;
+        } satisfies StageOption;
       });
     });
   }
@@ -122,10 +129,16 @@ export async function createStageOptions(
       throw new Error("Nanobanana stage response missing image data");
     }
 
+    const cacheKey = `stage-${option.id}`;
+    const previewUrl = cacheImage(cacheKey, option.imageBase64, option.mimeType);
+
     return {
-      ...option,
-      prompt: description
-    };
+      id: option.id,
+      cacheKey,
+      previewUrl,
+      prompt: description,
+      mimeType: option.mimeType
+    } satisfies StageOption;
   });
 }
 

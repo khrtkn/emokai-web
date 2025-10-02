@@ -39,6 +39,8 @@ import {
 } from "@/lib/session-lock";
 import type { Locale } from "@/lib/i18n/messages";
 import { saveCreation, listCreations, type CreationPayload } from "@/lib/persistence";
+import { getCachedImage } from "@/lib/image-cache";
+import { getCachedImage } from "@/lib/image-cache";
 
 const MIN_TEXT_LENGTH = 10;
 const TOTAL_STEPS = 15;
@@ -699,13 +701,31 @@ export default function EmokaiStepPage({ params }: Props) {
     setGenerationState({ model: "active", composite: "active", story: "active" });
     trackEvent("generation_start", { step: "jobs_step11", locale });
 
+    const stageCacheEntry = getCachedImage(stageSelection.cacheKey);
+    if (!stageCacheEntry) {
+      setGenerationError(isJa ? "背景データが保存されていません" : "Background data missing.");
+      releaseGenerationLock();
+      setGenerationLockActive(false);
+      setGenerationRunning(false);
+      return;
+    }
+
+    const characterCacheEntry = getCachedImage(characterSelection.cacheKey);
+    if (!characterCacheEntry) {
+      setGenerationError(isJa ? "キャラクターデータが保存されていません" : "Character data missing.");
+      releaseGenerationLock();
+      setGenerationLockActive(false);
+      setGenerationRunning(false);
+      return;
+    }
+
     const stageInput = {
-      imageBase64: stageSelection.imageBase64,
-      mimeType: stageSelection.mimeType
+      imageBase64: stageCacheEntry.base64,
+      mimeType: stageCacheEntry.mimeType
     };
     const characterInput = {
-      imageBase64: characterSelection.imageBase64,
-      mimeType: characterSelection.mimeType
+      imageBase64: characterCacheEntry.base64,
+      mimeType: characterCacheEntry.mimeType
     };
 
     const modelPromise = generateModel({

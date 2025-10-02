@@ -19,9 +19,9 @@ describe('character-generation', () => {
     expect(options).toHaveLength(4);
     for (const opt of options) {
       expect(opt.prompt).toBe('a brave traveler');
-      expect(opt.previewUrl.startsWith('data:image/svg+xml;base64,')).toBe(true);
+      expect(opt.previewUrl.startsWith('blob:') || opt.previewUrl.startsWith('data:')).toBe(true);
       expect(typeof opt.id).toBe('string');
-      expect(opt.imageBase64.length).toBeGreaterThan(0);
+      expect(opt.cacheKey).toMatch(/^character-/);
       expect(opt.mimeType).toBe('image/svg+xml');
     }
   });

@@ -34,6 +34,7 @@ import {
 import type { ProgressStage } from "@/components/ui";
 import { trackEvent, trackError } from "@/lib/analytics";
 import { isLiveApisEnabled } from "@/lib/env/client";
+import { getCachedImage } from "@/lib/image-cache";
 
 const MAX_DESCRIPTION = 300;
 
@@ -95,15 +96,25 @@ export function CharacterBuilder() {
     if (!selectedId) return;
     const selectedOption = options.find((option) => option.id === selectedId);
     if (!selectedOption) return;
+    const option = selectedOption;
+    const cacheKey = option.cacheKey ?? `character-selected-${option.id}`;
+    const cacheEntry = getCachedImage(cacheKey);
+    if (!cacheEntry) return;
+
+    const previewUrl =
+      option.previewUrl ||
+      cacheEntry.objectUrl ||
+      `data:${cacheEntry.mimeType};base64,${cacheEntry.base64}`;
+
     const payload = {
       selectedId,
       description,
       selectedOption: {
-        id: selectedOption.id,
-        imageBase64: selectedOption.imageBase64,
-        mimeType: selectedOption.mimeType,
-        previewUrl: selectedOption.previewUrl,
-        prompt: selectedOption.prompt
+        id: option.id,
+        cacheKey,
+        mimeType: cacheEntry.mimeType,
+        previewUrl,
+        prompt: option.prompt
       },
       timestamp: Date.now()
     };
@@ -210,11 +221,15 @@ export function CharacterBuilder() {
     if (stageSelection) {
       try {
         const parsed = JSON.parse(stageSelection);
-        if (parsed?.selectedOption?.imageBase64 && parsed?.selectedOption?.mimeType) {
-          stageForComposite = {
-            imageBase64: parsed.selectedOption.imageBase64,
-            mimeType: parsed.selectedOption.mimeType
-          };
+        const cacheKey = parsed?.selectedOption?.cacheKey as string | undefined;
+        if (cacheKey) {
+          const cacheEntry = getCachedImage(cacheKey);
+          if (cacheEntry) {
+            stageForComposite = {
+              imageBase64: cacheEntry.base64,
+              mimeType: cacheEntry.mimeType
+            };
+          }
         }
       } catch (error) {
         console.warn("Failed to parse stage selection", error);
@@ -227,6 +242,16 @@ export function CharacterBuilder() {
       releaseGenerationLock();
       setLockActive(false);
       trackError("character_option_missing", new Error("character option missing"));
+      return;
+    }
+
+    const characterCacheKey = characterOption.cacheKey ?? `character-selected-${characterOption.id}`;
+    const characterCacheEntry = getCachedImage(characterCacheKey);
+    if (!characterCacheEntry) {
+      setGenerationError(t("generationError"));
+      releaseGenerationLock();
+      setLockActive(false);
+      trackError("character_cache_missing", new Error("character cache missing"));
       return;
     }
 
@@ -246,8 +271,8 @@ export function CharacterBuilder() {
       characterId: selectedId,
       description,
       characterImage: {
-        imageBase64: characterOption.imageBase64,
-        mimeType: characterOption.mimeType
+        imageBase64: characterCacheEntry.base64,
+        mimeType: characterCacheEntry.mimeType
       }
     })
       .then((model) => {
@@ -261,8 +286,8 @@ export function CharacterBuilder() {
       });
 
     const compositePromise = generateComposite(stageForComposite, {
-      imageBase64: characterOption.imageBase64,
-      mimeType: characterOption.mimeType
+      imageBase64: characterCacheEntry.base64,
+      mimeType: characterCacheEntry.mimeType
     })
       .then((composite) => {
         setGenerationState((prev) => ({ ...prev, composite: "complete" }));
@@ -295,6 +320,7 @@ export function CharacterBuilder() {
       setLockActive(false);
       trackError("jobs", error);
     }
+
   };
 
   const handleNext = () => {

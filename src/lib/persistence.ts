@@ -2,6 +2,7 @@ import { createShareUrl } from "@/lib/share";
 import { incrementDailyLimit } from "@/lib/rate-limit";
 import { scheduleRetention } from "@/lib/lifecycle";
 import { GENERATION_RESULTS_KEY, STAGE_SELECTION_KEY, CHARACTER_SELECTION_KEY } from "@/lib/storage-keys";
+import { getCachedImage } from "@/lib/image-cache";
 
 export type CreationPayload = {
   stageSelection: unknown;
@@ -58,10 +59,44 @@ export function saveCreation(): SaveResult {
     return { success: false, error: "Missing data" };
   }
 
+  const stageData = JSON.parse(stageSelection);
+  const characterData = JSON.parse(characterSelection);
+  const resultsData = JSON.parse(results);
+
+  const stageCacheKey = stageData?.selectedOption?.cacheKey as string | undefined;
+  const characterCacheKey = characterData?.selectedOption?.cacheKey as string | undefined;
+
+  const stageCache = stageCacheKey ? getCachedImage(stageCacheKey) : null;
+  const characterCache = characterCacheKey ? getCachedImage(characterCacheKey) : null;
+
+  const stageSelectionNormalized = {
+    ...stageData,
+    selectedOption: {
+      ...stageData?.selectedOption,
+      previewUrl:
+        stageCache
+          ? `data:${stageCache.mimeType};base64,${stageCache.base64}`
+          : stageData?.selectedOption?.previewUrl ?? "",
+      mimeType: stageCache?.mimeType ?? stageData?.selectedOption?.mimeType ?? "image/png"
+    }
+  };
+
+  const characterSelectionNormalized = {
+    ...characterData,
+    selectedOption: {
+      ...characterData?.selectedOption,
+      previewUrl:
+        characterCache
+          ? `data:${characterCache.mimeType};base64,${characterCache.base64}`
+          : characterData?.selectedOption?.previewUrl ?? "",
+      mimeType: characterCache?.mimeType ?? characterData?.selectedOption?.mimeType ?? "image/png"
+    }
+  };
+
   const creation: CreationPayload = {
-    stageSelection: JSON.parse(stageSelection),
-    characterSelection: JSON.parse(characterSelection),
-    results: JSON.parse(results),
+    stageSelection: stageSelectionNormalized,
+    characterSelection: characterSelectionNormalized,
+    results: resultsData,
     language: navigator.language,
     createdAt: new Date().toISOString()
   };
