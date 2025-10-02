@@ -150,12 +150,7 @@ export class NanobananaClient {
         ],
         generationConfig: {
           responseModalities: ["TEXT", "IMAGE"]
-        },
-        tools: [
-          {
-            image_generation: {}
-          }
-        ]
+        }
       })
     });
 
