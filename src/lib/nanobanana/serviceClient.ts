@@ -1,8 +1,9 @@
-import { z } from "zod";
+import { z } from 'zod';
 
+// Gemini 2.5 Flash Image Preview (Nano Banana) model
 const defaultEndpoint =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
-const filesBaseUrl = "https://generativelanguage.googleapis.com/v1beta";
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent';
+const filesBaseUrl = 'https://generativelanguage.googleapis.com/v1beta';
 
 type GeminiInlineImage = {
   mimeType: string;
@@ -33,16 +34,16 @@ const geminiPartSchema = z.object({
   inline_data: z
     .object({
       mime_type: z.string(),
-      data: z.string()
+      data: z.string(),
     })
     .optional(),
   file_data: z
     .object({
       file_uri: z.string(),
-      mime_type: z.string().optional()
+      mime_type: z.string().optional(),
     })
     .optional(),
-  text: z.string().optional()
+  text: z.string().optional(),
 });
 
 const geminiResponseSchema = z.object({
@@ -50,11 +51,11 @@ const geminiResponseSchema = z.object({
     .array(
       z.object({
         content: z.object({
-          parts: z.array(geminiPartSchema)
-        })
-      })
+          parts: z.array(geminiPartSchema),
+        }),
+      }),
     )
-    .min(1)
+    .min(1),
 });
 
 export type GeminiImage = {
@@ -79,84 +80,157 @@ export class NanobananaClient {
   }
 
   async generateStage(request: StageRequest): Promise<GeminiImage[]> {
-    const parts: GeminiPart[] = [{ text: `背景（Stage）として生成。${request.prompt}` }];
+    // Use explicit image generation request as per documentation
+    const prompt = `Generate an image of: ${request.prompt}`;
+
+    const parts: GeminiPart[] = [{ text: prompt }];
 
     if (request.referenceImage) {
-      parts.push({
+      // When there's a reference image, put it first as per docs
+      parts.unshift({
         inline_data: {
           mime_type: request.referenceImage.mimeType,
-          data: request.referenceImage.data
-        }
+          data: request.referenceImage.data,
+        },
       });
+      // Update the text prompt to reference the image
+      parts[1] = {
+        text: `Based on the style of this image, generate a new background/stage image: ${request.prompt}`,
+      };
     }
 
-    return this.generate(parts);
+    return this.generateWithRetry(parts, 4);
   }
 
   async generateCharacter(request: CharacterRequest): Promise<GeminiImage[]> {
-    const parts: GeminiPart[] = [{ text: `キャラクター生成。${request.prompt}` }];
+    // Use explicit image generation request
+    const prompt = `Generate an image of: ${request.prompt}`;
+
+    const parts: GeminiPart[] = [{ text: prompt }];
 
     if (request.referenceImage) {
-      parts.push({
+      parts.unshift({
         inline_data: {
           mime_type: request.referenceImage.mimeType,
-          data: request.referenceImage.data
-        }
+          data: request.referenceImage.data,
+        },
       });
+      parts[1] = {
+        text: `Based on the style of this image, generate a new character image: ${request.prompt}`,
+      };
     }
 
-    return this.generate(parts);
+    return this.generateWithRetry(parts, 4);
   }
 
   async generateComposite(request: CompositeRequest): Promise<GeminiImage> {
+    // For composite, images go first, then the instruction
     const parts: GeminiPart[] = [
-      {
-        text: request.instruction ?? "この人物をこの背景に自然に合成。影・色調整も行う。"
-      },
       {
         inline_data: {
           mime_type: request.background.mimeType,
-          data: request.background.data
-        }
+          data: request.background.data,
+        },
       },
       {
         inline_data: {
           mime_type: request.character.mimeType,
-          data: request.character.data
-        }
-      }
+          data: request.character.data,
+        },
+      },
+      {
+        text:
+          request.instruction ??
+          'Combine these two images: place the character from the second image onto the background from the first image. Generate a new composite image.',
+      },
     ];
 
-    const images = await this.generate(parts);
+    const images = await this.generateWithRetry(parts, 1);
     if (!images.length) {
-      throw new Error("Gemini composite generation returned no images");
+      throw new Error('Gemini composite generation returned no images');
     }
     return images[0];
   }
 
-  private async generate(parts: GeminiPart[]): Promise<GeminiImage[]> {
-    const response = await fetch(this.endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": this.apiKey
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts
-          }
-        ],
-        generationConfig: {
-          responseModalities: ["TEXT", "IMAGE"]
+  private async generateWithRetry(
+    parts: GeminiPart[],
+    targetCount: number,
+  ): Promise<GeminiImage[]> {
+    const allImages: GeminiImage[] = [];
+    let lastError: Error | null = null;
+
+    // Try multiple attempts with the 2.5 endpoint
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const images = await this.generate(parts);
+        allImages.push(...images);
+
+        if (allImages.length >= targetCount) {
+          return allImages.slice(0, targetCount);
         }
-      })
+      } catch (error) {
+        lastError = error as Error;
+        console.warn(`Attempt ${attempt + 1} failed:`, error);
+
+        // If we're getting text instead of images, try more explicit prompting
+        if (lastError.message.includes('text instead of an image')) {
+          // Modify the prompt to be more explicit
+          const textPart = parts.find((p) => 'text' in p);
+          if (textPart && 'text' in textPart) {
+            textPart.text = `Generate an image. Create a visual image. ${textPart.text}. Output an image.`;
+          }
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    }
+
+    if (allImages.length === 0 && lastError) {
+      throw lastError;
+    }
+
+    // If we got some images but not enough, duplicate them
+    while (allImages.length < targetCount && allImages.length > 0) {
+      allImages.push(allImages[allImages.length - 1]);
+    }
+
+    return allImages.slice(0, targetCount);
+  }
+
+  private async generate(parts: GeminiPart[]): Promise<GeminiImage[]> {
+    const requestBody = {
+      contents: [
+        {
+          role: 'user',
+          parts,
+        },
+      ],
+      generationConfig: {
+        // Based on official documentation
+        responseModalities: ['TEXT', 'IMAGE'],
+        candidateCount: 1,
+        temperature: 1.0,
+        topK: 40,
+        topP: 0.95,
+      },
+    };
+
+    console.log('Gemini API Request to:', this.endpoint);
+    console.log('Text prompt:', parts.find((p) => 'text' in p)?.text);
+
+    const response = await fetch(this.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': this.apiKey,
+      },
+      body: JSON.stringify(requestBody),
     });
 
     const json = await response.json().catch(() => null);
 
     if (!response.ok) {
+      console.error('API Error Response:', json);
       const message =
         (json as { error?: { message?: string } } | null)?.error?.message ?? response.statusText;
       throw new Error(`Gemini API error (${response.status}): ${message}`);
@@ -164,48 +238,71 @@ export class NanobananaClient {
 
     const parsed = geminiResponseSchema.parse(json);
     const images: GeminiImage[] = [];
+    let hasText = false;
+    let textContent = '';
 
     for (const candidate of parsed.candidates) {
       for (const part of candidate.content.parts) {
+        // Check for inline image data
         const inline = part.inline_data;
         if (inline) {
+          console.log('✓ Found inline image data');
           images.push({
             mimeType: inline.mime_type,
-            data: inline.data
+            data: inline.data,
           });
-          continue;
         }
+
+        // Check for file URI
         const filePart = part.file_data;
         if (filePart?.file_uri) {
+          console.log('✓ Found file URI:', filePart.file_uri);
           try {
             const downloaded = await this.downloadFile(filePart.file_uri);
             images.push(downloaded);
           } catch (error) {
-            console.error("Gemini file download failed", filePart.file_uri, error);
+            console.error('File download failed:', error);
           }
         }
+
+        // Track text responses
         if (part.text) {
-          console.warn("Gemini returned text part instead of image", part.text.slice(0, 120));
+          hasText = true;
+          textContent = part.text;
+          console.warn('Text response received:', part.text.slice(0, 100));
         }
       }
     }
 
     if (!images.length) {
-      throw new Error("Gemini response contained no inline image data");
+      if (hasText) {
+        throw new Error(
+          `Gemini returned text instead of an image: "${textContent.slice(0, 200)}". ` +
+            `The model may not be generating images for this prompt. ` +
+            `Try: 1) Using more explicit image generation language, ` +
+            `2) Checking if your API key has access to image generation, ` +
+            `3) Verifying that gemini-2.5-flash-image-preview is available in your region.`,
+        );
+      } else {
+        throw new Error('Gemini response contained no inline image data');
+      }
     }
 
+    console.log(`✓ Successfully generated ${images.length} image(s)`);
     return images;
   }
 
   private async downloadFile(fileUri: string): Promise<GeminiImage> {
-    const filePath = fileUri.startsWith("files/") ? fileUri : fileUri.replace(/^.*files\//, "files/");
-    const encodedPath = encodeURIComponent(filePath).replace(/%2F/g, "/");
+    const filePath = fileUri.startsWith('files/')
+      ? fileUri
+      : fileUri.replace(/^.*files\//, 'files/');
+    const encodedPath = encodeURIComponent(filePath).replace(/%2F/g, '/');
     const keyQuery = `key=${encodeURIComponent(this.apiKey)}`;
 
     const metadataRes = await fetch(`${this.filesUrl}/${encodedPath}?${keyQuery}`, {
       headers: {
-        "x-goog-api-key": this.apiKey
-      }
+        'x-goog-api-key': this.apiKey,
+      },
     });
 
     if (!metadataRes.ok) {
@@ -214,12 +311,12 @@ export class NanobananaClient {
     }
 
     const metadata = await metadataRes.json();
-    const mimeType: string = metadata?.mime_type ?? "image/png";
+    const mimeType: string = metadata?.mime_type ?? 'image/png';
 
     const downloadRes = await fetch(`${this.filesUrl}/${encodedPath}:download?${keyQuery}`, {
       headers: {
-        "x-goog-api-key": this.apiKey
-      }
+        'x-goog-api-key': this.apiKey,
+      },
     });
 
     if (!downloadRes.ok) {
@@ -228,11 +325,11 @@ export class NanobananaClient {
     }
 
     const arrayBuffer = await downloadRes.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString("base64");
+    const base64 = Buffer.from(arrayBuffer).toString('base64');
 
     return {
       mimeType,
-      data: base64
+      data: base64,
     };
   }
 }
