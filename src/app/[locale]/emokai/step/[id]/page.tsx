@@ -40,7 +40,6 @@ import {
 import type { Locale } from "@/lib/i18n/messages";
 import { saveCreation, listCreations, type CreationPayload } from "@/lib/persistence";
 import { getCachedImage } from "@/lib/image-cache";
-import { getCachedImage } from "@/lib/image-cache";
 
 const MIN_TEXT_LENGTH = 10;
 const TOTAL_STEPS = 15;
