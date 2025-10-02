@@ -36,7 +36,7 @@ export function ARLauncher() {
 
   useEffect(() => {
     if (support === "unsupported") {
-      setError(t("unsupported"));
+      setError(t("support.unsupported"));
       setViewerMode("fallback");
     }
   }, [support, t]);

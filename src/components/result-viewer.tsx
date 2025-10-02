@@ -63,6 +63,13 @@ export function ResultViewer() {
     }
     try {
       const parsed: GenerationResults = JSON.parse(raw);
+      const composite = parsed?.results?.composite;
+      if (composite?.imageBase64 && (!composite.url || !composite.url.startsWith("data:"))) {
+        composite.url = `data:${composite.mimeType};base64,${composite.imageBase64}`;
+      }
+      if (composite && !composite.imageBase64 && composite.url && !/^https?:/i.test(composite.url) && !composite.url.startsWith("data:")) {
+        composite.url = "";
+      }
       setResults(parsed);
     } catch (err) {
       console.error(err);
