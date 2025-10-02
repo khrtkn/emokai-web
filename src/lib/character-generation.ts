@@ -68,6 +68,7 @@ export async function createCharacterOptions(description: string): Promise<Chara
     prompt: string;
     imageBase64: string;
     mimeType: string;
+    cacheKey?: string;
   }> | undefined;
 
   if (!options || !Array.isArray(options)) {
@@ -79,7 +80,7 @@ export async function createCharacterOptions(description: string): Promise<Chara
       throw new Error("Nanobanana character response missing image data");
     }
 
-    const cacheKey = `character-${option.id}`;
+    const cacheKey = option.cacheKey ?? `character-${option.id}`;
     const previewUrl = cacheImage(cacheKey, option.imageBase64, option.mimeType);
 
     return {

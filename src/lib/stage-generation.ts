@@ -118,7 +118,14 @@ export async function createStageOptions(
   }
 
   const json = await response.json();
-  const options = json?.options as StageOption[] | undefined;
+  const options = json?.options as Array<{
+    id: string;
+    prompt: string;
+    imageBase64: string;
+    mimeType: string;
+    cacheKey?: string;
+    previewUrl?: string;
+  }> | undefined;
 
   if (!options || !Array.isArray(options)) {
     throw new Error("Nanobanana stage response malformed");
@@ -129,7 +136,7 @@ export async function createStageOptions(
       throw new Error("Nanobanana stage response missing image data");
     }
 
-    const cacheKey = `stage-${option.id}`;
+    const cacheKey = option.cacheKey ?? `stage-${option.id}`;
     const previewUrl = cacheImage(cacheKey, option.imageBase64, option.mimeType);
 
     return {

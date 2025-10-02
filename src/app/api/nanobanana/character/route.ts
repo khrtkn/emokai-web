@@ -5,7 +5,15 @@ import { z } from "zod";
 
 import { getServerEnv } from "@/lib/env";
 import { NanobananaClient } from "@/lib/nanobanana/serviceClient";
-import type { CharacterOption } from "@/lib/character-generation";
+
+type CharacterOptionResponse = {
+  id: string;
+  cacheKey: string;
+  previewUrl: string;
+  imageBase64: string;
+  mimeType: string;
+  prompt: string;
+};
 
 const requestSchema = z.object({
   description: z.string().min(1, "description is required"),
@@ -29,13 +37,18 @@ export async function POST(req: NextRequest) {
         : undefined
     });
 
-    const options: CharacterOption[] = images.slice(0, 4).map((image) => ({
-      id: randomUUID(),
-      previewUrl: `data:${image.mimeType};base64,${image.data}`,
-      imageBase64: image.data,
-      mimeType: image.mimeType,
-      prompt: body.description
-    }));
+    const options: CharacterOptionResponse[] = images.slice(0, 4).map((image) => {
+      const id = randomUUID();
+      const cacheKey = `character-${id}`;
+      return {
+        id,
+        cacheKey,
+        previewUrl: `data:${image.mimeType};base64,${image.data}`,
+        imageBase64: image.data,
+        mimeType: image.mimeType,
+        prompt: body.description
+      };
+    });
 
     return NextResponse.json({ options });
   } catch (error) {
