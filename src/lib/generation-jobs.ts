@@ -1,5 +1,6 @@
 import type { Locale } from "@/lib/i18n/messages";
 import { isLiveApisEnabled } from "@/lib/env/client";
+import { base64ToBlob } from "@/lib/image-cache";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -25,7 +26,8 @@ export type StoryResult = {
 };
 
 type CompositeInput = {
-  imageBase64: string;
+  cacheKey?: string;
+  imageBase64?: string;
   mimeType: string;
 };
 
@@ -55,7 +57,7 @@ export async function generateModel(input: ModelInput): Promise<ModelResult> {
     body: JSON.stringify({
       characterId: input.characterId,
       description: input.description,
-      characterImage: input.characterImage
+      characterImage: buildCharacterImagePayload(input.characterImage)
     })
   });
 
@@ -88,6 +90,9 @@ export async function generateComposite(
     await wait(2000);
     const mimeType = character.mimeType;
     const imageBase64 = character.imageBase64;
+    if (!imageBase64) {
+      throw new Error('Composite image data missing for stub generation');
+    }
     return {
       id: `${Date.now()}`,
       url: `data:${mimeType};base64,${imageBase64}`,
@@ -102,15 +107,7 @@ export async function generateComposite(
 
   const response = await fetch("/api/nanobanana/composite", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      backgroundBase64: stage.imageBase64,
-      backgroundMimeType: stage.mimeType,
-      characterBase64: character.imageBase64,
-      characterMimeType: character.mimeType
-    })
+    body: buildCompositeFormData(stage, character)
   });
 
   if (!response.ok) {
@@ -132,6 +129,63 @@ export async function generateComposite(
   }
 
   return composite;
+}
+
+function buildCompositeFormData(stage: CompositeInput, character: CompositeInput) {
+  const form = new FormData();
+
+  appendImage(form, "background", stage);
+  appendImage(form, "character", character);
+
+  return form;
+}
+
+function appendImage(form: FormData, field: string, input: CompositeInput) {
+  if (!input.imageBase64) {
+    throw new Error(`Missing image data for ${field}`);
+  }
+
+  const blob = base64ToBlob(input.imageBase64, input.mimeType);
+  const fileName = `${field}.${inferExtension(input.mimeType)}`;
+  form.append(field, blob, fileName);
+  form.append(`${field}MimeType`, input.mimeType);
+  if (input.cacheKey) {
+    form.append(`${field}CacheKey`, input.cacheKey);
+  }
+}
+
+function buildCharacterImagePayload(input?: CompositeInput) {
+  if (!input) return undefined;
+
+  if (isLiveApisEnabled() && input.cacheKey) {
+    return {
+      cacheKey: input.cacheKey,
+      mimeType: input.mimeType
+    };
+  }
+
+  if (input.imageBase64) {
+    return {
+      imageBase64: input.imageBase64,
+      mimeType: input.mimeType
+    };
+  }
+
+  return undefined;
+}
+
+function inferExtension(mimeType: string) {
+  switch (mimeType) {
+    case "image/png":
+      return "png";
+    case "image/jpeg":
+    case "image/jpg":
+      return "jpg";
+    case "image/webp":
+      return "webp";
+    default:
+      return "img";
+  }
 }
 
 export async function generateStory(description: string, locale: Locale): Promise<StoryResult> {

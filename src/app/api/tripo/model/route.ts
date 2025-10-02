@@ -4,18 +4,23 @@ import { z } from "zod";
 import { getServerEnv } from "@/lib/env";
 import { TripoClient, type TripoTaskStatus } from "@/lib/tripo/serviceClient";
 
+const imagePayloadSchema = z
+  .object({
+    cacheKey: z.string().min(1).optional(),
+    imageBase64: z.string().min(1).optional(),
+    mimeType: z.string().min(1)
+  })
+  .refine((value) => !!value.cacheKey || !!value.imageBase64, {
+    message: "Either cacheKey or imageBase64 is required"
+  });
+
 const requestSchema = z.object({
   characterId: z.string().min(1, "characterId is required"),
   description: z.string().min(1, "description is required"),
-  characterImage: z
-    .object({
-      imageBase64: z.string().min(1),
-      mimeType: z.string().min(1)
-    })
-    .optional()
+  characterImage: imagePayloadSchema.optional()
 });
 
-const MAX_ATTEMPTS = 15;
+const MAX_ATTEMPTS = 30;
 const POLL_INTERVAL_MS = 4000;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

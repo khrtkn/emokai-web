@@ -22,7 +22,7 @@ function ensureCache(): ImageCacheMap | null {
   return window[GLOBAL_KEY] ?? null;
 }
 
-function base64ToBlob(base64: string, mimeType: string): Blob {
+export function base64ToBlob(base64: string, mimeType: string): Blob {
   if (typeof window !== "undefined" && typeof window.atob === "function") {
     const binary = window.atob(base64);
     const len = binary.length;
