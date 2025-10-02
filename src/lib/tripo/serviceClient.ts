@@ -18,10 +18,31 @@ type FetcherConfig = {
   baseUrl?: string;
 };
 
-const createTaskResponseSchema = z.object({
-  task_id: z.string().optional(),
-  id: z.string().optional()
-});
+const createTaskResponseSchema = z
+  .object({
+    task_id: z.string().optional(),
+    id: z.string().optional(),
+    data: z
+      .object({
+        task_id: z.string().optional(),
+        id: z.string().optional(),
+        taskId: z.string().optional(),
+        task: z
+          .object({
+            id: z.string().optional(),
+            task_id: z.string().optional()
+          })
+          .optional()
+      })
+      .optional(),
+    result: z
+      .object({
+        task_id: z.string().optional(),
+        id: z.string().optional()
+      })
+      .optional()
+  })
+  .passthrough();
 
 type ParsedCreateTaskResponse = z.infer<typeof createTaskResponseSchema>;
 
@@ -74,10 +95,22 @@ export class TripoClient {
     }
 
     const parsed: ParsedCreateTaskResponse = createTaskResponseSchema.parse(json);
-    const taskId = parsed.task_id ?? parsed.id;
+    const taskId =
+      parsed.task_id ??
+      parsed.id ??
+      parsed.data?.task_id ??
+      parsed.data?.id ??
+      parsed.data?.taskId ??
+      parsed.data?.task?.task_id ??
+      parsed.data?.task?.id ??
+      parsed.result?.task_id ??
+      parsed.result?.id ??
+      null;
 
     if (!taskId) {
-      throw new Error("Tripo create task response missing task_id");
+      throw new Error(
+        `Tripo create task response missing task_id (payload: ${JSON.stringify(json)})`
+      );
     }
 
     return taskId;
