@@ -174,8 +174,12 @@ export class NanobananaClient {
         }
         const filePart = part.file_data;
         if (filePart?.file_uri) {
-          const downloaded = await this.downloadFile(filePart.file_uri);
-          images.push(downloaded);
+          try {
+            const downloaded = await this.downloadFile(filePart.file_uri);
+            images.push(downloaded);
+          } catch (error) {
+            console.error("Gemini file download failed", filePart.file_uri, error);
+          }
         }
       }
     }
@@ -189,7 +193,10 @@ export class NanobananaClient {
 
   private async downloadFile(fileUri: string): Promise<GeminiImage> {
     const filePath = fileUri.startsWith("files/") ? fileUri : fileUri.replace(/^.*files\//, "files/");
-    const metadataRes = await fetch(`${this.filesUrl}/${filePath}`, {
+    const encodedPath = encodeURIComponent(filePath).replace(/%2F/g, "/");
+    const keyQuery = `key=${encodeURIComponent(this.apiKey)}`;
+
+    const metadataRes = await fetch(`${this.filesUrl}/${encodedPath}?${keyQuery}`, {
       headers: {
         "x-goog-api-key": this.apiKey
       }
@@ -203,7 +210,7 @@ export class NanobananaClient {
     const metadata = await metadataRes.json();
     const mimeType: string = metadata?.mime_type ?? "image/png";
 
-    const downloadRes = await fetch(`${this.filesUrl}/${filePath}:download`, {
+    const downloadRes = await fetch(`${this.filesUrl}/${encodedPath}:download?${keyQuery}`, {
       headers: {
         "x-goog-api-key": this.apiKey
       }
