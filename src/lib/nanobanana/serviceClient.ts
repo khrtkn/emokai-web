@@ -27,7 +27,8 @@ type CompositeRequest = {
 
 type GeminiTextPart = { text: string };
 type GeminiInlinePart = { inline_data: { mime_type: string; data: string } };
-type GeminiPart = GeminiTextPart | GeminiInlinePart;
+type GeminiInlinePartCamel = { inlineData: { mimeType: string; data: string } };
+type GeminiPart = GeminiTextPart | GeminiInlinePart | GeminiInlinePartCamel;
 
 const geminiPartSchema = z.object({
   inline_data: z
@@ -36,10 +37,22 @@ const geminiPartSchema = z.object({
       data: z.string(),
     })
     .optional(),
+  inlineData: z
+    .object({
+      mimeType: z.string(),
+      data: z.string(),
+    })
+    .optional(),
   file_data: z
     .object({
       file_uri: z.string(),
       mime_type: z.string().optional(),
+    })
+    .optional(),
+  fileData: z
+    .object({
+      fileUri: z.string(),
+      mimeType: z.string().optional(),
     })
     .optional(),
   text: z.string().optional(),
@@ -87,8 +100,8 @@ export class NanobananaClient {
 
     if (request.referenceImage) {
       parts.unshift({
-        inline_data: {
-          mime_type: request.referenceImage.mimeType,
+        inlineData: {
+          mimeType: request.referenceImage.mimeType,
           data: request.referenceImage.data,
         },
       });
@@ -126,8 +139,8 @@ export class NanobananaClient {
 
     if (request.referenceImage) {
       parts.unshift({
-        inline_data: {
-          mime_type: request.referenceImage.mimeType,
+        inlineData: {
+          mimeType: request.referenceImage.mimeType,
           data: request.referenceImage.data,
         },
       });
@@ -139,14 +152,14 @@ export class NanobananaClient {
   async generateComposite(request: CompositeRequest): Promise<GeminiImage> {
     const parts: GeminiPart[] = [
       {
-        inline_data: {
-          mime_type: request.background.mimeType,
+        inlineData: {
+          mimeType: request.background.mimeType,
           data: request.background.data,
         },
       },
       {
-        inline_data: {
-          mime_type: request.character.mimeType,
+        inlineData: {
+          mimeType: request.character.mimeType,
           data: request.character.data,
         },
       },
@@ -220,22 +233,34 @@ export class NanobananaClient {
 
   private async generate(parts: GeminiPart[]): Promise<GeminiImage[]> {
     // contentsは常に配列形式で、partsを含むオブジェクトの配列
+    const normalizedParts = parts.map((part) => {
+      if ("inline_data" in part) {
+        return {
+          inlineData: {
+            mimeType: part.inline_data.mime_type,
+            data: part.inline_data.data,
+          },
+        };
+      }
+      if ("inlineData" in part) {
+        return {
+          inlineData: {
+            mimeType: part.inlineData.mimeType,
+            data: part.inlineData.data,
+          },
+        };
+      }
+      if ("text" in part) {
+        return { text: part.text };
+      }
+      return part;
+    });
+
     const requestBody = {
       contents: [
         {
-          parts: parts.map((part) => {
-            if ('text' in part) {
-              return { text: part.text };
-            } else if ('inline_data' in part) {
-              return {
-                inline_data: {
-                  mime_type: part.inline_data.mime_type,
-                  data: part.inline_data.data,
-                },
-              };
-            }
-            return part;
-          }),
+          role: 'user',
+          parts: normalizedParts,
         },
       ],
       generationConfig: {
@@ -295,17 +320,22 @@ export class NanobananaClient {
 
     for (const candidate of parsed.candidates) {
       for (const part of candidate.content.parts) {
-        const inline = part.inline_data;
+        const inline = part.inline_data || (part.inlineData
+          ? { mime_type: part.inlineData.mimeType, data: part.inlineData.data }
+          : undefined);
         if (inline) {
           console.log('✓ Found inline image data');
+          const mimeType = (inline as any).mime_type ?? (inline as any).mimeType ?? 'image/png';
           images.push({
-            mimeType: inline.mime_type,
-            data: inline.data,
+            mimeType,
+            data: (inline as any).data,
           });
           continue;
         }
 
-        const filePart = part.file_data;
+        const filePart = part.file_data || (part.fileData
+          ? { file_uri: part.fileData.fileUri, mime_type: part.fileData.mimeType }
+          : undefined);
         if (filePart?.file_uri) {
           console.log('✓ Found file URI:', filePart.file_uri);
           try {
@@ -357,7 +387,7 @@ export class NanobananaClient {
     }
 
     const metadata = await metadataRes.json();
-    const mimeType: string = metadata?.mime_type ?? 'image/png';
+    const mimeType: string = metadata?.mime_type ?? metadata?.mimeType ?? 'image/png';
 
     const downloadRes = await fetch(`${this.filesUrl}/${encodedPath}:download?${keyQuery}`, {
       headers: {
