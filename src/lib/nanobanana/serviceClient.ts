@@ -79,7 +79,11 @@ export class NanobananaClient {
   }
 
   async generateStage(request: StageRequest): Promise<GeminiImage[]> {
-    const parts: GeminiPart[] = [{ text: request.prompt }];
+    // シンプルな画像生成プロンプト（1枚ずつ生成）
+    const basePrompt = request.prompt.replace(/\d+枚.*生成.*|生成してください.*$/g, '').trim();
+    const prompt = `Generate a photorealistic background image: ${basePrompt}`;
+
+    const parts: GeminiPart[] = [{ text: prompt }];
 
     if (request.referenceImage) {
       parts.unshift({
@@ -90,7 +94,31 @@ export class NanobananaClient {
       });
     }
 
-    return this.generateWithRetry(parts, 4);
+    // 1枚ずつ4回生成を試みる
+    const images: GeminiImage[] = [];
+    for (let i = 0; i < 4; i++) {
+      try {
+        const result = await this.generate(parts);
+        if (result.length > 0) {
+          images.push(...result);
+          if (images.length >= 4) break;
+        }
+      } catch (error) {
+        console.warn(`Failed to generate image ${i + 1}:`, error);
+      }
+    }
+
+    // 最低1枚は返す
+    if (images.length === 0) {
+      throw new Error('Failed to generate any images');
+    }
+
+    // 4枚に満たない場合は複製
+    while (images.length < 4) {
+      images.push(images[0]);
+    }
+
+    return images.slice(0, 4);
   }
 
   async generateCharacter(request: CharacterRequest): Promise<GeminiImage[]> {
@@ -215,6 +243,13 @@ export class NanobananaClient {
       },
     };
 
+    console.log('=== Gemini API Request ===');
+    console.log('Endpoint:', this.endpoint);
+    const textPart = parts.find((p): p is GeminiTextPart => 'text' in p);
+    if (textPart) {
+      console.log('Text prompt:', textPart.text);
+    }
+
     const response = await fetch(this.endpoint, {
       method: 'POST',
       headers: {
@@ -226,11 +261,33 @@ export class NanobananaClient {
 
     const json = await response.json().catch(() => null);
 
+    console.log('=== Gemini API Response ===');
+    console.log('Status:', response.status);
+
     if (!response.ok) {
+      console.error('Error response:', json);
       const message =
         (json as { error?: { message?: string } } | null)?.error?.message ?? response.statusText;
       throw new Error(`Gemini API error (${response.status}): ${message}`);
     }
+
+    // レスポンスの構造をログ出力
+    console.log('Response structure:', {
+      hasCandidates: !!json?.candidates,
+      candidatesCount: json?.candidates?.length,
+      firstCandidate: json?.candidates?.[0]
+        ? {
+            hasParts: !!json.candidates[0].content?.parts,
+            partsCount: json.candidates[0].content?.parts?.length,
+            partTypes: json.candidates[0].content?.parts?.map((p: any) => {
+              if (p.text) return 'text';
+              if (p.inline_data) return 'inline_data';
+              if (p.file_data) return 'file_data';
+              return 'unknown';
+            }),
+          }
+        : null,
+    });
 
     const parsed = geminiResponseSchema.parse(json);
     const images: GeminiImage[] = [];
@@ -240,6 +297,7 @@ export class NanobananaClient {
       for (const part of candidate.content.parts) {
         const inline = part.inline_data;
         if (inline) {
+          console.log('✓ Found inline image data');
           images.push({
             mimeType: inline.mime_type,
             data: inline.data,
@@ -249,6 +307,7 @@ export class NanobananaClient {
 
         const filePart = part.file_data;
         if (filePart?.file_uri) {
+          console.log('✓ Found file URI:', filePart.file_uri);
           try {
             const downloaded = await this.downloadFile(filePart.file_uri);
             images.push(downloaded);
@@ -259,12 +318,14 @@ export class NanobananaClient {
 
         if (part.text) {
           textResponse = part.text;
+          console.warn('⚠️ Text response:', part.text);
         }
       }
     }
 
     if (!images.length) {
       if (textResponse) {
+        console.error('Full text response:', textResponse);
         throw new Error(
           `Gemini returned text instead of an image: "${textResponse.slice(0, 200)}". ` +
             'Try using more explicit image generation language or verify your API key has image access.',
@@ -273,6 +334,7 @@ export class NanobananaClient {
       throw new Error('Gemini response contained no inline image data');
     }
 
+    console.log(`✓ Successfully generated ${images.length} image(s)`);
     return images;
   }
 
