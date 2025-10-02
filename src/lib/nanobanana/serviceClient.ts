@@ -138,10 +138,7 @@ export class NanobananaClient {
             role: "user",
             parts
           }
-        ],
-        generationConfig: {
-          responseMimeType: "image/png"
-        }
+        ]
       })
     });
 
