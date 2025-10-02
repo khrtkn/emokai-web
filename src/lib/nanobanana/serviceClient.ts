@@ -175,9 +175,12 @@ export class NanobananaClient {
         // If we're getting text instead of images, try more explicit prompting
         if (lastError.message.includes('text instead of an image')) {
           // Modify the prompt to be more explicit
-          const textPart = parts.find((p) => 'text' in p);
-          if (textPart && 'text' in textPart) {
-            textPart.text = `Generate an image. Create a visual image. ${textPart.text}. Output an image.`;
+          const textPartIndex = parts.findIndex((p) => 'text' in p);
+          if (textPartIndex !== -1) {
+            const textPart = parts[textPartIndex] as GeminiTextPart;
+            parts[textPartIndex] = {
+              text: `Generate an image. Create a visual image. ${textPart.text}. Output an image.`,
+            };
           }
         }
 
@@ -216,7 +219,8 @@ export class NanobananaClient {
     };
 
     console.log('Gemini API Request to:', this.endpoint);
-    console.log('Text prompt:', parts.find((p) => 'text' in p)?.text);
+    const textPart = parts.find((p): p is GeminiTextPart => 'text' in p);
+    console.log('Text prompt:', textPart?.text);
 
     const response = await fetch(this.endpoint, {
       method: 'POST',
