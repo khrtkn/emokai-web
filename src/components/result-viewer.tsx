@@ -19,11 +19,15 @@ interface GenerationResults {
     model: {
       id: string;
       url: string;
-      polygons: number;
+      polygons: number | null;
+      previewUrl: string | null;
+      meta: Record<string, unknown> | null;
     };
     composite: {
       id: string;
       url: string;
+      imageBase64: string;
+      mimeType: string;
     };
     story: {
       id: string;

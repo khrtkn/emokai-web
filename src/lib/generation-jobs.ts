@@ -6,12 +6,16 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export type ModelResult = {
   id: string;
   url: string;
-  polygons: number;
+  polygons: number | null;
+  previewUrl: string | null;
+  meta: Record<string, unknown> | null;
 };
 
 export type CompositeResult = {
   id: string;
   url: string;
+  imageBase64: string;
+  mimeType: string;
 };
 
 export type StoryResult = {
@@ -20,13 +24,26 @@ export type StoryResult = {
   content: string;
 };
 
-export async function generateModel(characterOptionId: string): Promise<ModelResult> {
+type CompositeInput = {
+  imageBase64: string;
+  mimeType: string;
+};
+
+type ModelInput = {
+  characterId: string;
+  description: string;
+  characterImage?: CompositeInput;
+};
+
+export async function generateModel(input: ModelInput): Promise<ModelResult> {
   if (!isLiveApisEnabled()) {
     await wait(1500);
     return {
-      id: characterOptionId,
-      url: `/models/${characterOptionId}.fbx`,
-      polygons: 4800
+      id: input.characterId,
+      url: `/models/${input.characterId}.fbx`,
+      polygons: 4800,
+      previewUrl: null,
+      meta: null
     };
   }
 
@@ -35,7 +52,11 @@ export async function generateModel(characterOptionId: string): Promise<ModelRes
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ characterId: characterOptionId })
+    body: JSON.stringify({
+      characterId: input.characterId,
+      description: input.description,
+      characterImage: input.characterImage
+    })
   });
 
   if (!response.ok) {
@@ -46,23 +67,37 @@ export async function generateModel(characterOptionId: string): Promise<ModelRes
   const json = await response.json();
   const model = json?.model as ModelResult | undefined;
 
-  if (!model || typeof model.id !== "string" || typeof model.url !== "string" || typeof model.polygons !== "number") {
+  if (!model || typeof model.id !== "string" || typeof model.url !== "string") {
     throw new Error("Tripo model response malformed");
   }
 
-  return model;
+  return {
+    id: model.id,
+    url: model.url,
+    polygons: typeof model.polygons === "number" ? model.polygons : null,
+    previewUrl: model.previewUrl ?? null,
+    meta: model.meta ?? null
+  };
 }
 
 export async function generateComposite(
-  stageSelectionId: string | null,
-  characterOptionId: string
+  stage: CompositeInput | null,
+  character: CompositeInput
 ): Promise<CompositeResult> {
   if (!isLiveApisEnabled()) {
     await wait(2000);
+    const mimeType = character.mimeType;
+    const imageBase64 = character.imageBase64;
     return {
-      id: `${stageSelectionId ?? "stage"}-${characterOptionId}`,
-      url: `/composites/${characterOptionId}.webp`
+      id: `${Date.now()}`,
+      url: `data:${mimeType};base64,${imageBase64}`,
+      imageBase64,
+      mimeType
     };
+  }
+
+  if (!stage) {
+    throw new Error("Stage selection missing for composite generation");
   }
 
   const response = await fetch("/api/nanobanana/composite", {
@@ -70,7 +105,12 @@ export async function generateComposite(
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ stageId: stageSelectionId, characterId: characterOptionId })
+    body: JSON.stringify({
+      backgroundBase64: stage.imageBase64,
+      backgroundMimeType: stage.mimeType,
+      characterBase64: character.imageBase64,
+      characterMimeType: character.mimeType
+    })
   });
 
   if (!response.ok) {
@@ -81,7 +121,13 @@ export async function generateComposite(
   const json = await response.json();
   const composite = json?.composite as CompositeResult | undefined;
 
-  if (!composite || typeof composite.id !== "string" || typeof composite.url !== "string") {
+  if (
+    !composite ||
+    typeof composite.id !== "string" ||
+    typeof composite.url !== "string" ||
+    typeof composite.imageBase64 !== "string" ||
+    typeof composite.mimeType !== "string"
+  ) {
     throw new Error("Nanobanana composite response malformed");
   }
 

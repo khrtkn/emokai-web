@@ -2,6 +2,8 @@ export type CharacterOption = {
   id: string;
   previewUrl: string;
   prompt: string;
+  imageBase64: string;
+  mimeType: string;
 };
 
 import { withRetry } from "@/lib/errors";
@@ -30,10 +32,14 @@ export async function createCharacterOptions(description: string): Promise<Chara
       await new Promise((resolve) => setTimeout(resolve, 1200));
       return Array.from({ length: 4 }).map((_, index) => {
         const id = `${randomId()}-${index + 1}`;
+        const previewUrl = toSvgDataUri(`${index + 1}`);
+        const imageBase64 = previewUrl.split(",")[1] ?? "";
         return {
           id,
-          previewUrl: toSvgDataUri(`${index + 1}`),
-          prompt: description
+          previewUrl,
+          prompt: description,
+          imageBase64,
+          mimeType: "image/svg+xml"
         };
       });
     });
@@ -59,5 +65,14 @@ export async function createCharacterOptions(description: string): Promise<Chara
     throw new Error("Nanobanana character response malformed");
   }
 
-  return options.map((option) => ({ ...option, prompt: description }));
+  return options.map((option) => {
+    if (!option?.imageBase64 || !option?.mimeType) {
+      throw new Error("Nanobanana character response missing image data");
+    }
+
+    return {
+      ...option,
+      prompt: description
+    };
+  });
 }

@@ -33,7 +33,7 @@ This document describes the functional and non-functional requirements for the S
 - **External Integrations**:
   - *OpenAI Moderation API*: Filters inappropriate text.
   - *OpenAI API*: Generates 500-character narrative.
-  - *Google NanobananaAPI*: Generates isometric stage images and composite character-in-stage images.
+  - *Google Gemini 2.5 Flash Image API (Nanobanana)*: Generates isometric stage images and composite character-in-stage images.
   - *TripoAPI*: Produces 3D character model (FBX, ≤5000 polygons, 512×512 texture).
   - *Supabase*: Real-time backup and database/storage services.
   - *Google Analytics 4*: Event tracking for usage metrics.
@@ -61,7 +61,7 @@ This document describes the functional and non-functional requirements for the S
    - Resize to 512×512.
    - Convert to WebP.
    - Delete original image post-processing.
-6. Call Google NanobananaAPI to generate four photorealistic isometric interpretations of the stage.
+6. Call Google Gemini 2.5 Flash Image API (Nanobanana) to generate four photorealistic isometric interpretations of the stage.
    - On failure, retry up to three times; if all fail, show error and return to previous step.
 7. Display four generated images in vertical scroll; no previews before selection.
 8. User selects one image (tap highlights frame) and can change selection until confirmed.
@@ -70,7 +70,7 @@ This document describes the functional and non-functional requirements for the S
 ### Step B – Character Generation
 1. User enters descriptive text for the character.
 2. System moderates text as in Step A; reject inappropriate input.
-3. Request Google NanobananaAPI to generate four candidate character appearance images.
+3. Request the Gemini 2.5 Flash Image API (Nanobanana) to generate four candidate character appearance images.
 4. Present images in vertical scroll with tap-to-select highlighting; no pre-selection previews.
 5. User confirms one image; selection remains changeable until confirmation.
 6. Save chosen character image ID in sessionStorage.
@@ -86,7 +86,7 @@ This document describes the functional and non-functional requirements for the S
 
 ### Step C2 – Composite Image Generation
 - Inputs: selected stage isometric image + character appearance image.
-- Request NanobananaAPI to synthesize a photorealistic composite showing the character in the stage.
+- Request the Gemini 2.5 Flash Image API (Nanobanana) to synthesize a photorealistic composite showing the character in the stage.
 - Wait for up to 30 seconds silently; display “generating…” indicator after that. Timeout at 60 seconds with error.
 - On success, persist composite image reference and metadata.
 

@@ -14,7 +14,7 @@ describe('env loader', () => {
 
   it('throws when required variables are missing', () => {
     for (const key of [
-      'OPENAI_API_KEY','GOOGLE_NANOBANANA_KEY','TRIPO_API_KEY','SUPABASE_SERVICE_ROLE_KEY','SUPABASE_URL','GA4_MEASUREMENT_ID'
+      'OPENAI_API_KEY','GEMINI_API_KEY','TRIPO_API_KEY','SUPABASE_SERVICE_ROLE_KEY','SUPABASE_URL','GA4_MEASUREMENT_ID'
     ]) delete (process.env as any)[key];
 
     expect(() => getServerEnv()).toThrow(/Invalid server environment variables/);
@@ -22,7 +22,7 @@ describe('env loader', () => {
 
   it('returns parsed env when all present', () => {
     process.env.OPENAI_API_KEY = 'x';
-    process.env.GOOGLE_NANOBANANA_KEY = 'x';
+    process.env.GEMINI_API_KEY = 'x';
     process.env.TRIPO_API_KEY = 'x';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'x';
     process.env.SUPABASE_URL = 'https://example.supabase.co';
@@ -32,4 +32,3 @@ describe('env loader', () => {
     expect(env.SUPABASE_URL).toMatch(/^https:\/\//);
   });
 });
-

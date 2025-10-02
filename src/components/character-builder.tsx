@@ -33,6 +33,7 @@ import {
 } from "@/lib/storage-keys";
 import type { ProgressStage } from "@/components/ui";
 import { trackEvent, trackError } from "@/lib/analytics";
+import { isLiveApisEnabled } from "@/lib/env/client";
 
 const MAX_DESCRIPTION = 300;
 
@@ -92,13 +93,22 @@ export function CharacterBuilder() {
 
   useEffect(() => {
     if (!selectedId) return;
+    const selectedOption = options.find((option) => option.id === selectedId);
+    if (!selectedOption) return;
     const payload = {
       selectedId,
       description,
+      selectedOption: {
+        id: selectedOption.id,
+        imageBase64: selectedOption.imageBase64,
+        mimeType: selectedOption.mimeType,
+        previewUrl: selectedOption.previewUrl,
+        prompt: selectedOption.prompt
+      },
       timestamp: Date.now()
     };
     sessionStorage.setItem(CHARACTER_SELECTION_KEY, JSON.stringify(payload));
-  }, [selectedId, description]);
+  }, [selectedId, description, options]);
 
   const canGenerate = description.trim().length >= 10 && flowStatus !== "moderating";
   const canStartGeneration = selectedId !== null && flowStatus === "ready" && !progressActive;
@@ -161,7 +171,7 @@ export function CharacterBuilder() {
   };
 
   const resetGenerationState = () => {
-    setGenerationState(INITIAL_GENERATION_STATE);
+    setGenerationState({ ...INITIAL_GENERATION_STATE });
     setProgressActive(false);
     setGenerationError(null);
   };
@@ -196,19 +206,50 @@ export function CharacterBuilder() {
     trackEvent("generation_start", { step: "jobs", locale });
 
     const stageSelection = sessionStorage.getItem(STAGE_SELECTION_KEY);
-    let stageId: string | null = null;
+    let stageForComposite: { imageBase64: string; mimeType: string } | null = null;
     if (stageSelection) {
       try {
         const parsed = JSON.parse(stageSelection);
-        if (parsed?.selectedId) {
-          stageId = parsed.selectedId;
+        if (parsed?.selectedOption?.imageBase64 && parsed?.selectedOption?.mimeType) {
+          stageForComposite = {
+            imageBase64: parsed.selectedOption.imageBase64,
+            mimeType: parsed.selectedOption.mimeType
+          };
         }
       } catch (error) {
         console.warn("Failed to parse stage selection", error);
       }
     }
 
-    const modelPromise = generateModel(selectedId)
+    const characterOption = options.find((option) => option.id === selectedId);
+    if (!characterOption) {
+      setGenerationError(t("generationError"));
+      releaseGenerationLock();
+      setLockActive(false);
+      trackError("character_option_missing", new Error("character option missing"));
+      return;
+    }
+
+    const liveApis = isLiveApisEnabled();
+
+    if (liveApis && !stageForComposite) {
+      setGenerationState({ ...INITIAL_GENERATION_STATE });
+      setProgressActive(false);
+      setGenerationError(t("generationError"));
+      releaseGenerationLock();
+      setLockActive(false);
+      trackError("stage_missing", new Error("stage selection missing"));
+      return;
+    }
+
+    const modelPromise = generateModel({
+      characterId: selectedId,
+      description,
+      characterImage: {
+        imageBase64: characterOption.imageBase64,
+        mimeType: characterOption.mimeType
+      }
+    })
       .then((model) => {
         setGenerationState((prev) => ({ ...prev, model: "complete" }));
         return model;
@@ -219,7 +260,10 @@ export function CharacterBuilder() {
         throw error;
       });
 
-    const compositePromise = generateComposite(stageId, selectedId)
+    const compositePromise = generateComposite(stageForComposite, {
+      imageBase64: characterOption.imageBase64,
+      mimeType: characterOption.mimeType
+    })
       .then((composite) => {
         setGenerationState((prev) => ({ ...prev, composite: "complete" }));
         return composite;

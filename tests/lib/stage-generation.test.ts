@@ -1,3 +1,5 @@
+import { Blob as NodeBlob } from 'buffer';
+
 import { createStageOptions } from '@/lib/stage-generation';
 import type { ProcessedImage } from '@/lib/image';
 
@@ -11,7 +13,7 @@ describe('stage-generation', () => {
 
   it('returns 4 options using processed image preview', async () => {
     const processed: ProcessedImage = {
-      blob: new Blob(['x']),
+      blob: new NodeBlob(['x']),
       webpUrl: 'blob:preview',
       size: 42
     };
@@ -24,7 +26,8 @@ describe('stage-generation', () => {
       expect(opt.previewUrl).toBe('blob:preview');
       expect(opt.prompt).toBe('a rooftop garden');
       expect(typeof opt.id).toBe('string');
+      expect(opt.imageBase64.length).toBeGreaterThan(0);
+      expect(opt.mimeType).toBe('image/webp');
     }
   });
 });
-

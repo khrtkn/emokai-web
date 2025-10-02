@@ -30,9 +30,20 @@ describe("GalleryView", () => {
       stageSelection: { selectedId: "stage-1" },
       characterSelection: { selectedId: "char-1" },
       results: {
-        composite: { id: "comp", url: "https://example.com/image.webp" },
+        composite: {
+          id: "comp",
+          url: "https://example.com/image.webp",
+          imageBase64: "YmFzZTY0",
+          mimeType: "image/webp"
+        },
         story: { id: "story", locale: "en", content: "Story content" },
-        model: { id: "model", url: "model.fbx", polygons: 1000 }
+        model: {
+          id: "model",
+          url: "model.fbx",
+          polygons: 1000,
+          previewUrl: null,
+          meta: null
+        }
       },
       language: "en",
       createdAt: new Date().toISOString()

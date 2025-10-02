@@ -41,14 +41,24 @@ export function StageBuilder() {
   const canProceed = selectedId !== null && status === "ready";
 
   useEffect(() => {
-    if (selectedId) {
-      const payload = {
-        selectedId,
-        stageOptions: options.map((option) => ({ id: option.id })),
-        timestamp: Date.now()
-      };
-      sessionStorage.setItem(STAGE_SELECTION_KEY, JSON.stringify(payload));
-    }
+    if (!selectedId) return;
+
+    const selectedOption = options.find((option) => option.id === selectedId);
+    if (!selectedOption) return;
+
+    const payload = {
+      selectedId,
+      selectedOption: {
+        id: selectedOption.id,
+        imageBase64: selectedOption.imageBase64,
+        mimeType: selectedOption.mimeType,
+        previewUrl: selectedOption.previewUrl,
+        prompt: selectedOption.prompt
+      },
+      timestamp: Date.now()
+    };
+
+    sessionStorage.setItem(STAGE_SELECTION_KEY, JSON.stringify(payload));
   }, [selectedId, options]);
 
   useEffect(() => {
