@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const defaultEndpoint =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
+const filesBaseUrl = "https://generativelanguage.googleapis.com/v1beta";
 
 type GeminiInlineImage = {
   mimeType: string;
@@ -35,6 +36,12 @@ const geminiPartSchema = z.object({
       data: z.string()
     })
     .optional(),
+  file_data: z
+    .object({
+      file_uri: z.string(),
+      mime_type: z.string().optional()
+    })
+    .optional(),
   text: z.string().optional()
 });
 
@@ -63,10 +70,12 @@ type GenerateOptions = {
 export class NanobananaClient {
   private readonly apiKey: string;
   private readonly endpoint: string;
+  private readonly filesUrl: string;
 
   constructor({ apiKey, endpoint = defaultEndpoint }: GenerateOptions) {
     this.apiKey = apiKey;
     this.endpoint = endpoint;
+    this.filesUrl = filesBaseUrl;
   }
 
   async generateStage(request: StageRequest): Promise<GeminiImage[]> {
@@ -155,11 +164,18 @@ export class NanobananaClient {
 
     for (const candidate of parsed.candidates) {
       for (const part of candidate.content.parts) {
-        if (part.inline_data) {
+        const inline = part.inline_data;
+        if (inline) {
           images.push({
-            mimeType: part.inline_data.mime_type,
-            data: part.inline_data.data
+            mimeType: inline.mime_type,
+            data: inline.data
           });
+          continue;
+        }
+        const filePart = part.file_data;
+        if (filePart?.file_uri) {
+          const downloaded = await this.downloadFile(filePart.file_uri);
+          images.push(downloaded);
         }
       }
     }
@@ -169,5 +185,41 @@ export class NanobananaClient {
     }
 
     return images;
+  }
+
+  private async downloadFile(fileUri: string): Promise<GeminiImage> {
+    const filePath = fileUri.startsWith("files/") ? fileUri : fileUri.replace(/^.*files\//, "files/");
+    const metadataRes = await fetch(`${this.filesUrl}/${filePath}`, {
+      headers: {
+        "x-goog-api-key": this.apiKey
+      }
+    });
+
+    if (!metadataRes.ok) {
+      const text = await metadataRes.text();
+      throw new Error(`Gemini file metadata error (${metadataRes.status}): ${text}`);
+    }
+
+    const metadata = await metadataRes.json();
+    const mimeType: string = metadata?.mime_type ?? "image/png";
+
+    const downloadRes = await fetch(`${this.filesUrl}/${filePath}:download`, {
+      headers: {
+        "x-goog-api-key": this.apiKey
+      }
+    });
+
+    if (!downloadRes.ok) {
+      const text = await downloadRes.text();
+      throw new Error(`Gemini file download error (${downloadRes.status}): ${text}`);
+    }
+
+    const arrayBuffer = await downloadRes.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString("base64");
+
+    return {
+      mimeType,
+      data: base64
+    };
   }
 }
