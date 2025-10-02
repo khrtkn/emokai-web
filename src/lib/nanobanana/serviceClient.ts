@@ -147,7 +147,10 @@ export class NanobananaClient {
             role: "user",
             parts
           }
-        ]
+        ],
+        generationConfig: {
+          responseModalities: ["TEXT", "IMAGE"]
+        }
       })
     });
 
@@ -180,6 +183,9 @@ export class NanobananaClient {
           } catch (error) {
             console.error("Gemini file download failed", filePart.file_uri, error);
           }
+        }
+        if (part.text) {
+          console.warn("Gemini returned text part instead of image", part.text.slice(0, 120));
         }
       }
     }
