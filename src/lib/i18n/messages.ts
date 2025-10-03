@@ -139,7 +139,9 @@ export const messages = {
         instructions: "端末を動かして平面を検出し、タップしてキャラクターを配置してください",
         fallbackInstructions: "3Dモデルをドラッグで回転できます",
         arPlaceholder: "{device} 用のARセッションを起動中です…",
-        viewerPlaceholder: "3Dビューアを準備中です…"
+        viewerPlaceholder: "3Dビューアを準備中です…",
+        viewerMissing: "3Dモデルのデータが見つかりませんでした",
+        viewerFailed: "3Dモデルの読み込みに失敗しました"
       }
     },
     gallery: {
@@ -290,7 +292,9 @@ export const messages = {
         instructions: "Move your device to detect a plane, then tap to place the character",
         fallbackInstructions: "Drag to rotate the model in 3D viewer",
         arPlaceholder: "Launching AR session for {device}…",
-        viewerPlaceholder: "Preparing 3D viewer…"
+        viewerPlaceholder: "Preparing 3D viewer…",
+        viewerMissing: "3D model data is missing",
+        viewerFailed: "Failed to load the 3D model"
       }
     },
     gallery: {

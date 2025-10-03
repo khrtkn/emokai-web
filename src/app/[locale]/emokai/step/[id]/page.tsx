@@ -436,7 +436,6 @@ export default function EmokaiStepPage({ params }: Props) {
   const selectOneHint = isJa ? '少なくとも1つえらんでください' : 'Please select at least one.';
   const nextLabel = isJa ? 'つづける' : 'Continue';
   const selectNextLabel = isJa ? 'これにする' : 'Choose this';
-  const registerLabel = isJa ? '保存' : 'Save';
   const summonLabel = isJa ? '呼び出す' : 'Summon';
   const createAnotherLabel = isJa ? '新しくつくる' : 'Create new';
   const generatingLabel = isJa ? '交信しています...' : 'Imagining...';
@@ -1081,7 +1080,7 @@ export default function EmokaiStepPage({ params }: Props) {
   const storyReady = generationState.story === 'complete' && !!generationResults?.results?.story;
   const modelReady = generationState.model === 'complete' && !!generationResults?.results?.model;
 
-  const handleRegister = () => {
+  const persistCreation = () => {
     setSaveStatus('saving');
     setSaveError(null);
     const result = saveCreation();
@@ -1089,7 +1088,6 @@ export default function EmokaiStepPage({ params }: Props) {
       setSaveStatus('saved');
       setShareDetails({ url: result.shareUrl ?? '', expiresAt: result.expiresAt });
       setCreations(listCreations());
-      router.push(`/${locale}/emokai/step/14`);
     } else {
       setSaveStatus('error');
       setSaveError(
@@ -1097,6 +1095,7 @@ export default function EmokaiStepPage({ params }: Props) {
           (isJa ? 'まだ保存できていません。もう一度ためしてみましょう。' : 'Could not save.'),
       );
     }
+    return result;
   };
 
   // ====== 画面パーツ ======
@@ -1391,7 +1390,7 @@ export default function EmokaiStepPage({ params }: Props) {
         <button
           type="button"
           className={primaryButtonClass}
-          onClick={() => router.push(`/${locale}/emokai/step/13`)}
+          onClick={() => router.push(`/${locale}/emokai/step/14`)}
         >
           {isJa ? 'つづける' : 'Continue'}
         </button>
@@ -1447,20 +1446,24 @@ export default function EmokaiStepPage({ params }: Props) {
       {saveStatus === 'error' && saveError ? (
         <p className="text-xs text-[#ffb9b9]">{saveError}</p>
       ) : null}
-      <div className="flex gap-3 pt-2">
+      <div className="pt-2">
         <button
           type="button"
           className={`${primaryButtonClass} ${saveStatus === 'saving' ? 'opacity-50 pointer-events-none' : ''}`}
-          onClick={handleRegister}
+          onClick={() => {
+            const result = persistCreation();
+            if (result.success) {
+              router.push(`/${locale}/emokai/step/12`);
+            }
+          }}
         >
-          {saveStatus === 'saving' ? (isJa ? '保存しています…' : 'Saving...') : registerLabel}
-        </button>
-        <button
-          type="button"
-          className={secondaryButtonClass}
-          onClick={() => router.push(`/${locale}/emokai/step/12`)}
-        >
-          {isJa ? 'もどる' : 'Back'}
+          {saveStatus === 'saving'
+            ? isJa
+              ? '保存しています…'
+              : 'Saving...'
+            : isJa
+              ? '合成写真を見る'
+              : 'View composite'}
         </button>
       </div>
       {shareDetails ? (
