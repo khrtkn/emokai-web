@@ -158,21 +158,11 @@ function appendImage(form: FormData, field: string, input: CompositeInput) {
 function buildCharacterImagePayload(input?: CompositeInput) {
   if (!input) return undefined;
 
-  if (isLiveApisEnabled() && input.cacheKey) {
-    return {
-      cacheKey: input.cacheKey,
-      mimeType: input.mimeType
-    };
-  }
-
-  if (input.imageBase64) {
-    return {
-      imageBase64: input.imageBase64,
-      mimeType: input.mimeType
-    };
-  }
-
-  return undefined;
+  return {
+    imageBase64: input.imageBase64,
+    mimeType: input.mimeType,
+    cacheKey: input.cacheKey,
+  };
 }
 
 function inferExtension(mimeType: string) {

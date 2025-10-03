@@ -489,6 +489,11 @@ export default function EmokaiStepPage({ params }: Props) {
     lines.push(
       localeKey === 'ja' ? `見た目の手がかり: ${appearanceText}` : `Appearance: ${appearanceText}`,
     );
+    lines.push(
+      localeKey === 'ja'
+        ? '上記の内容を3Dモデルレンダリング風の画像プロンプトへ変換し、キャラクターを正面から描写してください。背景は完全な白 (純白) とし、余計な要素を配置しないでください。スタジオの柔らかい照明で、被写体が均一に照らされるようにしてください。'
+        : 'Convert the above into an image prompt for a 3D model render of the character from the front. Use a pure white background with no other elements, and light it with soft studio lighting for even illumination.'
+    );
     return lines.join('\n');
   }, [localeKey, placeText, reasonText, selectedEmotions, actionText, appearanceText]);
 
@@ -1332,7 +1337,10 @@ export default function EmokaiStepPage({ params }: Props) {
           const composite = generationResults?.results.composite;
           if (!composite) return null;
           const url =
-            (composite.url && (composite.url.startsWith('data:') || /^https?:/i.test(composite.url))
+            (composite.url &&
+            (composite.url.startsWith('data:') ||
+              composite.url.startsWith('blob:') ||
+              /^https?:/i.test(composite.url))
               ? composite.url
               : null) ??
             (composite.imageBase64 && composite.mimeType
@@ -1504,7 +1512,9 @@ export default function EmokaiStepPage({ params }: Props) {
               | undefined;
             const compositeUrl =
               (composite?.url &&
-              (composite.url.startsWith('data:') || /^https?:/i.test(composite.url))
+              (composite.url.startsWith('data:') ||
+                composite.url.startsWith('blob:') ||
+                /^https?:/i.test(composite.url))
                 ? composite.url
                 : undefined) ??
               (composite?.imageBase64 && composite?.mimeType

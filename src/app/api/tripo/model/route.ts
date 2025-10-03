@@ -4,20 +4,16 @@ import { z } from "zod";
 import { getServerEnv } from "@/lib/env";
 import { TripoClient, type TripoTaskStatus } from "@/lib/tripo/serviceClient";
 
-const imagePayloadSchema = z
-  .object({
-    cacheKey: z.string().min(1).optional(),
-    imageBase64: z.string().min(1).optional(),
-    mimeType: z.string().min(1)
-  })
-  .refine((value) => !!value.cacheKey || !!value.imageBase64, {
-    message: "Either cacheKey or imageBase64 is required"
-  });
+const imagePayloadSchema = z.object({
+  imageBase64: z.string().min(1, "imageBase64 is required"),
+  mimeType: z.string().min(1, "mimeType is required"),
+  cacheKey: z.string().optional()
+});
 
 const requestSchema = z.object({
   characterId: z.string().min(1, "characterId is required"),
   description: z.string().min(1, "description is required"),
-  characterImage: imagePayloadSchema.optional()
+  characterImage: imagePayloadSchema
 });
 
 const MAX_ATTEMPTS = 30;
@@ -31,9 +27,18 @@ export async function POST(req: NextRequest) {
     const env = getServerEnv();
     const client = new TripoClient({ apiKey: env.TRIPO_API_KEY });
 
+    const fileName = `${body.characterId}.${inferExtension(body.characterImage.mimeType)}`;
+    const uploadId = await client.uploadImageFromBase64({
+      base64: body.characterImage.imageBase64,
+      mimeType: body.characterImage.mimeType,
+      fileName
+    });
+
     const taskId = await client.createTask({
       prompt: body.description,
-      type: "text_to_model"
+      type: "image_to_model",
+      fileUploadId: uploadId,
+      modelVersion: "default"
     });
 
     const status = await pollForCompletion(client, taskId);
@@ -74,6 +79,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     return NextResponse.json({ error: "Failed to generate 3D model" }, { status: 500 });
+  }
+}
+
+function inferExtension(mimeType: string): string {
+  switch (mimeType) {
+    case "image/png":
+      return "png";
+    case "image/jpeg":
+    case "image/jpg":
+      return "jpg";
+    case "image/webp":
+      return "webp";
+    default:
+      return "img";
   }
 }
 
