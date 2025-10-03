@@ -210,23 +210,74 @@ function getOutputUrls(json: unknown): { modelUrl: string | null; previewUrl: st
   const data = (candidate.data as Record<string, unknown>) ?? {};
   const output = (candidate.output as Record<string, unknown>) ?? {};
   const nestedOutput = (data.output as Record<string, unknown>) ?? {};
+  const result = (candidate.result as Record<string, unknown>) ?? {};
+  const nestedResult = (data.result as Record<string, unknown>) ?? {};
 
   const modelUrl =
-    (candidate.model_url as string | undefined) ||
-    (output.model_url as string | undefined) ||
-    (nestedOutput.model_url as string | undefined) ||
-    null;
+    ((candidate.model_url as string | undefined) ||
+      (output.model_url as string | undefined) ||
+      (nestedOutput.model_url as string | undefined) ||
+      findUrlByExtensions([candidate, data, output, nestedOutput, result, nestedResult], [
+        '.glb',
+        '.fbx',
+        '.usdz',
+        '.obj',
+        '.zip',
+      ])) ?? null;
 
   const previewUrl =
-    (candidate.preview as string | undefined) ||
-    (output.preview as string | undefined) ||
-    (nestedOutput.preview as string | undefined) ||
-    null;
+    ((candidate.preview as string | undefined) ||
+      (output.preview as string | undefined) ||
+      (nestedOutput.preview as string | undefined) ||
+      findUrlByExtensions([candidate, data, output, nestedOutput, result, nestedResult], [
+        '.png',
+        '.jpg',
+        '.jpeg',
+        '.webp',
+        '.gif',
+      ])) ?? null;
 
   return {
     modelUrl: modelUrl ?? null,
     previewUrl: previewUrl ?? null
   };
+}
+
+function findUrlByExtensions(
+  sources: unknown[],
+  extensions: string[],
+): string | null {
+  const visited = new WeakSet<object>();
+
+  const lowerExt = extensions.map((ext) => ext.toLowerCase());
+
+  const search = (value: unknown): string | null => {
+    if (!value || typeof value !== 'object') return null;
+    if (visited.has(value as object)) return null;
+    visited.add(value as object);
+
+    for (const val of Object.values(value as Record<string, unknown>)) {
+      if (typeof val === 'string') {
+        const lower = val.toLowerCase();
+        if (lower.startsWith('http')) {
+          if (lowerExt.some((ext) => lower.includes(ext))) {
+            return val;
+          }
+        }
+      } else if (typeof val === 'object' && val !== null) {
+        const found = search(val);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  for (const source of sources) {
+    const result = search(source);
+    if (result) return result;
+  }
+
+  return null;
 }
 
 function getMeta(json: unknown): Record<string, unknown> | null {

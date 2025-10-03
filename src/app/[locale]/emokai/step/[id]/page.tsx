@@ -643,12 +643,32 @@ export default function EmokaiStepPage({ params }: Props) {
   };
 
   const handleProceedToCharacterStep = async () => {
+    if (characterStatus === 'generating') return;
+
     if (!appearanceValid) {
       setAppearanceTouched(true);
       return;
     }
-    await runCharacterGeneration('character_auto');
-    router.push(`/${locale}/emokai/step/10`);
+
+    if (!stageSelection) {
+      setCharacterGenerationError(
+        isJa ? '先に景色をえらんでください。' : 'Please choose your scenery first.',
+      );
+      return;
+    }
+
+    if (characterPrompt.trim().length < MIN_TEXT_LENGTH) {
+      setAppearanceTouched(true);
+      setCharacterGenerationError(
+        isJa ? 'まだ形になりません。もう少し書いてみましょう。' : 'Too short.',
+      );
+      return;
+    }
+
+    const success = await runCharacterGeneration('character_options_initial');
+    if (success) {
+      router.push(`/${locale}/emokai/step/10`);
+    }
   };
 
   const handleStageGenerateFromText = async () => {
@@ -718,6 +738,10 @@ export default function EmokaiStepPage({ params }: Props) {
   };
 
   const handleCharacterGenerate = async () => {
+    if (characterOptions.length > 0 && characterStatus === 'ready') {
+      return;
+    }
+
     if (characterPrompt.trim().length < MIN_TEXT_LENGTH) {
       setCharacterGenerationError(
         isJa ? 'まだ形になりません。もう少し書いてみましょう。' : 'Too short.',
@@ -1131,13 +1155,15 @@ export default function EmokaiStepPage({ params }: Props) {
         <p className="whitespace-pre-wrap pt-2">{characterPrompt}</p>
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        <Button
-          type="button"
-          onClick={handleCharacterGenerate}
-          disabled={characterStatus === 'generating'}
-        >
-          {characterStatus === 'generating' ? generatingLabel : isJa ? '見てみる' : 'Show'}
-        </Button>
+        {characterOptions.length === 0 ? (
+          <Button
+            type="button"
+            onClick={handleCharacterGenerate}
+            disabled={characterStatus === 'generating'}
+          >
+            {characterStatus === 'generating' ? generatingLabel : isJa ? '見てみる' : 'Show'}
+          </Button>
+        ) : null}
         {characterOptions.length > 0 ? (
           <Button
             type="button"
@@ -1778,6 +1804,9 @@ export default function EmokaiStepPage({ params }: Props) {
             />
             {characterStatus === 'generating' ? (
               <p className="text-xs text-textSecondary">{generatingLabel}</p>
+            ) : null}
+            {characterGenerationError ? (
+              <p className="text-xs text-[#ffb9b9]">{characterGenerationError}</p>
             ) : null}
             <div className="pt-2">
               <button
