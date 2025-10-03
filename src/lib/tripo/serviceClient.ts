@@ -86,15 +86,11 @@ export type TripoTaskStatus = {
 export class TripoClient {
   private readonly apiKey: string;
   private readonly baseUrl: string;
-  private readonly uploadsBaseUrl: string;
   private readonly logger = createLogger("tripo");
 
   constructor({ apiKey, baseUrl = defaultBaseUrl }: FetcherConfig) {
     this.apiKey = apiKey;
     this.baseUrl = baseUrl.replace(/\/$/, "");
-    this.uploadsBaseUrl = this.baseUrl.endsWith("/openapi")
-      ? this.baseUrl.replace(/\/openapi$/, "")
-      : this.baseUrl;
   }
 
   async createTask(request: CreateTaskRequest): Promise<string> {
@@ -251,44 +247,69 @@ export class TripoClient {
   }
 
   private async requestUploadCredentials(type: "image"): Promise<UploadCredentials> {
-    const endpoint = `${this.uploadsBaseUrl}/upload/sts`;
+    const endpoints = [
+      `${this.baseUrl}/upload/sts`,
+      this.baseUrl.endsWith("/openapi")
+        ? `${this.baseUrl.replace(/\/openapi$/, "")}/upload/sts`
+        : null
+    ].filter((value): value is string => Boolean(value));
 
-    this.logger.info("upload:requestCredentials:start", { endpoint, type });
+    let lastError: Error | null = null;
 
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiKey}`
-      },
-      body: JSON.stringify({ type })
-    });
+    for (const endpoint of endpoints) {
+      this.logger.info("upload:requestCredentials:start", { endpoint, type });
 
-    const json = await res.json().catch(() => null);
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`
+        },
+        body: JSON.stringify({ type })
+      });
 
-    this.logger.info("upload:requestCredentials:response", { status: res.status, ok: res.ok });
+      const json = await res.json().catch(() => null);
 
-    if (!res.ok) {
-      const message =
-        (json as { error?: { message?: string } } | null)?.error?.message ?? res.statusText;
-      throw new Error(`Tripo upload credentials error (${res.status}): ${message}`);
+      this.logger.info("upload:requestCredentials:response", {
+        endpoint,
+        status: res.status,
+        ok: res.ok
+      });
+
+      if (!res.ok) {
+        const message =
+          (json as { error?: { message?: string } } | null)?.error?.message ?? res.statusText;
+
+        if (res.status === 404 && endpoint !== endpoints[endpoints.length - 1]) {
+          this.logger.warn("upload:requestCredentials:notFoundRetry", { endpoint });
+          lastError = new Error(`Tripo upload credentials error (${res.status}): ${message}`);
+          continue;
+        }
+
+        throw new Error(`Tripo upload credentials error (${res.status}): ${message}`);
+      }
+
+      const parsed: UploadCredentialsResponse = uploadCredentialsResponseSchema.parse(json);
+      const data = parsed.data;
+
+      if (!data) {
+        this.logger.error("upload:requestCredentials:missingData", { endpoint, json });
+        lastError = new Error("Tripo upload credentials missing data payload");
+        continue;
+      }
+
+      return {
+        uploadId: data.upload_id,
+        uploadUrl: data.upload_url,
+        fields: data.fields
+      };
     }
 
-    const parsed: UploadCredentialsResponse = uploadCredentialsResponseSchema.parse(json);
-    const data = parsed.data;
-
-    if (!data) {
-      this.logger.error("upload:requestCredentials:missingData", json);
-      throw new Error("Tripo upload credentials missing data payload");
+    if (lastError) {
+      throw lastError;
     }
 
-    const credentials: UploadCredentials = {
-      uploadId: data.upload_id,
-      uploadUrl: data.upload_url,
-      fields: data.fields
-    };
-
-    return credentials;
+    throw new Error("Tripo upload credentials request failed for all endpoints");
   }
 
   private async uploadToS3(
