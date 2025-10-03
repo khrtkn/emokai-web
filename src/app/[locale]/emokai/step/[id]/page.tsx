@@ -1079,6 +1079,7 @@ export default function EmokaiStepPage({ params }: Props) {
     generationState.composite === 'complete' && !!generationResults?.results?.composite;
   const storyReady = generationState.story === 'complete' && !!generationResults?.results?.story;
   const modelReady = generationState.model === 'complete' && !!generationResults?.results?.model;
+  const allReady = compositeReady && storyReady && modelReady;
 
   const persistCreation = () => {
     setSaveStatus('saving');
@@ -1297,61 +1298,22 @@ export default function EmokaiStepPage({ params }: Props) {
       <ProgressBar stages={progressStages} />
       {generationError ? (
         <p className="text-xs text-[#ffb9b9]">{generationError}</p>
-      ) : storyReady || compositeReady || modelReady ? (
-        <p className="text-xs text-textSecondary opacity-70">
-          {isJa ? 'できあがった順番に進めます。' : 'Jump ahead as each piece finishes.'}
-        </p>
-      ) : (
+      ) : !allReady ? (
         <p className="text-xs text-textSecondary opacity-70">
           {isJa ? 'もう少しだけお待ちください。' : 'Almost there—hold tight.'}
         </p>
-      )}
-      {(() => {
-        const nextAction = (() => {
-          if (storyReady) {
-            return {
-              label: isJa ? '物語を読む' : 'Read story',
-              step: 13,
-              ready: true,
-            } as const;
-          }
-          if (compositeReady) {
-            return {
-              label: isJa ? '合成写真を見る' : 'View composite',
-              step: 12,
-              ready: true,
-            } as const;
-          }
-          if (modelReady) {
-            return {
-              label: isJa ? 'ARで呼び出す' : 'Summon in AR',
-              step: 14,
-              ready: true,
-            } as const;
-          }
-          return {
-            label: isJa ? '準備中…' : 'Preparing…',
-            step: 12,
-            ready: false,
-          } as const;
-        })();
-
-        if (!nextAction.ready) {
-          return null;
-        }
-
-        return (
-          <div className="pt-2">
-            <button
-              type="button"
-              className={primaryButtonClass}
-              onClick={() => router.push(`/${locale}/emokai/step/${nextAction.step}`)}
-            >
-              {nextAction.label}
-            </button>
-          </div>
-        );
-      })()}
+      ) : null}
+      {allReady ? (
+        <div className="pt-2">
+          <button
+            type="button"
+            className={primaryButtonClass}
+            onClick={() => router.push(`/${locale}/emokai/step/13`)}
+          >
+            {isJa ? '記録を確認する' : 'View record'}
+          </button>
+        </div>
+      ) : null}
     </section>
   );
 

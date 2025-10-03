@@ -1,116 +1,158 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
-const INITIAL_CAMERA_POSITION = new THREE.Vector3(0, 1.2, 2.8);
+const INITIAL_CAMERA_POSITION: [number, number, number] = [0, 1.2, 2.8];
 
-export function FallbackViewer({
-  modelUrl,
-  loadingLabel,
-  errorLabel
-}: {
+type ViewerStatus = "loading" | "ready" | "error";
+
+type Props = {
   modelUrl: string;
   loadingLabel: string;
   errorLabel: string;
-}) {
+};
+
+export function FallbackViewer({ modelUrl, loadingLabel, errorLabel }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [status, setStatus] = useState<ViewerStatus>("loading");
 
   useEffect(() => {
-    if (!modelUrl) return;
     const container = containerRef.current;
-    if (!container) return;
+    if (!modelUrl || !container) return;
 
+    let disposed = false;
+    let cleanup: (() => void) | null = null;
     let animationId = 0;
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0f1115);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    container.appendChild(renderer.domElement);
+    setStatus("loading");
 
-    const camera = new THREE.PerspectiveCamera(
-      45,
-      container.clientWidth / container.clientHeight,
-      0.1,
-      100
-    );
-    camera.position.copy(INITIAL_CAMERA_POSITION);
+    (async () => {
+      try {
+        const [THREE, { GLTFLoader }, { OrbitControls }] = await Promise.all([
+          import("three"),
+          import("three/examples/jsm/loaders/GLTFLoader.js"),
+          import("three/examples/jsm/controls/OrbitControls.js"),
+        ]);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
-    scene.add(ambientLight);
-    const directional = new THREE.DirectionalLight(0xffffff, 1.4);
-    directional.position.set(2.5, 4, 1.5);
-    scene.add(directional);
+        if (disposed) return;
 
-    const grid = new THREE.GridHelper(6, 18, 0x404040, 0x202020);
-    grid.position.y = -0.75;
-    scene.add(grid);
+        const {
+          Scene,
+          Color,
+          PerspectiveCamera,
+          AmbientLight,
+          DirectionalLight,
+          GridHelper,
+          Vector3,
+          Box3,
+          Object3D,
+          WebGLRenderer,
+          SRGBColorSpace,
+        } = THREE;
 
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    controls.target.set(0, 0.4, 0);
+        const scene = new Scene();
+        scene.background = new Color(0x0f1115);
 
-    let currentModel: THREE.Object3D | null = null;
+        const renderer = new WebGLRenderer({ antialias: true, alpha: true });
+        renderer.outputColorSpace = SRGBColorSpace;
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
 
-    const loader = new GLTFLoader();
-    loader.load(
-      modelUrl,
-      (gltf) => {
-        currentModel = gltf.scene;
-        const box = new THREE.Box3().setFromObject(currentModel);
-        const size = new THREE.Vector3();
-        box.getSize(size);
-        const center = new THREE.Vector3();
-        box.getCenter(center);
-        currentModel.position.sub(center);
-        const maxAxis = Math.max(size.x, size.y, size.z) || 1;
-        const scale = 1.6 / maxAxis;
-        currentModel.scale.setScalar(scale);
-        scene.add(currentModel);
-        setStatus("ready");
-      },
-      undefined,
-      (err) => {
-        console.error("Failed to load GLB model", err);
-        setStatus("error");
+        const camera = new PerspectiveCamera(
+          45,
+          container.clientWidth / container.clientHeight,
+          0.1,
+          100,
+        );
+        camera.position.set(...INITIAL_CAMERA_POSITION);
+
+        const ambientLight = new AmbientLight(0xffffff, 1.1);
+        scene.add(ambientLight);
+        const directional = new DirectionalLight(0xffffff, 1.4);
+        directional.position.set(2.5, 4, 1.5);
+        scene.add(directional);
+
+        const grid = new GridHelper(6, 18, 0x404040, 0x202020);
+        grid.position.y = -0.75;
+        scene.add(grid);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.target.set(0, 0.4, 0);
+
+        let currentModel: InstanceType<typeof Object3D> | null = null;
+
+        const loader = new GLTFLoader();
+        loader.load(
+          modelUrl,
+          (gltf) => {
+            if (disposed) return;
+            currentModel = gltf.scene;
+            const box = new Box3().setFromObject(currentModel);
+            const size = new Vector3();
+            box.getSize(size);
+            const center = new Vector3();
+            box.getCenter(center);
+            currentModel.position.sub(center);
+            const maxAxis = Math.max(size.x, size.y, size.z) || 1;
+            const scale = 1.6 / maxAxis;
+            currentModel.scale.setScalar(scale);
+            scene.add(currentModel);
+            setStatus("ready");
+          },
+          undefined,
+          (err) => {
+            if (disposed) return;
+            console.error("Failed to load GLB model", err);
+            setStatus("error");
+          },
+        );
+
+        const handleResize = () => {
+          if (!container) return;
+          camera.aspect = container.clientWidth / container.clientHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(container.clientWidth, container.clientHeight);
+        };
+
+        window.addEventListener("resize", handleResize);
+
+        const animate = () => {
+          if (disposed) return;
+          animationId = window.requestAnimationFrame(animate);
+          controls.update();
+          renderer.render(scene, camera);
+        };
+        animate();
+
+        cleanup = () => {
+          window.cancelAnimationFrame(animationId);
+          window.removeEventListener("resize", handleResize);
+          controls.dispose();
+          if (currentModel) {
+            scene.remove(currentModel);
+          }
+          renderer.dispose();
+          if (renderer.domElement.parentNode) {
+            renderer.domElement.parentNode.removeChild(renderer.domElement);
+          }
+          scene.clear();
+        };
+      } catch (error) {
+        console.error("Failed to initialise 3D viewer", error);
+        if (!disposed) {
+          setStatus("error");
+        }
       }
-    );
-
-    const handleResize = () => {
-      if (!container) return;
-      camera.aspect = container.clientWidth / container.clientHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(container.clientWidth, container.clientHeight);
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    const animate = () => {
-      animationId = requestAnimationFrame(animate);
-      controls.update();
-      renderer.render(scene, camera);
-    };
-    animate();
+    })();
 
     return () => {
-      cancelAnimationFrame(animationId);
-      window.removeEventListener("resize", handleResize);
-      controls.dispose();
-      if (currentModel) {
-        scene.remove(currentModel);
+      disposed = true;
+      if (cleanup) {
+        cleanup();
       }
-      renderer.dispose();
-      if (renderer.domElement.parentNode) {
-        renderer.domElement.parentNode.removeChild(renderer.domElement);
-      }
-      scene.clear();
     };
   }, [modelUrl]);
 
