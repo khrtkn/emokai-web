@@ -5,6 +5,9 @@ import { z } from "zod";
 
 import { getServerEnv } from "@/lib/env";
 import { NanobananaClient } from "@/lib/nanobanana/serviceClient";
+import { createLogger } from "@/lib/logger";
+
+const logger = createLogger("nanobanana:composite");
 
 const jsonRequestSchema = z.object({
   backgroundBase64: z.string().min(1, "backgroundBase64 is required"),
@@ -16,6 +19,10 @@ const jsonRequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    logger.info("request:start", {
+      contentType: req.headers.get("content-type") ?? "unknown",
+    });
+
     const env = getServerEnv();
     const client = new NanobananaClient({ apiKey: env.GEMINI_API_KEY });
 
@@ -24,10 +31,22 @@ export async function POST(req: NextRequest) {
       ? await parseJsonPayload(req)
       : await parseFormPayload(req);
 
+    logger.info("request:payload-prepared", {
+      backgroundMime: payload.background.mimeType,
+      characterMime: payload.character.mimeType,
+      instruction: payload.instruction ? payload.instruction.slice(0, 60) : undefined,
+      contentType: contentType || "formData",
+    });
+
     const image = await client.generateComposite({
       background: payload.background,
       character: payload.character,
       instruction: payload.instruction
+    });
+
+    logger.info("response:received", {
+      mimeType: image.mimeType,
+      dataLength: image.data.length,
     });
 
     const composite = {
@@ -37,9 +56,11 @@ export async function POST(req: NextRequest) {
       mimeType: image.mimeType
     };
 
+    logger.info("response:success", { id: composite.id });
+
     return NextResponse.json({ composite });
   } catch (error) {
-    console.error("Nanobanana composite generation failed", error);
+    logger.error("response:error", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }

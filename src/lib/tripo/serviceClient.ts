@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { createLogger } from "@/lib/logger";
+
 const defaultBaseUrl = "https://api.tripo3d.ai/v2/openapi";
 
 export type CreateTaskRequest = {
@@ -59,6 +61,7 @@ export type TripoTaskStatus = {
 export class TripoClient {
   private readonly apiKey: string;
   private readonly baseUrl: string;
+  private readonly logger = createLogger("tripo");
 
   constructor({ apiKey, baseUrl = defaultBaseUrl }: FetcherConfig) {
     this.apiKey = apiKey;
@@ -77,6 +80,13 @@ export class TripoClient {
       quad: request.quad ?? false
     };
 
+    this.logger.info("createTask:start", {
+      type: payload.type,
+      hasImageUrl: Boolean(payload.image_url),
+      faceLimit: payload.face_limit,
+      textureQuality: payload.texture_quality,
+    });
+
     const res = await fetch(`${this.baseUrl}/task`, {
       method: "POST",
       headers: {
@@ -87,6 +97,11 @@ export class TripoClient {
     });
 
     const json = await res.json().catch(() => null);
+
+    this.logger.info("createTask:response", {
+      status: res.status,
+      ok: res.ok,
+    });
 
     if (!res.ok) {
       const message =
@@ -108,15 +123,20 @@ export class TripoClient {
       null;
 
     if (!taskId) {
+      this.logger.error("createTask:missingTaskId", json);
       throw new Error(
         `Tripo create task response missing task_id (payload: ${JSON.stringify(json)})`
       );
     }
 
+    this.logger.info("createTask:success", { taskId });
+
     return taskId;
   }
 
   async getTask(taskId: string): Promise<TripoTaskStatus> {
+    this.logger.info("getTask:start", { taskId });
+
     const res = await fetch(`${this.baseUrl}/task/${taskId}`, {
       headers: {
         Authorization: `Bearer ${this.apiKey}`
@@ -124,6 +144,12 @@ export class TripoClient {
     });
 
     const json = await res.json().catch(() => null);
+
+    this.logger.info("getTask:response", {
+      taskId,
+      status: res.status,
+      ok: res.ok,
+    });
 
     if (!res.ok) {
       const message =
@@ -136,6 +162,14 @@ export class TripoClient {
     const { modelUrl, previewUrl } = getOutputUrls(json);
     const meta = getMeta(json);
     const error = getError(json);
+
+    this.logger.info("getTask:parsed", {
+      taskId,
+      status,
+      progress,
+      hasModelUrl: Boolean(modelUrl),
+      hasPreview: Boolean(previewUrl),
+    });
 
     return {
       taskId,
