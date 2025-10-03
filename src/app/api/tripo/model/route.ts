@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
     const status = await pollForCompletion(client, taskId);
 
-    if (status.status !== "SUCCESS") {
+    if (status.status.toUpperCase() !== "SUCCESS") {
       console.error("Tripo task did not complete successfully", status);
       return NextResponse.json(
         {

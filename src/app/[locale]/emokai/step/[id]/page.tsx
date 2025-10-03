@@ -179,6 +179,31 @@ function persistCharacterSelection(option: CharacterOption, description: string)
   window.sessionStorage.setItem(CHARACTER_SELECTION_KEY, JSON.stringify(payload));
 }
 
+function readCharacterOptions(): CharacterOption[] {
+  if (typeof window === 'undefined') return [];
+  const raw = window.sessionStorage.getItem(CHARACTER_OPTIONS_KEY);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed as CharacterOption[];
+    }
+  } catch (error) {
+    console.warn('Failed to parse character options', error);
+  }
+  return [];
+}
+
+function persistCharacterOptions(options: CharacterOption[]) {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.setItem(CHARACTER_OPTIONS_KEY, JSON.stringify(options));
+}
+
+function clearCharacterOptions() {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.removeItem(CHARACTER_OPTIONS_KEY);
+}
+
 function readGenerationPayload(): StoredGenerationPayload | null {
   if (typeof window === 'undefined') return null;
   const raw = window.sessionStorage.getItem(GENERATION_RESULTS_KEY);
@@ -277,6 +302,7 @@ const REASON_STORAGE_KEY = 'emokai_reason';
 const EMOTIONS_STORAGE_KEY = 'emokai_emotions';
 const ACTION_STORAGE_KEY = 'emokai_action';
 const APPEARANCE_STORAGE_KEY = 'emokai_appearance';
+const CHARACTER_OPTIONS_KEY = 'emokai_character_options';
 
 export default function EmokaiStepPage({ params }: Props) {
   const { locale, id } = params;
@@ -339,14 +365,19 @@ export default function EmokaiStepPage({ params }: Props) {
   const [stageProcessedImage, setStageProcessedImage] = useState<ProcessedImage | null>(null);
 
   const storedCharacterSelection = useMemo(() => readCharacterSelection(), []);
+  const storedCharacterOptions = useMemo(() => readCharacterOptions(), []);
   const [characterOptions, setCharacterOptions] = useState<CharacterOption[]>(
-    storedCharacterSelection ? [storedCharacterSelection.selectedOption] : [],
+    storedCharacterOptions.length
+      ? storedCharacterOptions
+      : storedCharacterSelection
+        ? [storedCharacterSelection.selectedOption]
+        : [],
   );
   const [characterSelection, setCharacterSelection] = useState<CharacterOption | null>(
     storedCharacterSelection?.selectedOption ?? null,
   );
   const [characterStatus, setCharacterStatus] = useState<CharacterFlowStatus>(
-    storedCharacterSelection ? 'ready' : 'idle',
+    storedCharacterOptions.length ? 'ready' : storedCharacterSelection ? 'ready' : 'idle',
   );
   const [characterGenerationError, setCharacterGenerationError] = useState<string | null>(null);
 
@@ -504,6 +535,14 @@ export default function EmokaiStepPage({ params }: Props) {
     setActionTouched(true);
     setActionText(value);
     saveSessionString(ACTION_STORAGE_KEY, value);
+    setCharacterStatus('idle');
+    setCharacterOptions([]);
+    setCharacterSelection(null);
+    setCharacterStatus('idle');
+    clearCharacterOptions();
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem(CHARACTER_SELECTION_KEY);
+    }
   };
 
   const handleAppearanceChange = (value: string) => {
@@ -511,6 +550,13 @@ export default function EmokaiStepPage({ params }: Props) {
     setAppearanceText(value);
     saveSessionString(APPEARANCE_STORAGE_KEY, value);
     setCharacterGenerationError(null);
+    setCharacterStatus('idle');
+    setCharacterOptions([]);
+    setCharacterSelection(null);
+    clearCharacterOptions();
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem(CHARACTER_SELECTION_KEY);
+    }
   };
 
   const toggleEmotion = (emotion: string) => {
@@ -519,6 +565,13 @@ export default function EmokaiStepPage({ params }: Props) {
       const exists = prev.includes(emotion);
       const nextList = exists ? prev.filter((item) => item !== emotion) : [...prev, emotion];
       saveSessionArray(EMOTIONS_STORAGE_KEY, nextList);
+      setCharacterStatus('idle');
+      setCharacterOptions([]);
+      setCharacterSelection(null);
+      clearCharacterOptions();
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem(CHARACTER_SELECTION_KEY);
+      }
       return nextList;
     });
   };
@@ -542,6 +595,13 @@ export default function EmokaiStepPage({ params }: Props) {
     setStageSelection(null);
     if (typeof window !== 'undefined') {
       window.sessionStorage.removeItem(STAGE_SELECTION_KEY);
+    }
+
+    setCharacterOptions([]);
+    setCharacterSelection(null);
+    clearCharacterOptions();
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem(CHARACTER_SELECTION_KEY);
     }
 
     setStageProcessedImage((previous) => {
@@ -599,6 +659,7 @@ export default function EmokaiStepPage({ params }: Props) {
     if (typeof window !== 'undefined') {
       window.sessionStorage.removeItem(CHARACTER_SELECTION_KEY);
     }
+    clearCharacterOptions();
 
     trackEvent('generation_start', { step: trackLabel, locale });
 
@@ -616,6 +677,7 @@ export default function EmokaiStepPage({ params }: Props) {
       const generated = await createCharacterOptions(characterPrompt);
       setCharacterOptions(generated);
       setCharacterStatus('ready');
+      persistCharacterOptions(generated);
       trackEvent('generation_complete', { step: trackLabel, locale });
       return true;
     } catch (error) {
@@ -665,6 +727,7 @@ export default function EmokaiStepPage({ params }: Props) {
       return;
     }
 
+    setCharacterGenerationError(null);
     const success = await runCharacterGeneration('character_options_initial');
     if (success) {
       router.push(`/${locale}/emokai/step/10`);
@@ -725,6 +788,13 @@ export default function EmokaiStepPage({ params }: Props) {
     if (!option) return;
     setStageSelection(option);
     persistStageSelection(option);
+    setCharacterOptions([]);
+    setCharacterSelection(null);
+    setCharacterStatus('idle');
+    clearCharacterOptions();
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem(CHARACTER_SELECTION_KEY);
+    }
   };
 
   const handleStageNext = () => {

@@ -187,12 +187,12 @@ function getStatus(json: unknown): string {
   const candidate = (json as Record<string, unknown>) ?? {};
   const data = (candidate.data as Record<string, unknown>) ?? {};
   const output = (candidate.output as Record<string, unknown>) ?? {};
-  return (
+  const raw =
     (candidate.status as string | undefined) ||
     (data.status as string | undefined) ||
     (output.status as string | undefined) ||
-    "UNKNOWN"
-  );
+    "UNKNOWN";
+  return raw.toUpperCase();
 }
 
 function getProgress(json: unknown): number | null {
