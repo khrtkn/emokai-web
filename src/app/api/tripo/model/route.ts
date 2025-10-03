@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     const client = new TripoClient({ apiKey: env.TRIPO_API_KEY });
 
     const fileName = `${body.characterId}.${inferExtension(body.characterImage.mimeType)}`;
-    const uploadId = await client.uploadImageFromBase64({
+    const uploadReference = await client.uploadImageFromBase64({
       base64: body.characterImage.imageBase64,
       mimeType: body.characterImage.mimeType,
       fileName
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     const taskId = await client.createTask({
       prompt: body.description,
       type: "image_to_model",
-      fileUploadId: uploadId,
+      uploadReference,
       modelVersion: "default"
     });
 
