@@ -1405,40 +1405,15 @@ export default function EmokaiStepPage({ params }: Props) {
           </p>
         </div>
       </div>
-      {saveStatus === 'error' && saveError ? (
-        <p className="text-xs text-[#ffb9b9]">{saveError}</p>
-      ) : null}
       <div className="pt-2">
         <button
           type="button"
-          className={`${primaryButtonClass} ${saveStatus === 'saving' ? 'opacity-50 pointer-events-none' : ''}`}
-          onClick={() => {
-            const result = persistCreation();
-            if (result.success) {
-              router.push(`/${locale}/emokai/step/12`);
-            }
-          }}
+          className={primaryButtonClass}
+          onClick={() => router.push(`/${locale}/emokai/step/12`)}
         >
-          {saveStatus === 'saving'
-            ? isJa
-              ? '保存しています…'
-              : 'Saving...'
-            : isJa
-              ? '合成写真を見る'
-              : 'View composite'}
+          {isJa ? 'つぎへ' : 'Next'}
         </button>
       </div>
-      {shareDetails ? (
-        <div className="rounded-2xl border border-divider bg-[rgba(237,241,241,0.04)] p-4 text-xs text-textSecondary">
-          <p className="font-semibold text-textPrimary">{isJa ? '共有リンク' : 'Share link'}</p>
-          <p className="break-all pt-2">{shareDetails.url}</p>
-          {shareDetails.expiresAt ? (
-            <p className="pt-1">
-              {isJa ? '有効期限' : 'Expires'}: {formatDate(shareDetails.expiresAt, localeKey)}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
     </section>
   );
 
@@ -1476,6 +1451,37 @@ export default function EmokaiStepPage({ params }: Props) {
       <h2 className="text-base font-semibold text-textPrimary">
         {isJa ? 'あなたのエモカイたち' : 'Your Emokai'}
       </h2>
+      <div className="space-y-2">
+        <button
+          type="button"
+          className={`${primaryButtonClass} ${saveStatus === 'saving' ? 'opacity-50 pointer-events-none' : ''}`}
+          onClick={() => {
+            persistCreation();
+          }}
+        >
+          {saveStatus === 'saving'
+            ? isJa
+              ? '保存しています…'
+              : 'Saving...'
+            : isJa
+              ? '作品を保存'
+              : 'Save creation'}
+        </button>
+        {saveStatus === 'error' && saveError ? (
+          <p className="text-xs text-[#ffb9b9]">{saveError}</p>
+        ) : null}
+        {shareDetails ? (
+          <div className="rounded-2xl border border-divider bg-[rgba(237,241,241,0.04)] p-4 text-xs text-textSecondary">
+            <p className="font-semibold text-textPrimary">{isJa ? '共有リンク' : 'Share link'}</p>
+            <p className="break-all pt-2">{shareDetails.url}</p>
+            {shareDetails.expiresAt ? (
+              <p className="pt-1">
+                {isJa ? '有効期限' : 'Expires'}: {formatDate(shareDetails.expiresAt, localeKey)}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
       {creations.length === 0 ? (
         <MessageBlock
           title={isJa ? 'まだいないようですね！' : 'Looks empty!'}

@@ -85,30 +85,43 @@ export function FallbackViewer({ modelUrl, loadingLabel, errorLabel }: Props) {
         let currentModel: InstanceType<typeof Object3D> | null = null;
 
         const loader = new GLTFLoader();
-        loader.load(
-          modelUrl,
-          (gltf) => {
-            if (disposed) return;
-            currentModel = gltf.scene;
-            const box = new Box3().setFromObject(currentModel);
-            const size = new Vector3();
-            box.getSize(size);
-            const center = new Vector3();
-            box.getCenter(center);
-            currentModel.position.sub(center);
-            const maxAxis = Math.max(size.x, size.y, size.z) || 1;
-            const scale = 1.6 / maxAxis;
-            currentModel.scale.setScalar(scale);
-            scene.add(currentModel);
-            setStatus("ready");
-          },
-          undefined,
-          (err) => {
-            if (disposed) return;
-            console.error("Failed to load GLB model", err);
-            setStatus("error");
-          },
-        );
+        try {
+          const proxiedUrl = `/api/tripo/model-file?url=${encodeURIComponent(modelUrl)}`;
+          const response = await fetch(proxiedUrl);
+          if (!response.ok) {
+            throw new Error(`Viewer proxy failed: ${response.status}`);
+          }
+          const buffer = await response.arrayBuffer();
+
+          loader.parse(
+            buffer,
+            '',
+            (gltf) => {
+              if (disposed) return;
+              currentModel = gltf.scene;
+              const box = new Box3().setFromObject(currentModel);
+              const size = new Vector3();
+              box.getSize(size);
+              const center = new Vector3();
+              box.getCenter(center);
+              currentModel.position.sub(center);
+              const maxAxis = Math.max(size.x, size.y, size.z) || 1;
+              const scale = 1.6 / maxAxis;
+              currentModel.scale.setScalar(scale);
+              scene.add(currentModel);
+              setStatus("ready");
+            },
+            (err) => {
+              if (disposed) return;
+              console.error("Failed to parse GLB model", err);
+              setStatus("error");
+            }
+          );
+        } catch (error) {
+          if (disposed) return;
+          console.error("Failed to load GLB model", error);
+          setStatus("error");
+        }
 
         const handleResize = () => {
           if (!container) return;
