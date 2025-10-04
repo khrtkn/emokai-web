@@ -28,9 +28,8 @@ export async function POST(req: NextRequest) {
     const env = getServerEnv();
     const client = new TripoClient(env.TRIPO_API_KEY);
 
-    const requestedFormats = body.targetFormats && body.targetFormats.length > 0
-      ? body.targetFormats
-      : ["GLB"] as const;
+    const requestedFormats: ("GLB" | "USDZ")[] =
+      body.targetFormats && body.targetFormats.length > 0 ? [...body.targetFormats] : ["GLB"];
     const primaryFormat = requestedFormats[0] === "USDZ" ? "usdz" : "glb";
 
     console.log("[tripo-model] request", {
