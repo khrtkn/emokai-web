@@ -31,6 +31,14 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
   const isIOS = device === "ios";
 
   useEffect(() => {
+    console.log("[ar-session] init", {
+      mode: currentMode,
+      device,
+      isIOS
+    });
+  }, [currentMode, device, isIOS]);
+
+  useEffect(() => {
     if (currentMode !== "fallback") return;
     setViewerLoading(true);
     try {
@@ -38,22 +46,35 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
       if (!raw) {
         setViewerError(t("session.viewerMissing"));
         setModelUrl(null);
+        console.warn("[ar-session] generation results missing");
       } else {
         const parsed = JSON.parse(raw) as {
           results?: {
             model?: {
               url?: string | null;
+              alternates?: {
+                usdz?: string | null;
+                glb?: string | null;
+              };
             };
           };
         };
-        const url = parsed?.results?.model?.url ?? null;
+        const model = parsed?.results?.model;
+        const url = model?.url ?? null;
 
         if (url) {
           setModelUrl(url);
           setViewerError(null);
+          console.log("[ar-session] model url loaded", {
+            url,
+            alternates: model?.alternates ?? null
+          });
         } else {
           setModelUrl(null);
           setViewerError(t("session.viewerMissing"));
+          console.warn("[ar-session] model url missing", {
+            model
+          });
         }
       }
     } catch (error) {

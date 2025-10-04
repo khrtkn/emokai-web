@@ -22,6 +22,8 @@ export type ImageToModelOptions = {
   autoSize?: boolean;
 };
 
+export type ConvertModelFormat = "GLTF" | "USDZ";
+
 export type RiggingOptions = {
   rigType?: string;
   outputFormat?: string;
@@ -145,6 +147,48 @@ export class TripoClient {
       }
       throw error;
     }
+  }
+
+  async createConversionTask(modelUrl: string, format: ConvertModelFormat): Promise<string> {
+    const payload = {
+      type: "convert_model" as const,
+      model_url: modelUrl,
+      format
+    };
+
+    console.log("📤 Sending conversion request:", JSON.stringify(payload, null, 2));
+
+    try {
+      const response = await axios.post(
+        `${this.baseURL}/task`,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.apiKey}`
+          },
+          timeout: 30_000
+        }
+      );
+
+      const taskId = response.data?.data?.task_id ?? response.data?.task_id;
+      if (!taskId) {
+        throw new Error("No conversion task ID received");
+      }
+
+      return taskId;
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response?.data) {
+        throw new Error(`Conversion task creation failed: ${JSON.stringify(error.response.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  async convertModel(modelUrl: string, format: ConvertModelFormat, maxWaitMs = 600_000) {
+    const taskId = await this.createConversionTask(modelUrl, format);
+    const output = await this.pollTask(taskId, maxWaitMs);
+    return { taskId, output };
   }
 
   async getTaskStatus(taskId: string): Promise<Record<string, any>> {

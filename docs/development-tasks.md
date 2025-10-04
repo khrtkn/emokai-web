@@ -6,6 +6,7 @@
 - [x] Stage flow (Step A): text entry with moderation, upload pipeline (camera/library permissions, EXIF strip, resize/WebP, cleanup), Nanobanana stage generation, selection UI.
 - [x] Character flow (Step B): description moderation, Nanobanana character outputs, selection UI, progress bar kickoff, session lock.
 - [x] Parallel jobs (Step C1–C3): TripoAPI model generation (timeouts, storage), Nanobanana composite, OpenAI narrative with sanitization and status updates.
+  - Oct 05 2025: Added automatic USDZ conversion via Tripo "convert_model" tasks when native output missing; emits debug logs for format selection on preview builds.
 - [x] Result screens (Step D): narrative view, composite display, AR entry gating, license notice, unload cancellation handling.
 - [x] AR & 3D viewer (Step E): WebAR implementation, permission prompts, plane detection guidance, capture/save per OS, fallback viewer.
 - [x] Persistence & sharing (Step F): daily limits, asset/metadata persistence, expiring share URLs, share sheet, OGP metadata.

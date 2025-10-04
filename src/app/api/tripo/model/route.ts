@@ -33,6 +33,12 @@ export async function POST(req: NextRequest) {
       : ["GLB"] as const;
     const primaryFormat = requestedFormats[0] === "USDZ" ? "usdz" : "glb";
 
+    console.log("[tripo-model] request", {
+      characterId: body.characterId,
+      requestedFormats,
+      primaryFormat
+    });
+
     const { filePath, cleanup } = await persistImageToTemp(BodyImage.fromPayload(body));
 
     try {
@@ -47,9 +53,50 @@ export async function POST(req: NextRequest) {
 
       const result = await client.pollTask(taskId);
       const urls = collectModelUrls(result);
-      const preferredUrl = selectPreferredUrl(result, urls, requestedFormats[0]);
+      let preferredUrl = selectPreferredUrl(result, urls, requestedFormats[0]);
+
+      console.log("[tripo-model] urls", {
+        urls,
+        preferredUrl,
+        requestedFormat: requestedFormats[0],
+        hasPreview: Boolean(result.preview ?? result.thumbnail)
+      });
+
+      const requestedUsd = requestedFormats.includes("USDZ");
+      const requiresConversion = requestedUsd && !urls.usdz && !!urls.glb;
+
+      if (requiresConversion) {
+        console.log("[tripo-model] attempting USDZ conversion", {
+          glbUrl: urls.glb
+        });
+        try {
+          const { taskId: conversionTaskId, output: conversionOutput } = await client.convertModel(
+            urls.glb as string,
+            "USDZ"
+          );
+          const convertedUrl = findUrlByExtension(conversionOutput, "usdz") ?? extractModelUrl(conversionOutput);
+          console.log("[tripo-model] conversion output", {
+            conversionTaskId,
+            convertedUrl
+          });
+          if (convertedUrl) {
+            urls.usdz = convertedUrl;
+            if (requestedFormats[0] === "USDZ") {
+              preferredUrl = convertedUrl;
+            }
+          } else {
+            console.warn("[tripo-model] conversion did not return USDZ", { conversionTaskId, conversionOutput });
+          }
+        } catch (conversionError) {
+          console.error("[tripo-model] USDZ conversion failed", conversionError);
+        }
+      }
 
       if (!preferredUrl) {
+        console.warn("[tripo-model] missing preferred URL", {
+          urls,
+          requestedFormats
+        });
         return NextResponse.json(
           { error: "Tripo response missing model URL", status: "success", details: result },
           { status: 502 }
@@ -59,6 +106,12 @@ export async function POST(req: NextRequest) {
       const previewUrl = result.preview ?? result.thumbnail ?? null;
 
       const alternates = buildAlternates(urls, preferredUrl);
+
+      console.log("[tripo-model] response", {
+        preferredUrl,
+        alternates,
+        previewProvided: Boolean(previewUrl)
+      });
 
       return NextResponse.json({
         model: {

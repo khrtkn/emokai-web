@@ -12,6 +12,7 @@ import { checkDailyLimit } from "@/lib/rate-limit";
 import { saveCreation } from "@/lib/persistence";
 import { trackEvent } from "@/lib/analytics";
 import { getCachedImage } from "@/lib/image-cache";
+import { detectDeviceType } from "@/lib/device";
 import type { CompositeResult, ModelResult, StoryResult } from "@/lib/generation-jobs";
 
 interface GenerationResultsPayload {
@@ -41,6 +42,9 @@ export function ResultViewer() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [shareDetails, setShareDetails] = useState<{ url: string; expiresAt?: string } | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+
+  const device = useMemo(() => detectDeviceType(), []);
+  const isIOS = device === "ios";
 
   useEffect(() => {
     const raw = sessionStorage.getItem(GENERATION_RESULTS_KEY);
@@ -81,7 +85,25 @@ export function ResultViewer() {
 
   const storyContent = results?.results?.story?.content ?? "";
   const compositeUrl = results?.results?.composite?.url ?? "";
-  const modelUrl = results?.results?.model?.url ?? "";
+  const model = results?.results?.model;
+  const modelUrl = model?.url ?? "";
+
+  const hasUsdzModel = useMemo(() => {
+    if (!model) return false;
+    const primary = model.url?.toLowerCase() ?? "";
+    if (primary.endsWith(".usdz")) return true;
+    const alternate = model.alternates?.usdz ?? null;
+    if (typeof alternate === "string" && alternate.toLowerCase().includes(".usdz")) {
+      return true;
+    }
+    return false;
+  }, [model]);
+
+  const arReady = useMemo(() => {
+    if (!modelUrl) return false;
+    if (!isIOS) return true;
+    return hasUsdzModel;
+  }, [isIOS, modelUrl, hasUsdzModel]);
 
   const actionLabel = useMemo(() => {
     if (step === "ar") {
@@ -99,10 +121,10 @@ export function ResultViewer() {
       return !compositeUrl;
     }
     if (step === "ar") {
-      return !modelUrl;
+      return !modelUrl || !arReady;
     }
     return false;
-  }, [step, results, storyContent, compositeUrl, modelUrl]);
+  }, [step, results, storyContent, compositeUrl, modelUrl, arReady]);
 
   const saveLabel = useMemo(() => {
     if (saveStatus === "saving") return t("saving");
@@ -129,6 +151,9 @@ export function ResultViewer() {
       return;
     }
     if (step === "ar") {
+      if (!modelUrl || (isIOS && !hasUsdzModel)) {
+        return;
+      }
       trackEvent("ar_launch", { source: "result", locale });
       router.push(`/${locale}/ar`);
     }
@@ -232,6 +257,9 @@ export function ResultViewer() {
                   <li>{t("arTip2")}</li>
                   <li>{t("arTip3")}</li>
                 </ul>
+                {isIOS && !hasUsdzModel ? (
+                  <p className="text-xs text-[#ffb9b9]">{t("arPending")}</p>
+                ) : null}
               </div>
             }
             footer={licenseFooter}

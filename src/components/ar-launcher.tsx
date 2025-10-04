@@ -32,6 +32,10 @@ export function ARLauncher() {
     const capability = checkARCapability();
     setSupport(capability);
     setViewerMode(capability === "supported" ? "ar" : "fallback");
+    console.log("[ar-launcher] init", {
+      detected,
+      capability
+    });
     trackEvent("ar_launch", { source: "launcher_mount", capability, locale, device: detected });
   }, [locale]);
 
@@ -76,12 +80,18 @@ export function ARLauncher() {
     const raw = sessionStorage.getItem(GENERATION_RESULTS_KEY);
     if (!raw) {
       setError(t("missingResults"));
+      console.warn("[ar-launcher] launch blocked: missing results");
       return;
     }
     if (viewerMode === "ar" && permissionState !== "granted") {
       setError(t("permissionRequired"));
+      console.warn("[ar-launcher] launch blocked: camera permission", { viewerMode, permissionState });
       return;
     }
+    console.log("[ar-launcher] launching", {
+      viewerMode,
+      permissionState
+    });
     trackEvent("ar_launch", { action: viewerMode === "ar" ? "launch_ar" : "launch_fallback", locale });
     router.push(`/${locale}/ar/session?mode=${viewerMode}`);
   };
