@@ -42,7 +42,7 @@ import { saveCreation, listCreations, type CreationPayload } from '@/lib/persist
 import { cacheImage, getCachedImage } from '@/lib/image-cache';
 import { isLiveApisEnabled } from '@/lib/env/client';
 
-const MIN_TEXT_LENGTH = 10;
+const MIN_TEXT_LENGTH = 1;
 const TOTAL_STEPS = 15;
 
 const BASIC_EMOTIONS = [
@@ -430,9 +430,7 @@ export default function EmokaiStepPage({ params }: Props) {
   }, [step]);
 
   // ====== やわらかトーンの定型文 ======
-  const minLengthHint = isJa
-    ? '10文字以上で書いてください'
-    : 'Please write at least 10 characters.';
+  const minLengthHint = isJa ? '何か入力してください' : 'Please enter at least one character.';
   const selectOneHint = isJa ? '少なくとも1つえらんでください' : 'Please select at least one.';
   const nextLabel = isJa ? 'つづける' : 'Continue';
   const selectNextLabel = isJa ? 'これにする' : 'Choose this';

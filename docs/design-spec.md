@@ -88,7 +88,7 @@
 - Purpose: Stage description (Step A) or character description (Step B).
 - Header title updates per flow: `ステージの説明` / `Describe Stage`, `キャラクターの説明` / `Describe Character`.
 - Instruction banner shows contextual tips (marquee when long text).
-- Input field spans majority of viewport; keyboard pushes content above safe-area. Provide persistent `次へ` button within header; disable until text meets validation (≥ 10 characters recommended).
+- Input field spans majority of viewport; keyboard pushes content above safe-area. Provide persistent `次へ` button within header; disable until text meets validation (≥ 1 character required).
 
 ### 6.3 Image Source Selection (modal, not in Figma)
 - Follows product requirement: two-button sheet `カメラで撮影` / `ライブラリから選択`.

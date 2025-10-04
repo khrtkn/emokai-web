@@ -20,13 +20,15 @@ jest.mock("@/lib/device", () => ({
 import ARLauncher from "@/components/ar-launcher";
 
 describe("ARLauncher", () => {
-  it("shows unsupported message", () => {
+  it("shows unsupported message", async () => {
     render(<ARLauncher />);
-    expect(screen.getByText("support.unsupported")).toBeInTheDocument();
+    const matches = await screen.findAllByText("support.unsupported");
+    expect(matches.length).toBeGreaterThan(0);
   });
 
-  it("allows fallback launch when unsupported", () => {
+  it("allows fallback launch when unsupported", async () => {
     render(<ARLauncher />);
-    expect(screen.getByRole("button", { name: "openViewer" })).toBeEnabled();
+    const button = await screen.findByRole("button", { name: "openViewer" });
+    expect(button).toBeEnabled();
   });
 });
