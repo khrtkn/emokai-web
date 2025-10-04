@@ -41,8 +41,8 @@ describe('device', () => {
     expect(getModelTargetFormats()).toEqual(['GLB']);
   });
 
-  it('reports AR supported when navigator.xr present', () => {
-    setUA('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)', true);
+  it('reports AR supported on iOS', () => {
+    setUA('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)');
     expect(checkARCapability()).toBe('supported');
   });
 

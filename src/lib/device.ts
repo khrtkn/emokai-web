@@ -17,8 +17,7 @@ export function checkARCapability(): ARSupport {
   const device = detectDeviceType();
 
   if (device === "ios") {
-    const isSupported = typeof navigator !== "undefined" && "xr" in navigator;
-    return isSupported ? "supported" : "fallback";
+    return "supported";
   }
 
   if (device === "android") {
