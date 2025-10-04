@@ -115,11 +115,6 @@ export class TripoClient {
     const payload: Record<string, unknown> = {
       type: request.type ?? inferredType,
       prompt: request.prompt,
-      texture,
-      pbr,
-      texture_quality: textureQuality,
-      face_limit: faceLimit,
-      quad
     };
 
     if (request.imageUrl) {
@@ -129,12 +124,29 @@ export class TripoClient {
     if (request.uploadReference) {
       if (request.uploadReference.mode === "image_token") {
         payload.image_token = request.uploadReference.value;
+        payload.image_tokens = [request.uploadReference.value];
       } else {
         payload.file = {
           type: "upload_id",
           value: request.uploadReference.value
         };
       }
+    }
+
+    if (texture !== undefined) {
+      payload.texture = texture;
+    }
+    if (pbr !== undefined) {
+      payload.pbr = pbr;
+    }
+    if (textureQuality) {
+      payload.texture_quality = textureQuality;
+    }
+    if (faceLimit) {
+      payload.face_limit = faceLimit;
+    }
+    if (quad !== undefined) {
+      payload.quad = quad;
     }
 
     if (request.modelVersion) {
@@ -164,11 +176,14 @@ export class TripoClient {
     this.logger.info("createTask:response", {
       status: res.status,
       ok: res.ok,
+      raw: json
     });
 
     if (!res.ok) {
       const message =
-        (json as { error?: { message?: string } } | null)?.error?.message ?? res.statusText;
+        (json as { error?: { message?: string }; message?: string } | null)?.error?.message ??
+        (json as { message?: string } | null)?.message ??
+        res.statusText;
       throw new Error(`Tripo API error (${res.status}): ${message}`);
     }
 
