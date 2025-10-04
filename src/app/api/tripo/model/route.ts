@@ -173,8 +173,8 @@ function extractModelUrl(result: Record<string, unknown>): string | null {
 
 function collectModelUrls(result: Record<string, unknown>): ModelUrlMap {
   return {
-    glb: extractFormatUrl(result, "glb"),
-    usdz: extractFormatUrl(result, "usdz")
+    glb: extractFormatUrl(result, "glb") ?? findUrlByExtension(result, "glb"),
+    usdz: extractFormatUrl(result, "usdz") ?? findUrlByExtension(result, "usdz")
   } satisfies ModelUrlMap;
 }
 
@@ -189,6 +189,29 @@ function extractFormatUrl(result: Record<string, unknown>, field: "glb" | "usdz"
     const nestedValue = nested[field];
     if (typeof nestedValue === "string" && nestedValue.length > 0) {
       return nestedValue;
+    }
+  }
+
+  return null;
+}
+
+function findUrlByExtension(result: Record<string, unknown>, extension: "glb" | "usdz"): string | null {
+  const stack: unknown[] = [result];
+  const pattern = new RegExp(`\\.${extension}(?:\\?|$)`, "i");
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current || typeof current !== "object") {
+      continue;
+    }
+
+    for (const value of Object.values(current as Record<string, unknown>)) {
+      if (typeof value === "string" && pattern.test(value)) {
+        return value;
+      }
+      if (value && typeof value === "object") {
+        stack.push(value);
+      }
     }
   }
 
