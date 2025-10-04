@@ -35,6 +35,7 @@ import type { ProgressStage } from "@/components/ui";
 import { trackEvent, trackError } from "@/lib/analytics";
 import { isLiveApisEnabled } from "@/lib/env/client";
 import { getCachedImage } from "@/lib/image-cache";
+import { getModelTargetFormats } from "@/lib/device";
 
 const MAX_DESCRIPTION = 300;
 
@@ -273,7 +274,8 @@ export function CharacterBuilder() {
       characterImage: {
         imageBase64: characterCacheEntry.base64,
         mimeType: characterCacheEntry.mimeType
-      }
+      },
+      targetFormats: getModelTargetFormats()
     })
       .then((model) => {
         setGenerationState((prev) => ({ ...prev, model: "complete" }));

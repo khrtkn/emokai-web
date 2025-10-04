@@ -1,4 +1,5 @@
 export type ARSupport = "supported" | "unsupported" | "fallback";
+export type ModelTargetFormat = "GLB" | "USDZ";
 
 function getUserAgent(): string {
   if (typeof navigator === "undefined") return "";
@@ -26,4 +27,12 @@ export function checkARCapability(): ARSupport {
   }
 
   return "unsupported";
+}
+
+export function getModelTargetFormats(): ModelTargetFormat[] {
+  const device = detectDeviceType();
+  if (device === "ios") {
+    return ["USDZ"];
+  }
+  return ["GLB"];
 }

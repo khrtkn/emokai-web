@@ -18,7 +18,8 @@ const imagePayloadSchema = z.object({
 const requestSchema = z.object({
   characterId: z.string().min(1, "characterId is required"),
   description: z.string().min(1, "description is required"),
-  characterImage: imagePayloadSchema
+  characterImage: imagePayloadSchema,
+  targetFormats: z.array(z.literal("GLB").or(z.literal("USDZ"))).min(1).optional()
 });
 
 export async function POST(req: NextRequest) {
@@ -26,6 +27,11 @@ export async function POST(req: NextRequest) {
     const body = requestSchema.parse(await req.json());
     const env = getServerEnv();
     const client = new TripoClient(env.TRIPO_API_KEY);
+
+    const requestedFormats = body.targetFormats && body.targetFormats.length > 0
+      ? body.targetFormats
+      : ["GLB"] as const;
+    const primaryFormat = requestedFormats[0] === "USDZ" ? "usdz" : "glb";
 
     const { filePath, cleanup } = await persistImageToTemp(BodyImage.fromPayload(body));
 
@@ -36,13 +42,14 @@ export async function POST(req: NextRequest) {
         modelVersion: "v2.5-20250123",
         faceLimit: 20000,
         pbr: true,
-        outFormat: "glb"
+        outFormat: primaryFormat
       });
 
       const result = await client.pollTask(taskId);
-      const glbUrl = extractModelUrl(result);
+      const urls = collectModelUrls(result);
+      const preferredUrl = selectPreferredUrl(result, urls, requestedFormats[0]);
 
-      if (!glbUrl) {
+      if (!preferredUrl) {
         return NextResponse.json(
           { error: "Tripo response missing model URL", status: "success", details: result },
           { status: 502 }
@@ -51,13 +58,16 @@ export async function POST(req: NextRequest) {
 
       const previewUrl = result.preview ?? result.thumbnail ?? null;
 
+      const alternates = buildAlternates(urls, preferredUrl);
+
       return NextResponse.json({
         model: {
           id: taskId,
-          url: glbUrl,
+          url: preferredUrl,
           polygons: null,
           previewUrl,
-          meta: result
+          meta: result,
+          alternates: alternates ?? undefined
         }
       });
     } finally {
@@ -129,6 +139,11 @@ function inferExtension(mimeType: string): string {
   }
 }
 
+type ModelUrlMap = {
+  glb: string | null;
+  usdz: string | null;
+};
+
 function extractModelUrl(result: Record<string, unknown>): string | null {
   const candidates = [
     (result as { model?: string }).model,
@@ -154,4 +169,61 @@ function extractModelUrl(result: Record<string, unknown>): string | null {
   }
 
   return null;
+}
+
+function collectModelUrls(result: Record<string, unknown>): ModelUrlMap {
+  return {
+    glb: extractFormatUrl(result, "glb"),
+    usdz: extractFormatUrl(result, "usdz")
+  } satisfies ModelUrlMap;
+}
+
+function extractFormatUrl(result: Record<string, unknown>, field: "glb" | "usdz"): string | null {
+  const direct = (result as Record<string, unknown>)[field];
+  if (typeof direct === "string" && direct.length > 0) {
+    return direct;
+  }
+
+  const nested = (result as { output?: Record<string, unknown> }).output;
+  if (nested && typeof nested === "object") {
+    const nestedValue = nested[field];
+    if (typeof nestedValue === "string" && nestedValue.length > 0) {
+      return nestedValue;
+    }
+  }
+
+  return null;
+}
+
+function selectPreferredUrl(
+  result: Record<string, unknown>,
+  urls: ModelUrlMap,
+  requestedFormat: "GLB" | "USDZ" | undefined
+): string | null {
+  if (requestedFormat === "USDZ" && urls.usdz) {
+    return urls.usdz;
+  }
+  if (requestedFormat === "GLB" && urls.glb) {
+    return urls.glb;
+  }
+  return urls.glb ?? urls.usdz ?? extractModelUrl(result);
+}
+
+function buildAlternates(urls: ModelUrlMap, primaryUrl: string): {
+  glb?: string;
+  usdz?: string;
+} | null {
+  const alternates: {
+    glb?: string;
+    usdz?: string;
+  } = {};
+
+  if (urls.glb && urls.glb !== primaryUrl) {
+    alternates.glb = urls.glb;
+  }
+  if (urls.usdz && urls.usdz !== primaryUrl) {
+    alternates.usdz = urls.usdz;
+  }
+
+  return Object.keys(alternates).length > 0 ? alternates : null;
 }

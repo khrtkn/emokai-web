@@ -11,6 +11,7 @@ export type ModelResult = {
   previewUrl: string | null;
   meta: Record<string, unknown> | null;
   alternates?: {
+    glb?: string | null;
     usdz?: string | null;
   };
 };
@@ -39,6 +40,7 @@ type ModelInput = {
   characterId: string;
   description: string;
   characterImage?: CompositeInput;
+  targetFormats?: string[];
 };
 
 export async function generateModel(input: ModelInput): Promise<ModelResult> {
@@ -61,7 +63,8 @@ export async function generateModel(input: ModelInput): Promise<ModelResult> {
     body: JSON.stringify({
       characterId: input.characterId,
       description: input.description,
-      characterImage: buildCharacterImagePayload(input.characterImage)
+      characterImage: buildCharacterImagePayload(input.characterImage),
+      targetFormats: input.targetFormats ?? undefined
     })
   });
 

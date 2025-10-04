@@ -41,6 +41,7 @@ import type { Locale } from '@/lib/i18n/messages';
 import { saveCreation, listCreations, type CreationPayload } from '@/lib/persistence';
 import { cacheImage, getCachedImage } from '@/lib/image-cache';
 import { isLiveApisEnabled } from '@/lib/env/client';
+import { getModelTargetFormats } from '@/lib/device';
 
 const MIN_TEXT_LENGTH = 1;
 const TOTAL_STEPS = 15;
@@ -984,6 +985,7 @@ export default function EmokaiStepPage({ params }: Props) {
       characterId: characterSelection.id,
       description: characterPrompt,
       characterImage: characterInput,
+      targetFormats: getModelTargetFormats(),
     })
       .then((model) => {
         setGenerationState((prev) => ({ ...prev, model: 'complete' }));
