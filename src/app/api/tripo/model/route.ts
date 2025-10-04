@@ -32,53 +32,32 @@ export async function POST(req: NextRequest) {
     try {
       const imageToken = await client.uploadImage(filePath);
 
-      const glbTaskId = await client.createImage3DTask(imageToken, {
+      const taskId = await client.createImage3DTask(imageToken, {
         modelVersion: "v2.5-20250123",
         faceLimit: 20000,
         pbr: true,
         outFormat: "glb"
       });
 
-      const glbResult = await client.pollTask(glbTaskId);
-      const glbUrl = extractModelUrl(glbResult);
+      const result = await client.pollTask(taskId);
+      const glbUrl = extractModelUrl(result);
 
       if (!glbUrl) {
         return NextResponse.json(
-          { error: "Tripo response missing model URL", status: "success", details: glbResult },
+          { error: "Tripo response missing model URL", status: "success", details: result },
           { status: 502 }
         );
       }
 
-      const previewUrl = glbResult.preview ?? glbResult.thumbnail ?? null;
-
-      let usdzUrl: string | null = null;
-
-      try {
-        const usdzTaskId = await client.createImage3DTask(imageToken, {
-          modelVersion: "v2.5-20250123",
-          faceLimit: 20000,
-          pbr: true,
-          outFormat: "usdz"
-        });
-
-        const usdzResult = await client.pollTask(usdzTaskId);
-        usdzUrl = extractModelUrl(usdzResult);
-
-        if (!usdzUrl) {
-          console.warn("USDZ generation completed without model URL", usdzResult);
-        }
-      } catch (usdzError) {
-        console.warn("USDZ generation failed", usdzError);
-      }
+      const previewUrl = result.preview ?? result.thumbnail ?? null;
 
       return NextResponse.json({
         model: {
-          id: glbTaskId,
+          id: taskId,
           url: glbUrl,
           polygons: null,
           previewUrl,
-          meta: glbResult,
-          alternates: usdzUrl ? { usdz: usdzUrl } : undefined
+          meta: result
         }
       });
     } finally {

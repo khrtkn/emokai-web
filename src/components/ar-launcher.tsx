@@ -25,7 +25,6 @@ export function ARLauncher() {
   const [permissionState, setPermissionState] = useState<PermissionState>("idle");
   const [viewerMode, setViewerMode] = useState<ViewerMode>("fallback");
   const [error, setError] = useState<string | null>(null);
-  const [quickLookUrl, setQuickLookUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const detected = detectDeviceType();
@@ -52,27 +51,7 @@ export function ARLauncher() {
     }
   }, []);
 
-  useEffect(() => {
-    if (deviceType !== "ios") return;
-    try {
-      const raw = sessionStorage.getItem(GENERATION_RESULTS_KEY);
-      if (!raw) {
-        setQuickLookUrl(null);
-        return;
-      }
-      const parsed = JSON.parse(raw) as {
-        results?: { model?: { alternates?: { usdz?: string | null } } };
-      };
-      const url = parsed?.results?.model?.alternates?.usdz ?? null;
-      setQuickLookUrl(typeof url === "string" && url.length > 0 ? url : null);
-    } catch (err) {
-      console.warn("Failed to parse generation payload for Quick Look", err);
-      setQuickLookUrl(null);
-    }
-  }, [deviceType]);
-
   const isIOS = deviceType === "ios";
-  const quickLookReady = isIOS && Boolean(quickLookUrl);
 
   const handleRequestPermission = async () => {
     if (!navigator?.mediaDevices?.getUserMedia) {
@@ -120,13 +99,7 @@ export function ARLauncher() {
   const primaryButtonClass =
     "w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
 
-  const bannerMessage = error
-    ? error
-    : isIOS
-    ? quickLookReady
-      ? t("quickLook.ready")
-      : t("quickLook.preparing")
-    : t(`status.${viewerMode}`);
+  const bannerMessage = error ? error : t(`status.${viewerMode}`);
 
   return (
     <div className="flex flex-col">
@@ -141,11 +114,7 @@ export function ARLauncher() {
           body={
             <div className="space-y-2">
               <p>{t("deviceDetected", { device: t(`device.${deviceType}`) })}</p>
-              <p>
-                {isIOS && quickLookReady
-                  ? t("quickLook.deviceReady")
-                  : t(`support.${support}`)}
-              </p>
+              <p>{t(`support.${support}`)}</p>
             </div>
           }
         />
@@ -170,13 +139,7 @@ export function ARLauncher() {
           title={t("viewerTitle")}
           body={
             <div className="space-y-2">
-              <p>
-                {isIOS
-                  ? quickLookReady
-                    ? t("quickLook.description")
-                    : t("quickLook.waiting")
-                  : t(`viewer.${viewerMode}`)}
-              </p>
+              <p>{t(`viewer.${viewerMode}`)}</p>
               {!isIOS ? (
                 <button
                   type="button"
@@ -206,32 +169,14 @@ export function ARLauncher() {
           }
         />
         <div className="pt-2">
-          {isIOS ? (
-            <a
-              href={quickLookReady ? quickLookUrl ?? "#" : undefined}
-              rel="ar"
-              className={`${primaryButtonClass} ${quickLookReady ? "" : "pointer-events-none opacity-50"}`}
-              onClick={(event) => {
-                if (!quickLookReady) {
-                  event.preventDefault();
-                  setError(t("quickLook.missing"));
-                  return;
-                }
-                trackEvent("ar_launch", { action: "quicklook", locale });
-              }}
-            >
-              {t("quickLook.button")}
-            </a>
-          ) : (
-            <button
-              type="button"
-              onClick={handleLaunch}
-              disabled={!canLaunch}
-              className={primaryButtonClass}
-            >
-              {launchLabel}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleLaunch}
+            disabled={!canLaunch}
+            className={primaryButtonClass}
+          >
+            {launchLabel}
+          </button>
         </div>
       </div>
     </div>

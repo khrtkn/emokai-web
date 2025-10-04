@@ -44,4 +44,3 @@ describe('device', () => {
     expect(checkARCapability()).toBe('unsupported');
   });
 });
-
