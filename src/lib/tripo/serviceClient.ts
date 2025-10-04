@@ -1,8 +1,10 @@
 /* eslint-disable no-console */
 import axios from "axios";
 import FormData from "form-data";
-import fs from "node:fs";
+import { createReadStream, promises as fs } from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 
 export type ImageToModelOptions = {
   modelVersion?: string;
@@ -33,33 +35,31 @@ export type AnimationOptions = {
 };
 
 export class TripoClient {
-  readonly baseURL: string;
   readonly apiKey: string;
+  readonly baseURL: string;
 
   constructor(apiKey: string, baseURL = "https://api.tripo3d.ai/v2/openapi") {
     if (!apiKey) {
       throw new Error("TRIPO API key is required");
     }
     this.apiKey = apiKey;
-    this.baseURL = baseURL;
+    this.baseURL = baseURL.replace(/\/$/, "");
   }
 
   async uploadImage(imagePath: string): Promise<string> {
-    if (!fs.existsSync(imagePath)) {
-      throw new Error(`Image file does not exist: ${imagePath}`);
+    const absolutePath = path.resolve(imagePath);
+    const stats = await fs.stat(absolutePath).catch(() => null);
+    if (!stats) {
+      throw new Error(`Image file does not exist: ${absolutePath}`);
     }
-
-    const stats = fs.statSync(imagePath);
     if (stats.size === 0) {
       throw new Error("Image file is empty");
     }
 
     const form = new FormData();
-    const imageStream = fs.createReadStream(imagePath);
-
-    form.append("file", imageStream, {
-      filename: path.basename(imagePath),
-      contentType: this.getContentType(imagePath)
+    form.append("file", createReadStream(absolutePath), {
+      filename: path.basename(absolutePath),
+      contentType: getContentType(absolutePath)
     });
 
     try {
@@ -73,16 +73,16 @@ export class TripoClient {
           },
           maxContentLength: Infinity,
           maxBodyLength: Infinity,
-          timeout: 30000
+          timeout: 30_000
         }
       );
 
-      const imageToken = response.data?.data?.image_token;
-      if (!imageToken) {
+      const token = response.data?.data?.image_token;
+      if (!token) {
         throw new Error("No image token received from upload");
       }
 
-      return imageToken;
+      return token;
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && error.response?.data) {
         throw new Error(`Upload failed: ${JSON.stringify(error.response.data)}`);
@@ -102,8 +102,6 @@ export class TripoClient {
       face_limit: options.faceLimit ?? 2500,
       pbr: options.pbr !== false,
       out_format: options.outFormat ?? "glb",
-      texture: options.texture ?? "standard",
-      quad: options.quad ?? false,
       style: options.style,
       negative_prompt: options.negativePrompt,
       texture_seed: options.textureSeed,
@@ -124,7 +122,7 @@ export class TripoClient {
             "Content-Type": "application/json",
             Authorization: `Bearer ${this.apiKey}`
           },
-          timeout: 30000
+          timeout: 30_000
         }
       );
 
@@ -151,12 +149,15 @@ export class TripoClient {
 
   async getTaskStatus(taskId: string): Promise<Record<string, any>> {
     try {
-      const response = await axios.get(`${this.baseURL}/task/${taskId}`, {
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`
-        },
-        timeout: 30000
-      });
+      const response = await axios.get(
+        `${this.baseURL}/task/${taskId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`
+          },
+          timeout: 30_000
+        }
+      );
 
       return response.data?.data ?? response.data;
     } catch (error: unknown) {
@@ -171,7 +172,7 @@ export class TripoClient {
     const pollInterval = 5000;
     const maxAttempts = Math.floor(maxWaitMs / pollInterval);
 
-    for (let i = 0; i < maxAttempts; i += 1) {
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       const taskData = await this.getTaskStatus(taskId);
       const status = taskData.status;
 
@@ -194,8 +195,12 @@ export class TripoClient {
     throw new Error(`Task timed out after ${maxWaitMs}ms`);
   }
 
-  async generateFromImage(imagePath: string, options: ImageToModelOptions & RiggingOptions = {}) {
-    const imageToken = await this.uploadImage(imagePath);
+  async generateFromImage(
+    imagePath: string,
+    options: ImageToModelOptions & RiggingOptions = {}
+  ) {
+    const localPath = await this.ensureLocalFile(imagePath);
+    const imageToken = await this.uploadImage(localPath);
     const taskId = await this.createImage3DTask(imageToken, options);
     let output = await this.pollTask(taskId, options.maxWaitMs);
 
@@ -211,7 +216,9 @@ export class TripoClient {
       const rigType = options.rigType || (options.outputFormat === "fbx" ? "biped" : null);
 
       if (rigType) {
-        console.log(`🦴 Applying rigging: ${rigType}${options.outputFormat === "fbx" ? " (for FBX format)" : ""}`);
+        console.log(
+          `🦴 Applying rigging: ${rigType}${options.outputFormat === "fbx" ? " (for FBX format)" : ""}`
+        );
         try {
           const riggedOutput = await this.applyRigging(taskId, rigType, options);
           output = { ...output, ...riggedOutput, rigged: true };
@@ -238,13 +245,13 @@ export class TripoClient {
       aquatic: "aquatic"
     };
 
-    const tripoRigType = rigTypeMap[rigType] || "biped";
+    const mappedRigType = rigTypeMap[rigType] || "biped";
 
     try {
       const payload = {
         type: "animate_rig" as const,
         original_model_task_id: taskId,
-        rig_type: tripoRigType,
+        rig_type: mappedRigType,
         out_format: options.outputFormat ?? "glb",
         model_version: "v2.0-20250506",
         spec: "tripo"
@@ -257,7 +264,7 @@ export class TripoClient {
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`
         },
-        timeout: 30000
+        timeout: 30_000
       });
 
       const rigTaskId = response.data?.data?.task_id;
@@ -278,7 +285,7 @@ export class TripoClient {
 
             if (
               animatedOutput.success &&
-              'animated_model' in animatedOutput &&
+              "animated_model" in animatedOutput &&
               animatedOutput.animated_model
             ) {
               return {
@@ -287,7 +294,7 @@ export class TripoClient {
                 model: animatedOutput.animated_model,
                 rigged_model: riggedOutput.model,
                 animated_model: animatedOutput.animated_model,
-                rig_type: tripoRigType,
+                rig_type: mappedRigType,
                 animation_type: "walk",
                 success: true
               };
@@ -300,7 +307,7 @@ export class TripoClient {
         return {
           ...riggedOutput,
           rigged_model: riggedOutput.model,
-          rig_type: tripoRigType,
+          rig_type: mappedRigType,
           success: true
         };
       }
@@ -337,7 +344,7 @@ export class TripoClient {
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`
         },
-        timeout: 30000
+        timeout: 30_000
       });
 
       const animTaskId = response.data?.data?.task_id;
@@ -372,40 +379,39 @@ export class TripoClient {
       responseType: "arraybuffer"
     });
 
-    fs.writeFileSync(outputPath, Buffer.from(response.data));
+    await fs.writeFile(outputPath, Buffer.from(response.data));
     return outputPath;
   }
 
-  private getContentType(filePath: string) {
-    const ext = path.extname(filePath).toLowerCase();
-    const mimeTypes: Record<string, string> = {
-      ".jpg": "image/jpeg",
-      ".jpeg": "image/jpeg",
-      ".png": "image/png",
-      ".webp": "image/webp"
-    };
-    return mimeTypes[ext] || "image/png";
+  private async ensureLocalFile(source: string) {
+    if (!source.startsWith("data:image/")) {
+      return path.resolve(source);
+    }
+
+    const [metadata, base64Data] = source.split(",");
+    if (!base64Data) {
+      throw new Error("Invalid base64 image data");
+    }
+
+    const extension = metadata.includes("png")
+      ? "png"
+      : metadata.includes("webp")
+      ? "webp"
+      : "jpg";
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "tripo-temp-"));
+    const filePath = path.join(tempDir, `image-${randomUUID()}.${extension}`);
+    await fs.writeFile(filePath, Buffer.from(base64Data, "base64"));
+    return filePath;
   }
 }
 
-function inferExtensionFromMime(mimeType: string): string {
-  switch (mimeType.toLowerCase()) {
-    case "image/png":
-      return "png";
-    case "image/jpeg":
-    case "image/jpg":
-      return "jpg";
-    case "image/webp":
-      return "webp";
-    default:
-      return "png";
-  }
-}
-
-function stripDataUrlPrefix(base64: string): string {
-  const commaIndex = base64.indexOf(",");
-  if (commaIndex !== -1) {
-    return base64.slice(commaIndex + 1);
-  }
-  return base64;
+function getContentType(filePath: string) {
+  const ext = path.extname(filePath).toLowerCase();
+  const mimeTypes: Record<string, string> = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp"
+  };
+  return mimeTypes[ext] || "image/png";
 }

@@ -35,8 +35,6 @@ export async function POST(req: NextRequest) {
         modelVersion: "v2.5-20250123",
         faceLimit: 20000,
         pbr: true,
-        texture: "standard",
-        quad: false,
         outFormat: "glb"
       });
 
