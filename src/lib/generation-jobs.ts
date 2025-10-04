@@ -10,6 +10,9 @@ export type ModelResult = {
   polygons: number | null;
   previewUrl: string | null;
   meta: Record<string, unknown> | null;
+  alternates?: {
+    usdz?: string | null;
+  };
 };
 
 export type CompositeResult = {
@@ -79,7 +82,8 @@ export async function generateModel(input: ModelInput): Promise<ModelResult> {
     url: model.url,
     polygons: typeof model.polygons === "number" ? model.polygons : null,
     previewUrl: model.previewUrl ?? null,
-    meta: model.meta ?? null
+    meta: model.meta ?? null,
+    alternates: model.alternates
   };
 }
 

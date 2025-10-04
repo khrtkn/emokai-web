@@ -12,30 +12,15 @@ import { checkDailyLimit } from "@/lib/rate-limit";
 import { saveCreation } from "@/lib/persistence";
 import { trackEvent } from "@/lib/analytics";
 import { getCachedImage } from "@/lib/image-cache";
+import type { CompositeResult, ModelResult, StoryResult } from "@/lib/generation-jobs";
 
-interface GenerationResults {
+interface GenerationResultsPayload {
   characterId: string;
   description: string;
   results: {
-    model?: {
-      id: string;
-      url: string;
-      polygons: number | null;
-      previewUrl: string | null;
-      meta: Record<string, unknown> | null;
-    };
-    composite?: {
-      id: string;
-      url: string;
-      mimeType: string;
-      imageBase64?: string;
-      cacheKey?: string;
-    };
-    story?: {
-      id: string;
-      locale: string;
-      content: string;
-    };
+    model?: ModelResult;
+    composite?: CompositeResult;
+    story?: StoryResult;
   };
   completedAt: number | null;
 }
@@ -49,7 +34,7 @@ export function ResultViewer() {
   const locale = useLocale();
   const router = useRouter();
 
-  const [results, setResults] = useState<GenerationResults | null>(null);
+  const [results, setResults] = useState<GenerationResultsPayload | null>(null);
   const [step, setStep] = useState<Step>("story");
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error" | "limit">("idle");
@@ -64,7 +49,7 @@ export function ResultViewer() {
       return;
     }
     try {
-      const parsed = JSON.parse(raw) as GenerationResults;
+      const parsed = JSON.parse(raw) as GenerationResultsPayload;
       const composite = parsed?.results?.composite;
       if (composite) {
         const cached = composite.cacheKey ? getCachedImage(composite.cacheKey) : null;

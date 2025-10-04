@@ -31,32 +31,54 @@ export async function POST(req: NextRequest) {
 
     try {
       const imageToken = await client.uploadImage(filePath);
-      const taskId = await client.createImage3DTask(imageToken, {
+
+      const glbTaskId = await client.createImage3DTask(imageToken, {
         modelVersion: "v2.5-20250123",
         faceLimit: 20000,
         pbr: true,
         outFormat: "glb"
       });
 
-      const result = await client.pollTask(taskId);
-      const modelUrl = result.model ?? result.pbr_model ?? result.glb ?? null;
+      const glbResult = await client.pollTask(glbTaskId);
+      const glbUrl = extractModelUrl(glbResult);
 
-      if (!modelUrl) {
+      if (!glbUrl) {
         return NextResponse.json(
-          { error: "Tripo response missing model URL", status: "success", details: result },
+          { error: "Tripo response missing model URL", status: "success", details: glbResult },
           { status: 502 }
         );
       }
 
-      const previewUrl = result.preview ?? result.thumbnail ?? null;
+      const previewUrl = glbResult.preview ?? glbResult.thumbnail ?? null;
+
+      let usdzUrl: string | null = null;
+
+      try {
+        const usdzTaskId = await client.createImage3DTask(imageToken, {
+          modelVersion: "v2.5-20250123",
+          faceLimit: 20000,
+          pbr: true,
+          outFormat: "usdz"
+        });
+
+        const usdzResult = await client.pollTask(usdzTaskId);
+        usdzUrl = extractModelUrl(usdzResult);
+
+        if (!usdzUrl) {
+          console.warn("USDZ generation completed without model URL", usdzResult);
+        }
+      } catch (usdzError) {
+        console.warn("USDZ generation failed", usdzError);
+      }
 
       return NextResponse.json({
         model: {
-          id: taskId,
-          url: modelUrl,
+          id: glbTaskId,
+          url: glbUrl,
           polygons: null,
           previewUrl,
-          meta: result
+          meta: glbResult,
+          alternates: usdzUrl ? { usdz: usdzUrl } : undefined
         }
       });
     } finally {
@@ -126,4 +148,31 @@ function inferExtension(mimeType: string): string {
     default:
       return "png";
   }
+}
+
+function extractModelUrl(result: Record<string, unknown>): string | null {
+  const candidates = [
+    (result as { model?: string }).model,
+    (result as { pbr_model?: string }).pbr_model,
+    (result as { rigged_model?: string }).rigged_model,
+    (result as { glb?: string }).glb,
+    (result as { usd?: string }).usd,
+    (result as { usdz?: string }).usdz,
+    (result as { model_url?: string }).model_url
+  ];
+
+  for (const value of candidates) {
+    if (typeof value === "string" && value.length > 0) {
+      return value;
+    }
+  }
+
+  if (typeof result === "object" && result && "output" in result) {
+    const output = (result as { output?: Record<string, unknown> }).output;
+    if (output) {
+      return extractModelUrl(output);
+    }
+  }
+
+  return null;
 }

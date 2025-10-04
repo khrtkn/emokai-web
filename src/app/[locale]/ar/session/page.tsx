@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 
 import { Divider, Header, InstructionBanner } from "@/components/ui";
+import { trackEvent } from "@/lib/analytics";
 import { detectDeviceType } from "@/lib/device";
 import { GENERATION_RESULTS_KEY } from "@/lib/storage-keys";
 import { FallbackViewer } from "@/components/fallback-viewer";
@@ -28,6 +29,9 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
   const [modelUrl, setModelUrl] = useState<string | null>(null);
   const [viewerError, setViewerError] = useState<string | null>(null);
   const [viewerLoading, setViewerLoading] = useState<boolean>(currentMode === "fallback");
+  const [quickLookUrl, setQuickLookUrl] = useState<string | null>(null);
+
+  const isIOS = device === "ios";
 
   useEffect(() => {
     if (currentMode !== "fallback") return;
@@ -37,11 +41,19 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
       if (!raw) {
         setViewerError(t("session.viewerMissing"));
         setModelUrl(null);
+        setQuickLookUrl(null);
       } else {
         const parsed = JSON.parse(raw) as {
-          results?: { model?: { url?: string | null } };
+          results?: {
+            model?: {
+              url?: string | null;
+              alternates?: { usdz?: string | null };
+            };
+          };
         };
-        const url = parsed?.results?.model?.url;
+        const url = parsed?.results?.model?.url ?? null;
+        const usdz = parsed?.results?.model?.alternates?.usdz ?? null;
+
         if (url) {
           setModelUrl(url);
           setViewerError(null);
@@ -49,11 +61,14 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
           setModelUrl(null);
           setViewerError(t("session.viewerMissing"));
         }
+
+        setQuickLookUrl(typeof usdz === "string" && usdz.length > 0 ? usdz : null);
       }
     } catch (error) {
       console.error("Failed to read generation results", error);
       setViewerError(t("session.viewerMissing"));
       setModelUrl(null);
+      setQuickLookUrl(null);
     } finally {
       setViewerLoading(false);
     }
@@ -93,6 +108,16 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
     );
   }, [currentMode, device, modelUrl, t, viewerError, viewerLoading]);
 
+  const bannerMessage = viewerError
+    ? viewerError
+    : isIOS && quickLookUrl
+    ? t("quickLook.ready")
+    : isIOS && !quickLookUrl
+    ? t("quickLook.waiting")
+    : currentMode === "ar"
+    ? t("session.instructions")
+    : t("session.fallbackInstructions");
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-canvas">
       <Header
@@ -106,9 +131,27 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
       />
       <Divider />
       <div className="space-y-6 px-4 py-6 sm:px-6">
-        <InstructionBanner tone="default">
-          {currentMode === "ar" ? t("session.instructions") : t("session.fallbackInstructions")}
+        <InstructionBanner tone={viewerError ? "error" : "default"}>
+          {bannerMessage}
         </InstructionBanner>
+        {isIOS ? (
+          <div>
+            <a
+              href={quickLookUrl ?? undefined}
+              rel="ar"
+              className={`inline-flex w-full items-center justify-center rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 ${quickLookUrl ? "" : "pointer-events-none opacity-50"}`}
+              onClick={(event) => {
+                if (!quickLookUrl) {
+                  event.preventDefault();
+                  return;
+                }
+                trackEvent("ar_launch", { action: "quicklook_session", locale });
+              }}
+            >
+              {t("quickLook.button")}
+            </a>
+          </div>
+        ) : null}
         {viewerContent}
       </div>
     </main>

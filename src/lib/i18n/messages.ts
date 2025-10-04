@@ -132,6 +132,15 @@ export const messages = {
       missingResults: "結果データが見つかりませんでした",
       backToResult: "結果画面に戻る",
       openGallery: "ギャラリーを開く",
+      quickLook: {
+        ready: "iOSのQuick LookでAR表示ができます。下のボタンをタップしてください。",
+        preparing: "Quick Look用のファイルを準備しています。数秒後に再度お試しください。",
+        deviceReady: "iOS Quick Look に対応しています",
+        description: "Quick Look を開くと、カメラ映像上にモデルが実寸表示されます。",
+        waiting: "Quick Look用のファイルを生成しています…",
+        button: "Quick LookでARを表示",
+        missing: "Quick Look用のモデルがまだ準備できていません。生成完了後に再度お試しください。"
+      },
       session: {
         title: "ARセッション",
         fallbackTitle: "3Dビューア",
@@ -285,6 +294,15 @@ export const messages = {
       missingResults: "Couldn't load generation results",
       backToResult: "Back to Result",
       openGallery: "Open Gallery",
+      quickLook: {
+        ready: "Quick Look is ready. Tap the button below to open the model in iOS AR.",
+        preparing: "Preparing the Quick Look file. Please try again in a few seconds.",
+        deviceReady: "iOS Quick Look available",
+        description: "Opening Quick Look launches the native AR viewer on your device.",
+        waiting: "Generating the Quick Look file…",
+        button: "View in AR (Quick Look)",
+        missing: "The Quick Look model isn’t ready yet. Please try again after the generation finishes."
+      },
       session: {
         title: "AR Session",
         fallbackTitle: "3D Viewer",
