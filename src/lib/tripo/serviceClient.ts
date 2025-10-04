@@ -33,17 +33,25 @@ type UploadReference =
   | { mode: "image_token"; value: string }
   | { mode: "upload_id"; value: string };
 
+type TripoTextureSetting = "no" | "standard" | "HD";
+
 export type CreateTaskRequest = {
   prompt: string;
   type?: "text_to_model" | "image_to_model" | "multiview_to_model";
   imageUrl?: string;
   uploadReference?: UploadReference;
-  texture?: boolean;
+  texture?: TripoTextureSetting;
   pbr?: boolean;
-  textureQuality?: "standard" | "detailed";
   faceLimit?: number;
   quad?: boolean;
   modelVersion?: string;
+  style?: string;
+  negativePrompt?: string;
+  textureSeed?: number;
+  seed?: number;
+  orientation?: "default" | "align_image";
+  textureAlignment?: "original_image" | "geometry";
+  autoSize?: boolean;
 };
 
 type FetcherConfig = {
@@ -106,9 +114,8 @@ export class TripoClient {
       ? "image_to_model"
       : "text_to_model";
 
-    const texture = request.texture ?? true;
+    const texture = request.texture ?? "standard";
     const pbr = request.pbr ?? true;
-    const textureQuality = request.textureQuality ?? "standard";
     const faceLimit = request.faceLimit ?? 20000;
     const quad = request.quad ?? false;
 
@@ -124,7 +131,6 @@ export class TripoClient {
     if (request.uploadReference) {
       if (request.uploadReference.mode === "image_token") {
         payload.image_token = request.uploadReference.value;
-        payload.image_tokens = [request.uploadReference.value];
       } else {
         payload.file = {
           type: "upload_id",
@@ -133,24 +139,34 @@ export class TripoClient {
       }
     }
 
-    if (texture !== undefined) {
-      payload.texture = texture;
-    }
-    if (pbr !== undefined) {
-      payload.pbr = pbr;
-    }
-    if (textureQuality) {
-      payload.texture_quality = textureQuality;
-    }
-    if (faceLimit) {
-      payload.face_limit = faceLimit;
-    }
-    if (quad !== undefined) {
-      payload.quad = quad;
-    }
+    payload.texture = texture;
+    payload.pbr = pbr;
+    payload.face_limit = faceLimit;
+    payload.quad = quad;
 
     if (request.modelVersion) {
       payload.model_version = request.modelVersion;
+    }
+    if (request.style) {
+      payload.style = request.style;
+    }
+    if (request.negativePrompt) {
+      payload.negative_prompt = request.negativePrompt;
+    }
+    if (typeof request.textureSeed === "number") {
+      payload.texture_seed = request.textureSeed;
+    }
+    if (typeof request.seed === "number") {
+      payload.seed = request.seed;
+    }
+    if (request.orientation) {
+      payload.orientation = request.orientation;
+    }
+    if (request.textureAlignment) {
+      payload.texture_alignment = request.textureAlignment;
+    }
+    if (typeof request.autoSize === "boolean") {
+      payload.auto_size = request.autoSize;
     }
 
     this.logger.info("createTask:start", {
@@ -158,8 +174,11 @@ export class TripoClient {
       hasImageUrl: Boolean(payload.image_url),
       hasUploadRef: Boolean(request.uploadReference),
       uploadMode: request.uploadReference?.mode ?? null,
+      texture,
+      pbr,
       faceLimit,
-      textureQuality,
+      quad,
+      keys: Object.keys(payload),
     });
 
     const res = await fetch(`${this.baseUrl}/task`, {
