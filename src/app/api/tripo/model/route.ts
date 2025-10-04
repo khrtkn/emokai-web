@@ -27,15 +27,21 @@ export async function POST(req: NextRequest) {
     const env = getServerEnv();
     const client = new TripoClient({ apiKey: env.TRIPO_API_KEY });
 
-    const taskId = await client.createTask({
-      prompt: body.description,
-      type: "image_to_model",
-      imageUrl: buildDataUrl(body.characterImage.imageBase64, body.characterImage.mimeType),
+    const fileName = `${body.characterId}.${inferExtension(body.characterImage.mimeType)}`;
+    const upload = await client.uploadImageFromBase64(
+      body.characterImage.imageBase64,
+      body.characterImage.mimeType,
+      fileName
+    );
+
+    const taskId = await client.createImageToModelTask(upload.token, {
+      fileType: upload.fileType,
       texture: "standard",
       pbr: true,
       faceLimit: 20000,
       quad: false,
-      modelVersion: "default"
+      modelVersion: "v2.5-20250123",
+      outFormat: "glb"
     });
 
     const status = await pollForCompletion(client, taskId);
@@ -79,9 +85,18 @@ export async function POST(req: NextRequest) {
   }
 }
 
-function buildDataUrl(base64: string, mimeType: string): string {
-  const sanitized = base64.replace(/^data:[^,]+,/, "");
-  return `data:${mimeType};base64,${sanitized}`;
+function inferExtension(mimeType: string): string {
+  switch (mimeType.toLowerCase()) {
+    case "image/png":
+      return "png";
+    case "image/jpeg":
+    case "image/jpg":
+      return "jpg";
+    case "image/webp":
+      return "webp";
+    default:
+      return "png";
+  }
 }
 
 async function pollForCompletion(client: TripoClient, taskId: string): Promise<TripoTaskStatus> {
