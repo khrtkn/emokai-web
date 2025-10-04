@@ -79,25 +79,32 @@ export class TripoClient {
 
   async createTask(request: CreateTaskRequest): Promise<string> {
     const inferredType = request.imageUrl ? "image_to_model" : "text_to_model";
-
-    const texture = request.texture ?? "standard";
-    const pbr = request.pbr ?? true;
-    const faceLimit = request.faceLimit ?? 20000;
-    const quad = request.quad ?? false;
+    const taskType = request.type ?? inferredType;
 
     const payload: Record<string, unknown> = {
-      type: request.type ?? inferredType,
-      prompt: request.prompt,
+      type: taskType,
     };
 
-    if (request.imageUrl) {
+    if (taskType === "text_to_model") {
+      payload.prompt = request.prompt;
+    }
+
+    if (taskType === "image_to_model" && request.imageUrl) {
       payload.image_url = request.imageUrl;
     }
 
-    payload.texture = texture;
-    payload.pbr = pbr;
-    payload.face_limit = faceLimit;
-    payload.quad = quad;
+    if (request.texture !== undefined) {
+      payload.texture = request.texture;
+    }
+    if (request.pbr !== undefined) {
+      payload.pbr = request.pbr;
+    }
+    if (typeof request.faceLimit === "number") {
+      payload.face_limit = request.faceLimit;
+    }
+    if (request.quad !== undefined) {
+      payload.quad = request.quad;
+    }
 
     if (request.modelVersion) {
       payload.model_version = request.modelVersion;
@@ -105,7 +112,7 @@ export class TripoClient {
     if (request.style) {
       payload.style = request.style;
     }
-    if (request.negativePrompt) {
+    if (request.negativePrompt && taskType === "text_to_model") {
       payload.negative_prompt = request.negativePrompt;
     }
     if (typeof request.textureSeed === "number") {
@@ -125,13 +132,11 @@ export class TripoClient {
     }
 
     this.logger.info("createTask:start", {
-      type: payload.type,
+      type: taskType,
       hasImageUrl: Boolean(payload.image_url),
-      texture,
-      pbr,
-      faceLimit,
-      quad,
+      hasPrompt: Boolean(payload.prompt),
       keys: Object.keys(payload),
+      payload: JSON.stringify(payload)
     });
 
     const res = await fetch(`${this.baseUrl}/task`, {
