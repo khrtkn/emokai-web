@@ -276,7 +276,11 @@ export class TripoClient {
             console.log("🚶 Applying default walking animation...");
             const animatedOutput = await this.applyAnimation(rigTaskId, "walk", options);
 
-            if (animatedOutput.success && animatedOutput.animated_model) {
+            if (
+              animatedOutput.success &&
+              'animated_model' in animatedOutput &&
+              animatedOutput.animated_model
+            ) {
               return {
                 ...riggedOutput,
                 ...animatedOutput,
