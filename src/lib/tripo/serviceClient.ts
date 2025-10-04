@@ -1,19 +1,16 @@
-import { Buffer } from "node:buffer";
-
-import { z } from "zod";
-
-import { createLogger } from "@/lib/logger";
-
-const defaultBaseUrl = "https://api.tripo3d.ai/v2/openapi";
-
-type TripoTextureSetting = "no" | "standard" | "HD";
+/* eslint-disable no-console */
+import axios from "axios";
+import FormData from "form-data";
+import fs from "node:fs";
+import path from "node:path";
 
 export type ImageToModelOptions = {
-  texture?: TripoTextureSetting;
-  pbr?: boolean;
-  faceLimit?: number;
-  quad?: boolean;
   modelVersion?: string;
+  faceLimit?: number;
+  pbr?: boolean;
+  texture?: "no" | "standard" | "HD";
+  quad?: boolean;
+  outFormat?: string;
   style?: string;
   negativePrompt?: string;
   textureSeed?: number;
@@ -21,413 +18,370 @@ export type ImageToModelOptions = {
   orientation?: "default" | "align_image";
   textureAlignment?: "original_image" | "geometry";
   autoSize?: boolean;
-  outFormat?: string;
-  fileType?: string;
 };
 
-type FetcherConfig = {
-  apiKey: string;
-  baseUrl?: string;
+export type RiggingOptions = {
+  rigType?: string;
+  outputFormat?: string;
+  maxWaitMs?: number;
+  applyAnimation?: boolean;
 };
 
-const createTaskResponseSchema = z
-  .object({
-    task_id: z.string().optional(),
-    id: z.string().optional(),
-    data: z
-      .object({
-        task_id: z.string().optional(),
-        id: z.string().optional(),
-        taskId: z.string().optional(),
-        task: z
-          .object({
-            id: z.string().optional(),
-            task_id: z.string().optional()
-          })
-          .optional()
-      })
-      .optional(),
-    result: z
-      .object({
-        task_id: z.string().optional(),
-        id: z.string().optional()
-      })
-      .optional()
-  })
-  .passthrough();
-
-type ParsedCreateTaskResponse = z.infer<typeof createTaskResponseSchema>;
-
-export type TripoTaskStatus = {
-  taskId: string;
-  status: string;
-  progress: number | null;
-  modelUrl: string | null;
-  previewUrl: string | null;
-  meta: Record<string, unknown> | null;
-  error?: unknown;
+export type AnimationOptions = {
+  outputFormat?: string;
+  maxWaitMs?: number;
 };
 
 export class TripoClient {
-  private readonly apiKey: string;
-  private readonly baseUrl: string;
-  private readonly logger = createLogger("tripo");
+  readonly baseURL: string;
+  readonly apiKey: string;
 
-  constructor({ apiKey, baseUrl = defaultBaseUrl }: FetcherConfig) {
+  constructor(apiKey: string, baseURL = "https://api.tripo3d.ai/v2/openapi") {
     if (!apiKey) {
-      throw new Error("TRIPO_API_KEY is required");
+      throw new Error("TRIPO API key is required");
     }
     this.apiKey = apiKey;
-    this.baseUrl = baseUrl.replace(/\/$/, "");
+    this.baseURL = baseURL;
   }
 
-  async uploadImageFromBase64(base64: string, mimeType: string, fileName?: string) {
-    const sanitized = stripDataUrlPrefix(base64);
-    const buffer = Buffer.from(sanitized, "base64");
-    const extension = inferExtensionFromMime(mimeType);
-    const uploadName = fileName ?? `character.${extension}`;
+  async uploadImage(imagePath: string): Promise<string> {
+    if (!fs.existsSync(imagePath)) {
+      throw new Error(`Image file does not exist: ${imagePath}`);
+    }
+
+    const stats = fs.statSync(imagePath);
+    if (stats.size === 0) {
+      throw new Error("Image file is empty");
+    }
 
     const form = new FormData();
-    form.append("file", new Blob([buffer], { type: mimeType }), uploadName);
+    const imageStream = fs.createReadStream(imagePath);
 
-    this.logger.info("upload:start", { mimeType, uploadName });
-
-    const res = await fetch(`${this.baseUrl}/upload`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`
-      },
-      body: form
+    form.append("file", imageStream, {
+      filename: path.basename(imagePath),
+      contentType: this.getContentType(imagePath)
     });
 
-    const json = await res.json().catch(() => null);
+    try {
+      const response = await axios.post(
+        `${this.baseURL}/upload`,
+        form,
+        {
+          headers: {
+            ...form.getHeaders(),
+            Authorization: `Bearer ${this.apiKey}`
+          },
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity,
+          timeout: 30000
+        }
+      );
 
-    this.logger.info("upload:response", {
-      status: res.status,
-      ok: res.ok,
-      raw: json
-    });
+      const imageToken = response.data?.data?.image_token;
+      if (!imageToken) {
+        throw new Error("No image token received from upload");
+      }
 
-    if (!res.ok) {
-      const message =
-        (json as { error?: { message?: string }; message?: string } | null)?.error?.message ??
-        (json as { message?: string } | null)?.message ??
-        res.statusText;
-      throw new Error(`Tripo upload error (${res.status}): ${message}`);
+      return imageToken;
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response?.data) {
+        throw new Error(`Upload failed: ${JSON.stringify(error.response.data)}`);
+      }
+      throw error;
     }
-
-    const token =
-      (json as { data?: { image_token?: string; file_token?: string } } | null)?.data?.image_token ??
-      (json as { data?: { image_token?: string; file_token?: string } } | null)?.data?.file_token;
-
-    if (!token) {
-      throw new Error("Tripo upload response missing image token");
-    }
-
-    return { token, fileType: extension };
   }
 
-  async createImageToModelTask(
-    imageToken: string,
-    options: ImageToModelOptions = {}
-  ): Promise<string> {
-    const payload: Record<string, unknown> = {
-      type: "image_to_model",
+  async createImage3DTask(imageToken: string, options: ImageToModelOptions = {}): Promise<string> {
+    const payload = {
+      type: "image_to_model" as const,
       file: {
-        type: options.fileType ?? "png",
+        type: options.texture === "HD" ? "png" : "png",
         file_token: imageToken
       },
       model_version: options.modelVersion ?? "v2.5-20250123",
-      face_limit: options.faceLimit ?? 20000,
-      pbr: options.pbr ?? true,
-      out_format: options.outFormat ?? "glb"
+      face_limit: options.faceLimit ?? 2500,
+      pbr: options.pbr !== false,
+      out_format: options.outFormat ?? "glb",
+      texture: options.texture ?? "standard",
+      quad: options.quad ?? false,
+      style: options.style,
+      negative_prompt: options.negativePrompt,
+      texture_seed: options.textureSeed,
+      seed: options.seed,
+      orientation: options.orientation,
+      texture_alignment: options.textureAlignment,
+      auto_size: options.autoSize
     };
 
-    if (options.texture !== undefined) {
-      payload.texture = options.texture;
-    } else {
-      payload.texture = "standard";
-    }
-    if (options.quad !== undefined) {
-      payload.quad = options.quad;
-    } else {
-      payload.quad = false;
-    }
-    if (options.style) {
-      payload.style = options.style;
-    }
-    if (options.negativePrompt) {
-      payload.negative_prompt = options.negativePrompt;
-    }
-    if (typeof options.textureSeed === "number") {
-      payload.texture_seed = options.textureSeed;
-    }
-    if (typeof options.seed === "number") {
-      payload.seed = options.seed;
-    }
-    if (options.orientation) {
-      payload.orientation = options.orientation;
-    }
-    if (options.textureAlignment) {
-      payload.texture_alignment = options.textureAlignment;
-    }
-    if (typeof options.autoSize === "boolean") {
-      payload.auto_size = options.autoSize;
-    }
+    console.log("📤 Sending to TRIPO API:", JSON.stringify(payload, null, 2));
 
-    return this.postTask(payload);
-  }
-
-  async createTextToModelTask(prompt: string, options: Partial<ImageToModelOptions> = {}) {
-    const payload: Record<string, unknown> = {
-      type: "text_to_model",
-      prompt,
-      model_version: options.modelVersion ?? "v2.5-20250123"
-    };
-
-    if (options.texture !== undefined) {
-      payload.texture = options.texture;
-    } else {
-      payload.texture = "standard";
-    }
-    if (options.pbr !== undefined) {
-      payload.pbr = options.pbr;
-    }
-    if (typeof options.faceLimit === "number") {
-      payload.face_limit = options.faceLimit;
-    }
-    if (options.quad !== undefined) {
-      payload.quad = options.quad;
-    }
-    if (options.negativePrompt) {
-      payload.negative_prompt = options.negativePrompt;
-    }
-    if (typeof options.seed === "number") {
-      payload.seed = options.seed;
-    }
-
-    return this.postTask(payload);
-  }
-
-  async getTask(taskId: string): Promise<TripoTaskStatus> {
-    this.logger.info("getTask:start", { taskId });
-
-    const res = await fetch(`${this.baseUrl}/task/${taskId}`, {
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`
-      }
-    });
-
-    const json = await res.json().catch(() => null);
-
-    this.logger.info("getTask:response", {
-      taskId,
-      status: res.status,
-      ok: res.ok,
-    });
-
-    if (!res.ok) {
-      const message =
-        (json as { error?: { message?: string } } | null)?.error?.message ?? res.statusText;
-      throw new Error(`Tripo API error (${res.status}): ${message}`);
-    }
-
-    const status = getStatus(json);
-    const progress = getProgress(json);
-    const { modelUrl, previewUrl } = getOutputUrls(json);
-    const meta = getMeta(json);
-    const error = getError(json);
-
-    this.logger.info("getTask:parsed", {
-      taskId,
-      status,
-      progress,
-      hasModelUrl: Boolean(modelUrl),
-      hasPreview: Boolean(previewUrl),
-    });
-
-    return {
-      taskId,
-      status,
-      progress,
-      modelUrl,
-      previewUrl,
-      meta,
-      error
-    };
-  }
-
-  private async postTask(payload: Record<string, unknown>): Promise<string> {
-    this.logger.info("task:post:start", {
-      type: payload.type,
-      hasImageUrl: Boolean((payload as { image_url?: string }).image_url),
-      hasPrompt: Boolean((payload as { prompt?: string }).prompt),
-      keys: Object.keys(payload),
-      payload: JSON.stringify(payload)
-    });
-
-    const res = await fetch(`${this.baseUrl}/task`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiKey}`
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const json = await res.json().catch(() => null);
-
-    this.logger.info("task:post:response", {
-      status: res.status,
-      ok: res.ok,
-      raw: json
-    });
-
-    if (!res.ok) {
-      const message =
-        (json as { error?: { message?: string }; message?: string } | null)?.error?.message ??
-        (json as { message?: string } | null)?.message ??
-        res.statusText;
-      throw new Error(`Tripo API error (${res.status}): ${message}`);
-    }
-
-    const parsed: ParsedCreateTaskResponse = createTaskResponseSchema.parse(json);
-    const taskId =
-      parsed.task_id ??
-      parsed.id ??
-      parsed.data?.task_id ??
-      parsed.data?.id ??
-      parsed.data?.taskId ??
-      parsed.data?.task?.task_id ??
-      parsed.data?.task?.id ??
-      parsed.result?.task_id ??
-      parsed.result?.id ??
-      null;
-
-    if (!taskId) {
-      this.logger.error("task:post:missingTaskId", json);
-      throw new Error(
-        `Tripo create task response missing task_id (payload: ${JSON.stringify(json)})`
+    try {
+      const response = await axios.post(
+        `${this.baseURL}/task`,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.apiKey}`
+          },
+          timeout: 30000
+        }
       );
+
+      const taskId = response.data?.data?.task_id ?? response.data?.task_id;
+      if (!taskId) {
+        throw new Error("No task ID received");
+      }
+
+      return taskId;
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response?.data) {
+        const errorData = error.response.data as { code?: number };
+        if (errorData.code === 2008) {
+          throw new Error("Image rejected: Content policy violation");
+        }
+        if (errorData.code === 2014) {
+          throw new Error("Image rejected: Failed content audit");
+        }
+        throw new Error(`Task creation failed: ${JSON.stringify(error.response.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  async getTaskStatus(taskId: string): Promise<Record<string, any>> {
+    try {
+      const response = await axios.get(`${this.baseURL}/task/${taskId}`, {
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`
+        },
+        timeout: 30000
+      });
+
+      return response.data?.data ?? response.data;
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response?.data) {
+        throw new Error(`Status check failed: ${JSON.stringify(error.response.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  async pollTask(taskId: string, maxWaitMs = 600_000): Promise<Record<string, any>> {
+    const pollInterval = 5000;
+    const maxAttempts = Math.floor(maxWaitMs / pollInterval);
+
+    for (let i = 0; i < maxAttempts; i += 1) {
+      const taskData = await this.getTaskStatus(taskId);
+      const status = taskData.status;
+
+      if (status === "success") {
+        console.log("✅ Task completed successfully. Output URLs:", {
+          model: taskData.output?.model,
+          pbr_model: taskData.output?.pbr_model,
+          rigged_model: taskData.output?.rigged_model
+        });
+        return { ...taskData.output, success: true };
+      }
+
+      if (status === "failed") {
+        throw new Error(`Task failed: ${JSON.stringify(taskData)}`);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
     }
 
-    this.logger.info("task:post:success", { taskId });
-    return taskId;
+    throw new Error(`Task timed out after ${maxWaitMs}ms`);
   }
-}
 
-function getStatus(json: unknown): string {
-  const candidate = (json as Record<string, unknown>) ?? {};
-  const data = (candidate.data as Record<string, unknown>) ?? {};
-  const output = (candidate.output as Record<string, unknown>) ?? {};
-  const raw =
-    (candidate.status as string | undefined) ||
-    (data.status as string | undefined) ||
-    (output.status as string | undefined) ||
-    "UNKNOWN";
-  return raw.toUpperCase();
-}
+  async generateFromImage(imagePath: string, options: ImageToModelOptions & RiggingOptions = {}) {
+    const imageToken = await this.uploadImage(imagePath);
+    const taskId = await this.createImage3DTask(imageToken, options);
+    let output = await this.pollTask(taskId, options.maxWaitMs);
 
-function getProgress(json: unknown): number | null {
-  const candidate = (json as Record<string, unknown>) ?? {};
-  const data = (candidate.data as Record<string, unknown>) ?? {};
-  const progress =
-    (candidate.progress as number | undefined) ??
-    (data.progress as number | undefined) ??
-    null;
-  return typeof progress === "number" ? progress : null;
-}
+    console.log("🔍 Debug - Rigging check:");
+    console.log("  - options.rigType:", options.rigType);
+    console.log("  - output.success:", output.success);
+    console.log("  - output keys:", Object.keys(output ?? {}));
+    console.log("  - Should apply rigging?:", !!(options.rigType && output.success));
 
-function getOutputUrls(json: unknown): { modelUrl: string | null; previewUrl: string | null } {
-  const candidate = (json as Record<string, unknown>) ?? {};
-  const data = (candidate.data as Record<string, unknown>) ?? {};
-  const output = (candidate.output as Record<string, unknown>) ?? {};
-  const nestedOutput = (data.output as Record<string, unknown>) ?? {};
-  const result = (candidate.result as Record<string, unknown>) ?? {};
-  const nestedResult = (data.result as Record<string, unknown>) ?? {};
+    const needsRigging = options.rigType || options.outputFormat === "fbx";
 
-  const modelUrl =
-    ((candidate.model_url as string | undefined) ||
-      (output.model_url as string | undefined) ||
-      (nestedOutput.model_url as string | undefined) ||
-      findUrlByExtensions([candidate, data, output, nestedOutput, result, nestedResult], [
-        ".glb",
-        ".fbx",
-        ".usdz",
-        ".obj",
-        ".zip",
-      ])) ?? null;
+    if (needsRigging && output.success) {
+      const rigType = options.rigType || (options.outputFormat === "fbx" ? "biped" : null);
 
-  const previewUrl =
-    ((candidate.preview as string | undefined) ||
-      (output.preview as string | undefined) ||
-      (nestedOutput.preview as string | undefined) ||
-      findUrlByExtensions([candidate, data, output, nestedOutput, result, nestedResult], [
-        ".png",
-        ".jpg",
-        ".jpeg",
-        ".webp",
-        ".gif",
-      ])) ?? null;
+      if (rigType) {
+        console.log(`🦴 Applying rigging: ${rigType}${options.outputFormat === "fbx" ? " (for FBX format)" : ""}`);
+        try {
+          const riggedOutput = await this.applyRigging(taskId, rigType, options);
+          output = { ...output, ...riggedOutput, rigged: true };
+          console.log("✅ Rigging applied successfully");
+        } catch (error: any) {
+          console.warn("⚠️ Rigging failed, returning unrigged model:", error.message);
+        }
+      }
+    }
 
-  return {
-    modelUrl: modelUrl ?? null,
-    previewUrl: previewUrl ?? null
-  };
-}
+    return output;
+  }
 
-function findUrlByExtensions(
-  sources: unknown[],
-  extensions: string[],
-): string | null {
-  const visited = new WeakSet<object>();
+  async applyRigging(taskId: string, rigType: string, options: RiggingOptions = {}) {
+    console.log(`🦴 Attempting to apply ${rigType} rigging to task ${taskId}`);
 
-  const lowerExt = extensions.map((ext) => ext.toLowerCase());
+    const rigTypeMap: Record<string, string> = {
+      biped: "biped",
+      quadruped: "quadruped",
+      hexapod: "hexapod",
+      octopod: "octopod",
+      avian: "avian",
+      serpentine: "serpentine",
+      aquatic: "aquatic"
+    };
 
-  const search = (value: unknown): string | null => {
-    if (!value || typeof value !== "object") return null;
-    if (visited.has(value as object)) return null;
-    visited.add(value as object);
+    const tripoRigType = rigTypeMap[rigType] || "biped";
 
-    for (const val of Object.values(value as Record<string, unknown>)) {
-      if (typeof val === "string") {
-        const lower = val.toLowerCase();
-        if (lower.startsWith("http")) {
-          if (lowerExt.some((ext) => lower.includes(ext))) {
-            return val;
+    try {
+      const payload = {
+        type: "animate_rig" as const,
+        original_model_task_id: taskId,
+        rig_type: tripoRigType,
+        out_format: options.outputFormat ?? "glb",
+        model_version: "v2.0-20250506",
+        spec: "tripo"
+      };
+
+      console.log("🦴 Rigging payload:", payload);
+
+      const response = await axios.post(`${this.baseURL}/task`, payload, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`
+        },
+        timeout: 30000
+      });
+
+      const rigTaskId = response.data?.data?.task_id;
+      if (!rigTaskId) {
+        throw new Error("No rigging task ID received");
+      }
+
+      console.log(`🦴 Rigging task created: ${rigTaskId}`);
+      const riggedOutput = await this.pollTask(rigTaskId, options.maxWaitMs);
+
+      if (riggedOutput.success && riggedOutput.model) {
+        console.log("✅ Model successfully rigged!");
+
+        if (options.applyAnimation !== false) {
+          try {
+            console.log("🚶 Applying default walking animation...");
+            const animatedOutput = await this.applyAnimation(rigTaskId, "walk", options);
+
+            if (animatedOutput.success && animatedOutput.animated_model) {
+              return {
+                ...riggedOutput,
+                ...animatedOutput,
+                model: animatedOutput.animated_model,
+                rigged_model: riggedOutput.model,
+                animated_model: animatedOutput.animated_model,
+                rig_type: tripoRigType,
+                animation_type: "walk",
+                success: true
+              };
+            }
+          } catch (animError: any) {
+            console.warn("⚠️ Animation failed, returning rigged model without animation:", animError.message);
           }
         }
-      } else if (typeof val === "object" && val !== null) {
-        const found = search(val);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
 
-  for (const source of sources) {
-    const result = search(source);
-    if (result) return result;
+        return {
+          ...riggedOutput,
+          rigged_model: riggedOutput.model,
+          rig_type: tripoRigType,
+          success: true
+        };
+      }
+
+      return { ...riggedOutput, success: true };
+    } catch (error: any) {
+      if (axios.isAxiosError(error) && error.response?.data) {
+        console.error("🦴 Rigging API error:", error.response.data);
+      }
+      throw new Error(`Rigging failed: ${error.message}`);
+    }
   }
 
-  return null;
-}
+  async applyAnimation(
+    riggedTaskId: string,
+    animationType = "walk",
+    options: AnimationOptions = {}
+  ) {
+    console.log(`🚶 Applying ${animationType} animation to rigged model`);
 
-function getMeta(json: unknown): Record<string, unknown> | null {
-  const candidate = (json as Record<string, unknown>) ?? {};
-  const data = (candidate.data as Record<string, unknown>) ?? {};
-  const nestedOutput = (data.output as Record<string, unknown>) ?? {};
-  const meta =
-    (candidate.meta as Record<string, unknown> | undefined) ||
-    (data.meta as Record<string, unknown> | undefined) ||
-    (nestedOutput.meta as Record<string, unknown> | undefined) ||
-    null;
-  return meta ?? null;
-}
+    try {
+      const payload = {
+        type: "animate_retarget" as const,
+        original_model_task_id: riggedTaskId,
+        animation: animationType,
+        out_format: options.outputFormat ?? "fbx",
+        model_version: "v2.0-20250506"
+      };
 
-function getError(json: unknown): unknown {
-  const candidate = (json as Record<string, unknown>) ?? {};
-  return candidate.error ?? (candidate.data as Record<string, unknown>)?.error ?? undefined;
+      console.log("🎬 Animation payload:", payload);
+
+      const response = await axios.post(`${this.baseURL}/task`, payload, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`
+        },
+        timeout: 30000
+      });
+
+      const animTaskId = response.data?.data?.task_id;
+      if (!animTaskId) {
+        throw new Error("No animation task ID received");
+      }
+
+      console.log(`🎬 Animation task created: ${animTaskId}`);
+      const animatedOutput = await this.pollTask(animTaskId, options.maxWaitMs);
+
+      if (animatedOutput.success && animatedOutput.model) {
+        console.log("✅ Animation applied successfully!");
+        return {
+          ...animatedOutput,
+          animated_model: animatedOutput.model,
+          animation_type: animationType,
+          success: true
+        };
+      }
+
+      return { ...animatedOutput, success: true };
+    } catch (error: any) {
+      if (axios.isAxiosError(error) && error.response?.data) {
+        console.error("🎬 Animation API error:", error.response.data);
+      }
+      throw new Error(`Animation failed: ${error.message}`);
+    }
+  }
+
+  async downloadModel(url: string, outputPath: string) {
+    const response = await axios.get(url, {
+      responseType: "arraybuffer"
+    });
+
+    fs.writeFileSync(outputPath, Buffer.from(response.data));
+    return outputPath;
+  }
+
+  private getContentType(filePath: string) {
+    const ext = path.extname(filePath).toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".png": "image/png",
+      ".webp": "image/webp"
+    };
+    return mimeTypes[ext] || "image/png";
+  }
 }
 
 function inferExtensionFromMime(mimeType: string): string {
