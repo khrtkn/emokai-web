@@ -87,10 +87,10 @@ export function ARLauncher() {
       const normalizedPrimary = primaryUrl ? primaryUrl.toLowerCase() : "";
       const usdzAlternate = model.alternates?.usdz ?? null;
       const hasUsdz = Boolean(
-        normalizedPrimary.endsWith(".usdz") ||
+        normalizedPrimary.includes(".usdz") ||
         (typeof usdzAlternate === "string" && usdzAlternate.toLowerCase().includes(".usdz"))
       );
-      const usdzUrl = normalizedPrimary.endsWith(".usdz") ? primaryUrl : usdzAlternate ?? null;
+      const usdzUrl = normalizedPrimary.includes(".usdz") ? primaryUrl : usdzAlternate ?? null;
 
       return { hasModel: true, hasUsdz, primaryUrl, usdzUrl };
     } catch (parseError) {

@@ -19,13 +19,18 @@ type StoredModel = {
 
 function extractModelUrls(model: StoredModel | undefined | null) {
   const primary = typeof model?.url === "string" ? model.url : null;
-  const normalizedPrimary = primary ? primary.toLowerCase() : "";
   const alternates = model?.alternates ?? {};
   const alternateUsd = typeof alternates?.usdz === "string" ? alternates.usdz : null;
   const alternateGlb = typeof alternates?.glb === "string" ? alternates.glb : null;
 
-  const usdz = normalizedPrimary.endsWith(".usdz") ? primary : alternateUsd;
-  const glb = normalizedPrimary.endsWith(".glb") ? primary : alternateGlb;
+  const hasExtension = (url: string | null, ext: string) =>
+    typeof url === "string" ? url.toLowerCase().includes(`.${ext.toLowerCase()}`) : false;
+
+  const primaryIsUsdz = hasExtension(primary, "usdz");
+  const primaryIsGlb = hasExtension(primary, "glb");
+
+  const usdz = primaryIsUsdz ? primary : alternateUsd;
+  const glb = primaryIsGlb ? primary : alternateGlb;
 
   return {
     primary,
