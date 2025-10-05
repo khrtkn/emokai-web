@@ -681,9 +681,6 @@ export default function EmokaiStepPage({ params }: Props) {
       const generated = await createStageOptions(stagePrompt, processedImage ?? null);
       setStageOptions(generated);
       setStageStatus('ready');
-      setStageHelperText(
-        isJa ? 'しっくりくる景色をえらんでください。' : 'Pick the scenery that feels right.',
-      );
       if (generated.length && autoSelect) {
         const first = generated[0];
         setStageSelection(first);
