@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 
@@ -58,13 +58,15 @@ export function ARLauncher() {
     }
   }, [support, t]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
+  const readModelInfo = useCallback((): ModelInfo => {
+    if (typeof window === "undefined") {
+      return { hasModel: false, hasUsdz: false, primaryUrl: null, usdzUrl: null };
+    }
     const raw = sessionStorage.getItem(GENERATION_RESULTS_KEY);
     if (!raw) {
-      setModelInfo({ hasModel: false, hasUsdz: false, primaryUrl: null, usdzUrl: null });
-      return;
+      return { hasModel: false, hasUsdz: false, primaryUrl: null, usdzUrl: null };
     }
+
     try {
       const parsed = JSON.parse(raw) as {
         results?: {
@@ -78,27 +80,51 @@ export function ARLauncher() {
       };
       const model = parsed?.results?.model;
       if (!model) {
-        setModelInfo({ hasModel: false, hasUsdz: false, primaryUrl: null, usdzUrl: null });
-        return;
+        return { hasModel: false, hasUsdz: false, primaryUrl: null, usdzUrl: null };
       }
+
       const primaryUrl = model.url ?? null;
       const normalizedPrimary = primaryUrl ? primaryUrl.toLowerCase() : "";
       const usdzAlternate = model.alternates?.usdz ?? null;
       const hasUsdz = Boolean(
-        normalizedPrimary.endsWith(".usdz") || (typeof usdzAlternate === "string" && usdzAlternate.toLowerCase().includes(".usdz"))
+        normalizedPrimary.endsWith(".usdz") ||
+        (typeof usdzAlternate === "string" && usdzAlternate.toLowerCase().includes(".usdz"))
       );
       const usdzUrl = normalizedPrimary.endsWith(".usdz") ? primaryUrl : usdzAlternate ?? null;
-      console.log("[ar-launcher] model info", {
-        hasUsdz,
-        primaryUrl,
-        usdzUrl
-      });
-      setModelInfo({ hasModel: true, hasUsdz, primaryUrl, usdzUrl });
+
+      return { hasModel: true, hasUsdz, primaryUrl, usdzUrl };
     } catch (parseError) {
       console.warn("[ar-launcher] failed to parse generation results", parseError);
-      setModelInfo({ hasModel: false, hasUsdz: false, primaryUrl: null, usdzUrl: null });
+      return { hasModel: false, hasUsdz: false, primaryUrl: null, usdzUrl: null };
     }
-  }, [locale, support, deviceType]);
+  }, []);
+
+  useEffect(() => {
+    const info = readModelInfo();
+    setModelInfo(info);
+    console.log("[ar-launcher] model info", info);
+
+    if (deviceType !== "ios") {
+      return undefined;
+    }
+
+    if (info.hasUsdz) {
+      console.log("[ar-launcher] USDZ ready on initial check");
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      const next = readModelInfo();
+      setModelInfo(next);
+      console.log("[ar-launcher] polling model info", next);
+      if (next.hasUsdz) {
+        console.log("[ar-launcher] USDZ detected during polling");
+        window.clearInterval(intervalId);
+      }
+    }, 3000);
+
+    return () => window.clearInterval(intervalId);
+  }, [deviceType, readModelInfo]);
 
   useEffect(() => {
     const stored = sessionStorage.getItem(CAMERA_PERMISSION_KEY);
