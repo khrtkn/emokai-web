@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { notFound } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -8,6 +8,31 @@ import { Divider, Header, InstructionBanner } from "@/components/ui";
 import { detectDeviceType } from "@/lib/device";
 import { GENERATION_RESULTS_KEY } from "@/lib/storage-keys";
 import { FallbackViewer } from "@/components/fallback-viewer";
+
+type StoredModel = {
+  url?: string | null;
+  alternates?: {
+    usdz?: string | null;
+    glb?: string | null;
+  } | null;
+};
+
+function extractModelUrls(model: StoredModel | undefined | null) {
+  const primary = typeof model?.url === "string" ? model.url : null;
+  const normalizedPrimary = primary ? primary.toLowerCase() : "";
+  const alternates = model?.alternates ?? {};
+  const alternateUsd = typeof alternates?.usdz === "string" ? alternates.usdz : null;
+  const alternateGlb = typeof alternates?.glb === "string" ? alternates.glb : null;
+
+  const usdz = normalizedPrimary.endsWith(".usdz") ? primary : alternateUsd;
+  const glb = normalizedPrimary.endsWith(".glb") ? primary : alternateGlb;
+
+  return {
+    primary,
+    usdz: usdz ?? null,
+    glb: glb ?? null
+  };
+}
 
 type ARSessionPageProps = {
   searchParams: Record<string, string | string[] | undefined>;
@@ -28,7 +53,10 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
   const [modelUrl, setModelUrl] = useState<string | null>(null);
   const [viewerError, setViewerError] = useState<string | null>(null);
   const [viewerLoading, setViewerLoading] = useState<boolean>(currentMode === "fallback");
+  const [launchUrl, setLaunchUrl] = useState<string | null>(null);
+  const [launchAttempted, setLaunchAttempted] = useState(false);
   const isIOS = device === "ios";
+  const quickLookAnchorRef = useRef<HTMLAnchorElement | null>(null);
 
   useEffect(() => {
     console.log("[ar-session] init", {
@@ -50,24 +78,19 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
       } else {
         const parsed = JSON.parse(raw) as {
           results?: {
-            model?: {
-              url?: string | null;
-              alternates?: {
-                usdz?: string | null;
-                glb?: string | null;
-              };
-            };
+            model?: StoredModel;
           };
         };
         const model = parsed?.results?.model;
-        const url = model?.url ?? null;
+        const urls = extractModelUrls(model);
+        const url = urls.glb ?? urls.primary ?? null;
 
         if (url) {
           setModelUrl(url);
           setViewerError(null);
           console.log("[ar-session] model url loaded", {
             url,
-            alternates: model?.alternates ?? null
+            urls
           });
         } else {
           setModelUrl(null);
@@ -89,8 +112,28 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
   const viewerContent = useMemo(() => {
     if (currentMode !== "fallback") {
       return (
-        <div className="rounded-3xl border border-divider bg-[rgba(255,255,255,0.05)] p-6 text-sm text-textSecondary">
-          {t("session.arPlaceholder", { device: t(`device.${device}`) })}
+        <div className="rounded-3xl border border-divider bg-[rgba(255,255,255,0.05)] p-6 text-sm text-textSecondary space-y-3">
+          <p>{t("session.arPlaceholder", { device: t(`device.${device}`) })}</p>
+          {launchUrl ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  if (quickLookAnchorRef.current) {
+                    quickLookAnchorRef.current.click();
+                  } else {
+                    window.location.href = launchUrl;
+                  }
+                }}
+                className="rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-black"
+              >
+                {t("session.openQuickLook")}
+              </button>
+              <a ref={quickLookAnchorRef} rel="ar" href={launchUrl} className="hidden" aria-hidden="true">
+                Quick Look
+              </a>
+            </>
+          ) : null}
         </div>
       );
     }
@@ -118,13 +161,60 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
         errorLabel={t("session.viewerFailed")}
       />
     );
-  }, [currentMode, device, modelUrl, t, viewerError, viewerLoading]);
+  }, [currentMode, device, launchUrl, modelUrl, t, viewerError, viewerLoading]);
 
   const bannerMessage = viewerError
     ? viewerError
     : currentMode === "ar"
     ? t("session.instructions")
     : t("session.fallbackInstructions");
+
+  const readLaunchUrl = useCallback(() => {
+    if (typeof window === "undefined") {
+      return { launch: null, urls: null as ReturnType<typeof extractModelUrls> | null };
+    }
+    const raw = sessionStorage.getItem(GENERATION_RESULTS_KEY);
+    if (!raw) {
+      return { launch: null, urls: null };
+    }
+    try {
+      const parsed = JSON.parse(raw) as {
+        results?: {
+          model?: StoredModel;
+        };
+      };
+      const model = parsed?.results?.model;
+      const urls = extractModelUrls(model);
+      const preferred = urls.usdz ?? urls.primary ?? null;
+      return { launch: preferred, urls };
+    } catch (error) {
+      console.warn("[ar-session] failed to parse model for AR", error);
+      return { launch: null, urls: null };
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentMode !== "ar") return;
+    const { launch, urls } = readLaunchUrl();
+    setLaunchUrl(launch);
+    if (!launch) {
+      setViewerError(t("session.viewerMissing"));
+      console.warn("[ar-session] launch url missing", { urls });
+    } else {
+      setViewerError(null);
+      console.log("[ar-session] launch url ready", { launch, urls });
+    }
+  }, [currentMode, readLaunchUrl, t]);
+
+  useEffect(() => {
+    if (currentMode !== "ar" || !launchUrl || launchAttempted || !isIOS) return;
+    setLaunchAttempted(true);
+    if (quickLookAnchorRef.current) {
+      quickLookAnchorRef.current.click();
+    } else {
+      window.location.href = launchUrl;
+    }
+  }, [currentMode, isIOS, launchUrl, launchAttempted]);
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-canvas">

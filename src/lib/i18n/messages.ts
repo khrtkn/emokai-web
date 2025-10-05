@@ -143,7 +143,8 @@ export const messages = {
         arPlaceholder: "{device} 用のARセッションを起動中です…",
         viewerPlaceholder: "3Dビューアを準備中です…",
         viewerMissing: "3Dモデルのデータが見つかりませんでした",
-        viewerFailed: "3Dモデルの読み込みに失敗しました"
+        viewerFailed: "3Dモデルの読み込みに失敗しました",
+        openQuickLook: "Quick Lookを開く"
       }
     },
     gallery: {
@@ -298,7 +299,8 @@ export const messages = {
         arPlaceholder: "Launching AR session for {device}…",
         viewerPlaceholder: "Preparing 3D viewer…",
         viewerMissing: "3D model data is missing",
-        viewerFailed: "Failed to load the 3D model"
+        viewerFailed: "Failed to load the 3D model",
+        openQuickLook: "Open in Quick Look"
       }
     },
     gallery: {
