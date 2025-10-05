@@ -66,13 +66,17 @@ export async function POST(req: NextRequest) {
 
       if (requiresConversion) {
         console.log("[tripo-model] attempting USDZ conversion", {
-          glbUrl: urls.glb
+          glbUrl: urls.glb,
+          taskId
         });
         try {
-          const { taskId: conversionTaskId, output: conversionOutput } = await client.convertModel(
-            urls.glb as string,
-            "USDZ"
-          );
+          const { taskId: conversionTaskId, output: conversionOutput } = await client.convertModel({
+            format: "USDZ",
+            originalModelTaskId: taskId,
+            modelUrl: urls.glb ?? undefined,
+            faceLimit: 5000,
+            quad: true
+          });
           const convertedUrl = findUrlByExtension(conversionOutput, "usdz") ?? extractModelUrl(conversionOutput);
           console.log("[tripo-model] conversion output", {
             conversionTaskId,

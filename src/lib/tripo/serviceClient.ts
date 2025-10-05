@@ -24,6 +24,15 @@ export type ImageToModelOptions = {
 
 export type ConvertModelFormat = "GLTF" | "USDZ";
 
+export type ConvertModelOptions = {
+  format: ConvertModelFormat;
+  originalModelTaskId?: string;
+  modelUrl?: string;
+  faceLimit?: number;
+  quad?: boolean;
+  maxWaitMs?: number;
+};
+
 export type RiggingOptions = {
   rigType?: string;
   outputFormat?: string;
@@ -149,12 +158,31 @@ export class TripoClient {
     }
   }
 
-  async createConversionTask(modelUrl: string, format: ConvertModelFormat): Promise<string> {
-    const payload = {
-      type: "convert_model" as const,
-      model_url: modelUrl,
-      format
+  async createConversionTask(options: ConvertModelOptions): Promise<string> {
+    if (!options.modelUrl && !options.originalModelTaskId) {
+      throw new Error("convert_model requires either modelUrl or originalModelTaskId");
+    }
+
+    const payload: Record<string, unknown> = {
+      type: "convert_model",
+      format: options.format
     };
+
+    if (options.modelUrl) {
+      payload.model_url = options.modelUrl;
+    }
+
+    if (options.originalModelTaskId) {
+      payload.original_model_task_id = options.originalModelTaskId;
+    }
+
+    if (typeof options.faceLimit === "number") {
+      payload.face_limit = options.faceLimit;
+    }
+
+    if (typeof options.quad === "boolean") {
+      payload.quad = options.quad;
+    }
 
     console.log("📤 Sending conversion request:", JSON.stringify(payload, null, 2));
 
@@ -185,9 +213,9 @@ export class TripoClient {
     }
   }
 
-  async convertModel(modelUrl: string, format: ConvertModelFormat, maxWaitMs = 600_000) {
-    const taskId = await this.createConversionTask(modelUrl, format);
-    const output = await this.pollTask(taskId, maxWaitMs);
+  async convertModel(options: ConvertModelOptions) {
+    const taskId = await this.createConversionTask(options);
+    const output = await this.pollTask(taskId, options.maxWaitMs);
     return { taskId, output };
   }
 
