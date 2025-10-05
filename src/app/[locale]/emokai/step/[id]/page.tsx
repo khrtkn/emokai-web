@@ -94,6 +94,16 @@ function formatCoordinates(lat: number, lng: number, isJa: boolean) {
   return `${latLabel}, ${lngLabel}`;
 }
 
+function isCoordinateLabel(value: string) {
+  const text = value.trim();
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  if (lower.includes('北緯') || lower.includes('南緯') || lower.includes('東経') || lower.includes('西経')) {
+    return true;
+  }
+  return /^[-+]?\d+(\.\d+)?\s*,\s*[-+]?\d+(\.\d+)?$/.test(text);
+}
+
 type StageFlowStatus = 'idle' | 'moderating' | 'uploading' | 'generating' | 'ready' | 'error';
 type CharacterFlowStatus = 'idle' | 'generating' | 'ready' | 'error';
 type JobStatus = 'pending' | 'active' | 'complete' | 'error';
@@ -132,7 +142,7 @@ const StepLabel = ({ text }: { text?: string }) => {
 };
 
 const primaryButtonClass =
-  'inline-block rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90';
+  'inline-block min-h-[44px] rounded-lg bg-accent px-6 text-sm font-semibold text-black transition hover:opacity-90';
 const secondaryButtonClass =
   'inline-block rounded-lg border border-divider px-4 py-2 text-sm text-textPrimary transition hover:border-accent';
 
@@ -1108,11 +1118,21 @@ export default function EmokaiStepPage({ params }: Props) {
   const modelReady = generationState.model === 'complete' && !!generationResults?.results?.model;
   const allReady = compositeReady && storyReady && modelReady;
 
+  const mapQuery = useMemo(() => {
+    const trimmed = placeText.trim();
+    if (trimmed && !isCoordinateLabel(trimmed)) {
+      return trimmed;
+    }
+    if (geoCoords) {
+      return `${geoCoords.lat},${geoCoords.lng}`;
+    }
+    return trimmed || null;
+  }, [geoCoords, placeText]);
+
   const mapEmbedUrl = useMemo(() => {
-    if (!geoCoords) return null;
-    const { lat, lng } = geoCoords;
-    return `https://www.google.com/maps?q=${lat},${lng}&z=16&output=embed`;
-  }, [geoCoords]);
+    if (!mapQuery) return null;
+    return `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=16&output=embed`;
+  }, [mapQuery]);
 
   const persistCreation = () => {
     setSaveStatus('saving');
@@ -1652,7 +1672,7 @@ export default function EmokaiStepPage({ params }: Props) {
         const locationLabel = geoCoords
           ? formatCoordinates(geoCoords.lat, geoCoords.lng, isJa)
           : placeText.trim().length
-            ? placeText
+            ? placeText.trim()
             : geoStatus === 'loading'
               ? isJa
                 ? '位置情報を取得しています…'
@@ -1710,27 +1730,27 @@ export default function EmokaiStepPage({ params }: Props) {
                 {isJa ? '再取得' : 'Retry'}
               </button>
             </div>
-            {geoStatus === 'error' ? (
-              <div className="space-y-2">
-                <RichInput
-                  label=""
-                  placeholder={
-                    isJa
-                      ? '例：渋谷駅 ハチ公前広場'
-                      : 'e.g., Shibuya Station, Hachiko Square'
-                  }
-                  value={placeText}
-                  onChange={handlePlaceChange}
-                  maxLength={300}
-                  helperText={minLengthHint}
-                  error={placeTouched && !placeValid ? minLengthHint : undefined}
-                />
-                {geoError ? <p className="text-xs text-[#ffb9b9]">{geoError}</p> : null}
-                <p className="text-xs text-textSecondary">
-                  {isJa ? '手動で場所を記入すると先へ進めます。' : 'Describe the place manually to continue.'}
-                </p>
-              </div>
-            ) : null}
+            <div className="space-y-2">
+              <RichInput
+                label=""
+                placeholder={
+                  isJa
+                    ? '例：渋谷駅 ハチ公前広場'
+                    : 'e.g., Shibuya Station, Hachiko Square'
+                }
+                value={placeText}
+                onChange={handlePlaceChange}
+                maxLength={300}
+                helperText={minLengthHint}
+                error={placeTouched && !placeValid ? minLengthHint : undefined}
+              />
+              {geoError ? <p className="text-xs text-[#ffb9b9]">{geoError}</p> : null}
+              <p className="text-xs text-textSecondary">
+                {isJa
+                  ? '場所や住所を入力すると地図が移動します。'
+                  : 'Type a place or address to update the map.'}
+              </p>
+            </div>
             <div className="pt-2">
               <Button type="button" onClick={() => router.push(`/${locale}/emokai/step/4`)} disabled={!placeValid}>
                 {isJa ? 'つづける' : 'Continue'}
@@ -1979,7 +1999,7 @@ export default function EmokaiStepPage({ params }: Props) {
             src="/Logo.png"
             alt="Emokai"
             width={132}
-            height={48}
+            height={100}
             priority
           />
         }
