@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import Image from 'next/image';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -15,7 +16,7 @@ import {
   RichInput,
 } from '@/components/ui';
 import { moderateText } from '@/lib/moderation';
-import { processStageReference, type ProcessedImage } from '@/lib/image';
+import type { ProcessedImage } from '@/lib/image';
 import { createStageOptions, type StageOption } from '@/lib/stage-generation';
 import { createCharacterOptions, type CharacterOption } from '@/lib/character-generation';
 import {
@@ -75,6 +76,23 @@ const DETAIL_EMOTIONS = [
   'Annoyance',
   'Interest',
 ];
+
+function formatCoordinates(lat: number, lng: number, isJa: boolean) {
+  const latAbs = Math.abs(lat).toFixed(4);
+  const lngAbs = Math.abs(lng).toFixed(4);
+  const latDir = lat >= 0;
+  const lngDir = lng >= 0;
+
+  if (isJa) {
+    const latLabel = latDir ? '北緯' : '南緯';
+    const lngLabel = lngDir ? '東経' : '西経';
+    return `${latLabel}${latAbs}° / ${lngLabel}${lngAbs}°`;
+  }
+
+  const latLabel = `${latAbs}°${latDir ? 'N' : 'S'}`;
+  const lngLabel = `${lngAbs}°${lngDir ? 'E' : 'W'}`;
+  return `${latLabel}, ${lngLabel}`;
+}
 
 type StageFlowStatus = 'idle' | 'moderating' | 'uploading' | 'generating' | 'ready' | 'error';
 type CharacterFlowStatus = 'idle' | 'generating' | 'ready' | 'error';
@@ -324,6 +342,12 @@ export default function EmokaiStepPage({ params }: Props) {
     }
   }, [locale, rawStep, router]);
 
+  useEffect(() => {
+    if (step !== 3) return;
+    if (geoStatus !== 'idle') return;
+    requestGeolocation();
+  }, [geoStatus, requestGeolocation, step]);
+
   const initialPlace = useMemo(() => loadSessionString(PLACE_STORAGE_KEY), []);
   const [placeText, setPlaceText] = useState(initialPlace);
   const [placeTouched, setPlaceTouched] = useState(initialPlace.trim().length > 0);
@@ -344,6 +368,10 @@ export default function EmokaiStepPage({ params }: Props) {
   const [appearanceTouched, setAppearanceTouched] = useState(initialAppearance.trim().length > 0);
   const appearanceValid = appearanceText.trim().length >= MIN_TEXT_LENGTH;
 
+  const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
+
   const initialEmotions = useMemo(() => loadSessionArray(EMOTIONS_STORAGE_KEY), []);
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>(initialEmotions);
   const [emotionTouched, setEmotionTouched] = useState(initialEmotions.length > 0);
@@ -359,11 +387,10 @@ export default function EmokaiStepPage({ params }: Props) {
   const [stageStatus, setStageStatus] = useState<StageFlowStatus>(
     storedStageSelection ? 'ready' : 'idle',
   );
-  const [stageHelperText, setStageHelperText] = useState<string | null>(null);
   const [stageModerationError, setStageModerationError] = useState<string | null>(null);
   const [stageGenerationError, setStageGenerationError] = useState<string | null>(null);
-  const stageFileInputRef = useRef<HTMLInputElement | null>(null);
   const [stageProcessedImage, setStageProcessedImage] = useState<ProcessedImage | null>(null);
+  const [showStageAdjust, setShowStageAdjust] = useState(false);
 
   const storedCharacterSelection = useMemo(() => readCharacterSelection(), []);
   const storedCharacterOptions = useMemo(() => readCharacterOptions(), []);
@@ -381,6 +408,7 @@ export default function EmokaiStepPage({ params }: Props) {
     storedCharacterOptions.length ? 'ready' : storedCharacterSelection ? 'ready' : 'idle',
   );
   const [characterGenerationError, setCharacterGenerationError] = useState<string | null>(null);
+  const [showCharacterAdjust, setShowCharacterAdjust] = useState(false);
 
   const storedGeneration = useMemo(() => readGenerationPayload(), []);
   const computeStatus = (result: unknown): JobStatus => (result ? 'complete' : 'pending');
@@ -515,11 +543,6 @@ export default function EmokaiStepPage({ params }: Props) {
     setPlaceText(value);
     saveSessionString(PLACE_STORAGE_KEY, value);
     setStageGenerationError(null);
-    setStageHelperText(
-      isJa
-        ? '書いた内容でもう一度ためすと、景色が変わります。'
-        : 'Edit and try again to refresh the scenery.',
-    );
   };
 
   const handleReasonChange = (value: string) => {
@@ -527,11 +550,6 @@ export default function EmokaiStepPage({ params }: Props) {
     setReasonText(value);
     saveSessionString(REASON_STORAGE_KEY, value);
     setStageGenerationError(null);
-    setStageHelperText(
-      isJa
-        ? '書いた内容でもう一度ためすと、景色が変わります。'
-        : 'Edit and try again to refresh the scenery.',
-    );
   };
 
   const handleActionChange = (value: string) => {
@@ -562,6 +580,37 @@ export default function EmokaiStepPage({ params }: Props) {
     }
   };
 
+  const requestGeolocation = useCallback(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setGeoStatus('error');
+      setGeoError(isJa ? '位置情報が利用できません。' : 'Location services unavailable.');
+      return;
+    }
+    setGeoStatus('loading');
+    setGeoError(null);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setGeoCoords({ lat: latitude, lng: longitude });
+        setGeoStatus('success');
+        const coordinateLabel = formatCoordinates(latitude, longitude, isJa);
+        setPlaceTouched(true);
+        setPlaceText(coordinateLabel);
+        saveSessionString(PLACE_STORAGE_KEY, coordinateLabel);
+        setStageGenerationError(null);
+      },
+      (error) => {
+        console.warn('Geolocation error', error);
+        setGeoStatus('error');
+        setGeoError(
+          error.message ||
+            (isJa ? '位置情報を取得できませんでした。' : 'Failed to fetch your location.'),
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10_000 },
+    );
+  }, [isJa]);
+
   const toggleEmotion = (emotion: string) => {
     setEmotionTouched(true);
     setSelectedEmotions((prev) => {
@@ -591,7 +640,6 @@ export default function EmokaiStepPage({ params }: Props) {
     autoSelect?: boolean;
   }): Promise<boolean> => {
     setStageStatus('generating');
-    setStageHelperText(null);
     setStageModerationError(null);
     setStageGenerationError(null);
     setStageOptions([]);
@@ -738,53 +786,27 @@ export default function EmokaiStepPage({ params }: Props) {
   };
 
   const handleStageGenerateFromText = async () => {
-    if (!stageDescriptionReady || reasonText.trim().length < MIN_TEXT_LENGTH) {
+    const reasonReady = reasonText.trim().length >= MIN_TEXT_LENGTH;
+    if (!stageDescriptionReady) {
       setPlaceTouched(true);
-      setReasonTouched(true);
-      return;
     }
-    await runStageGeneration({ processedImage: null, trackLabel: 'stage_text_regen' });
-  };
-
-  const handleStageFileInput = () => {
-    stageFileInputRef.current?.click();
+    if (!reasonReady) {
+      setReasonTouched(true);
+    }
+    if (!stageDescriptionReady || !reasonReady) {
+      setStageGenerationError(
+        isJa
+          ? 'もう少しだけ、その場所を教えてください。'
+          : 'Tell us a little more about this place first.',
+      );
+      return false;
+    }
+    const success = await runStageGeneration({ processedImage: null, trackLabel: 'stage_text_regen' });
+    return success;
   };
 
   const stageSelectionFromOptions = (id: string) =>
     stageOptions.find((option) => option.id === id) ?? null;
-
-  const handleStageFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setStageStatus('generating');
-    setStageGenerationError(null);
-    setStageOptions([]);
-    setStageSelection(null);
-
-    try {
-      const processed = await processStageReference(file);
-      await runStageGeneration({ processedImage: processed, trackLabel: 'stage_options' });
-    } catch (error) {
-      console.error(error);
-      // runStageGeneration already handled error state
-    } finally {
-      if (stageFileInputRef.current) {
-        stageFileInputRef.current.value = '';
-      }
-    }
-  };
-
-  const handleStageRegenerate = async () => {
-    if (stageProcessedImage) {
-      await runStageGeneration({
-        processedImage: stageProcessedImage,
-        trackLabel: 'stage_options_regen',
-      });
-      return;
-    }
-    await runStageGeneration({ processedImage: null, trackLabel: 'stage_options_regen' });
-  };
 
   const handleStageSelect = (id: string) => {
     const option = stageSelectionFromOptions(id);
@@ -807,21 +829,15 @@ export default function EmokaiStepPage({ params }: Props) {
       );
       return;
     }
+    setShowStageAdjust(false);
     router.push(`/${locale}/emokai/step/7`);
   };
 
-  const handleCharacterGenerate = async () => {
-    if (characterOptions.length > 0 && characterStatus === 'ready') {
-      return;
+  const handleStageApplyAdjust = async () => {
+    const success = await handleStageGenerateFromText();
+    if (success) {
+      setShowStageAdjust(false);
     }
-
-    if (characterPrompt.trim().length < MIN_TEXT_LENGTH) {
-      setCharacterGenerationError(
-        isJa ? 'まだ形になりません。もう少し書いてみましょう。' : 'Too short.',
-      );
-      return;
-    }
-    await runCharacterGeneration('character_options');
   };
 
   const handleCharacterRegenerate = async () => {
@@ -829,9 +845,10 @@ export default function EmokaiStepPage({ params }: Props) {
       setCharacterGenerationError(
         isJa ? 'まだ形になりません。もう少し書いてみましょう。' : 'Too short.',
       );
-      return;
+      return false;
     }
-    await runCharacterGeneration('character_options_regen');
+    const success = await runCharacterGeneration('character_options_regen');
+    return success;
   };
 
   const handleCharacterSelect = (id: string) => {
@@ -848,7 +865,15 @@ export default function EmokaiStepPage({ params }: Props) {
       );
       return;
     }
+    setShowCharacterAdjust(false);
     router.push(`/${locale}/emokai/step/11`);
+  };
+
+  const handleCharacterApplyAdjust = async () => {
+    const success = await handleCharacterRegenerate();
+    if (success) {
+      setShowCharacterAdjust(false);
+    }
   };
 
   const startGenerationJobs = async () => {
@@ -1086,6 +1111,12 @@ export default function EmokaiStepPage({ params }: Props) {
   const modelReady = generationState.model === 'complete' && !!generationResults?.results?.model;
   const allReady = compositeReady && storyReady && modelReady;
 
+  const mapEmbedUrl = useMemo(() => {
+    if (!geoCoords) return null;
+    const { lat, lng } = geoCoords;
+    return `https://www.google.com/maps?q=${lat},${lng}&z=16&output=embed`;
+  }, [geoCoords]);
+
   const persistCreation = () => {
     setSaveStatus('saving');
     setSaveError(null);
@@ -1112,105 +1143,101 @@ export default function EmokaiStepPage({ params }: Props) {
       <h2 className="text-base font-semibold text-textPrimary">
         {isJa ? '景色をえらぶ' : 'Choose the scenery'}
       </h2>
-      <p className="text-sm text-textSecondary">
-        {isJa
-          ? 'あなたのことばから、いくつか景色を用意しました。しっくりくるものをひとつえらんでください。'
-          : 'We prepared some scenery from your words. Pick what feels right.'}
-      </p>
-      <RichInput
-        label=""
-        placeholder={
-          isJa
-            ? '木陰のベンチ。あたたかいひかりと、土と草の匂い…'
-            : 'A bench under trees; warm light; the smell of earth and grass...'
-        }
-        value={placeText}
-        onChange={handlePlaceChange}
-        maxLength={300}
-        helperText={stageHelperText ?? minLengthHint}
-        error={stageModerationError ?? (placeTouched && !placeValid ? minLengthHint : undefined)}
-      />
-      <div className="rounded-2xl border border-divider bg-[rgba(237,241,241,0.04)] p-4 text-xs text-textSecondary">
-        <p className="font-semibold text-textPrimary">{isJa ? '手がかり' : 'Clues'}</p>
-        <p className="whitespace-pre-wrap pt-2">{stagePrompt}</p>
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          type="button"
-          onClick={handleStageGenerateFromText}
-          disabled={stageStatus === 'generating'}
-        >
-          {stageStatus === 'generating'
-            ? generatingLabel
-            : isJa
-              ? '書いた内容でもう一度ためす'
-              : 'Try again from text'}
-        </Button>
-        <Button
-          type="button"
-          onClick={handleStageFileInput}
-          disabled={stageStatus === 'generating'}
-        >
-          {isJa ? '写真を参考にする' : 'Use a photo as reference'}
-        </Button>
-        <input
-          ref={stageFileInputRef}
-          type="file"
-          accept="image/*"
-          hidden
-          capture="environment"
-          onChange={handleStageFileChange}
-        />
-      </div>
-      {stageStatus === 'generating' && (
+      {stageStatus === 'generating' ? (
         <MessageBlock
           title={isJa ? '景色を映し出しています' : 'Preparing scenery'}
           body={<p>{isJa ? 'もう少しだけお待ちください。' : 'One moment.'}</p>}
         />
-      )}
-      {stageGenerationError && <p className="text-xs text-[#ffb9b9]">{stageGenerationError}</p>}
-      {stageOptions.length > 0 && (
-        <div className="space-y-3">
-          <div className="grid gap-4">
-            {stageOptions.map((option) => (
-              <ImageOption
-                key={option.id}
-                id={option.id}
-                selected={stageSelection?.id === option.id}
-                onSelect={handleStageSelect}
-                label={isJa ? 'これにする' : 'Choose this'}
-                image={
-                  <img
-                    src={option.previewUrl}
-                    alt={isJa ? '景色' : 'Scenery'}
-                    className="h-full w-full object-cover"
-                  />
-                }
-              />
-            ))}
-          </div>
-          <div className="flex items-center justify-between text-xs text-textSecondary">
-            <button type="button" className="underline" onClick={handleStageRegenerate}>
-              {isJa ? 'ほかも見てみる' : 'Show more'}
-            </button>
-            {stageProcessedImage ? (
-              <span>
-                {isJa ? '参考画像サイズ' : 'Reference size'}:{' '}
-                {Math.round(stageProcessedImage.size / 1024)} KB
-              </span>
-            ) : null}
-          </div>
-        </div>
-      )}
-      <div className="pt-2">
-        <button
+      ) : null}
+      <div className="grid gap-4">
+        {stageOptions.map((option) => (
+          <ImageOption
+            key={option.id}
+            id={option.id}
+            selected={stageSelection?.id === option.id}
+            onSelect={handleStageSelect}
+            label={isJa ? 'これにする' : 'Choose this'}
+            image={
+              <img src={option.previewUrl} alt={isJa ? '景色' : 'Scenery'} className="h-full w-full object-cover" />
+            }
+          />
+        ))}
+      </div>
+      {!stageOptions.length && stageStatus !== 'generating' ? (
+        <p className="text-xs text-textSecondary">
+          {isJa ? '調整すると、あたらしい景色があらわれます。' : 'Adjust the description to refresh the scenery.'}
+        </p>
+      ) : null}
+      {stageGenerationError && !showStageAdjust ? (
+        <p className="text-xs text-[#ffb9b9]">{stageGenerationError}</p>
+      ) : null}
+      <div className="flex gap-3 pt-2">
+        <Button
           type="button"
-          className={`${primaryButtonClass} ${stageSelection ? '' : 'opacity-50 pointer-events-none'}`}
+          disabled={!stageSelection || stageStatus === 'generating'}
           onClick={handleStageNext}
         >
-          {isJa ? 'つぎへ' : 'Next'}
+          {isJa ? '次へ進む' : 'Next'}
+        </Button>
+        <button
+          type="button"
+          className="rounded-lg border border-divider px-4 py-2 text-sm text-textSecondary transition hover:border-accent"
+          onClick={() => setShowStageAdjust((prev) => !prev)}
+          disabled={stageStatus === 'generating'}
+        >
+          {isJa ? '調整する' : 'Adjust'}
         </button>
       </div>
+      {showStageAdjust ? (
+        <div className="space-y-3 rounded-2xl border border-divider bg-[rgba(237,241,241,0.04)] p-4">
+          <p className="text-xs text-textSecondary">
+            {isJa
+              ? 'ことばを手直しすると、景色の表情が変わります。'
+              : 'Tweak the description to reshape the scenery.'}
+          </p>
+          <RichInput
+            label=""
+            placeholder={
+              isJa
+                ? '木陰のベンチ。あたたかいひかりと、土と草の匂い…'
+                : 'A bench beneath trees, warm light, the smell of earth...'
+            }
+            value={placeText}
+            onChange={handlePlaceChange}
+            maxLength={300}
+            helperText={minLengthHint}
+            error={placeTouched && !placeValid ? minLengthHint : undefined}
+          />
+          <RichInput
+            label=""
+            placeholder={
+              isJa ? 'なぜその場所が大切なのか…' : 'Why this place matters...'
+            }
+            value={reasonText}
+            onChange={handleReasonChange}
+            maxLength={300}
+            helperText={minLengthHint}
+            error={reasonTouched && reasonText.trim().length < MIN_TEXT_LENGTH ? minLengthHint : undefined}
+          />
+          {stageGenerationError ? <p className="text-xs text-[#ffb9b9]">{stageGenerationError}</p> : null}
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              onClick={handleStageApplyAdjust}
+              disabled={stageStatus === 'generating'}
+            >
+              {stageStatus === 'generating' ? generatingLabel : isJa ? '反映する' : 'Apply'}
+            </Button>
+            <button
+              type="button"
+              className="rounded-lg border border-divider px-4 py-2 text-sm text-textSecondary transition hover:border-accent"
+              onClick={() => setShowStageAdjust(false)}
+            >
+              {isJa ? '閉じる' : 'Close'}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 
@@ -1220,73 +1247,85 @@ export default function EmokaiStepPage({ params }: Props) {
       <h2 className="text-base font-semibold text-textPrimary">
         {isJa ? '出会ったエモカイ' : 'Meet your Emokai'}
       </h2>
-      <p className="text-sm text-textSecondary">
-        {isJa
-          ? '心に響く存在をひとつえらんでください。'
-          : 'Choose the one that resonates with you.'}
-      </p>
-      <div className="rounded-2xl border border-divider bg-[rgba(237,241,241,0.04)] p-4 text-xs text-textSecondary">
-        <p className="font-semibold text-textPrimary">{isJa ? '手がかり' : 'Clues'}</p>
-        <p className="whitespace-pre-wrap pt-2">{characterPrompt}</p>
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
-        {characterOptions.length === 0 ? (
-          <Button
-            type="button"
-            onClick={handleCharacterGenerate}
-            disabled={characterStatus === 'generating'}
-          >
-            {characterStatus === 'generating' ? generatingLabel : isJa ? '見てみる' : 'Show'}
-          </Button>
-        ) : null}
-        {characterOptions.length > 0 ? (
-          <Button
-            type="button"
-            onClick={handleCharacterRegenerate}
-            disabled={characterStatus === 'generating'}
-          >
-            {isJa ? 'もう少し見せて' : 'Show more'}
-          </Button>
-        ) : null}
-      </div>
-      {characterGenerationError && (
-        <p className="text-xs text-[#ffb9b9]">{characterGenerationError}</p>
-      )}
-      {characterStatus === 'generating' && (
+      {characterStatus === 'generating' ? (
         <MessageBlock
-          title={isJa ? 'エモカイを呼び出しています' : 'Preparing Emokai'}
+          title={isJa ? 'エモカイを呼び出しています' : 'Summoning the Emokai'}
           body={<p>{isJa ? 'もう少しだけお待ちください。' : 'One moment.'}</p>}
         />
-      )}
-      {characterOptions.length > 0 && (
-        <div className="grid gap-4">
-          {characterOptions.map((option) => (
-            <ImageOption
-              key={option.id}
-              id={option.id}
-              selected={characterSelection?.id === option.id}
-              onSelect={handleCharacterSelect}
-              label={isJa ? 'これにする' : 'Choose this'}
-              image={
-                <img
-                  src={option.previewUrl}
-                  alt={isJa ? 'エモカイ' : 'Emokai'}
-                  className="h-full w-full object-cover"
-                />
-              }
-            />
-          ))}
-        </div>
-      )}
-      <div className="pt-2">
+      ) : null}
+      <div className="grid gap-4">
+        {characterOptions.map((option) => (
+          <ImageOption
+            key={option.id}
+            id={option.id}
+            selected={characterSelection?.id === option.id}
+            onSelect={handleCharacterSelect}
+            label={isJa ? 'これにする' : 'Choose this'}
+            image={
+              <img src={option.previewUrl} alt={isJa ? 'エモカイ' : 'Emokai'} className="h-full w-full object-cover" />
+            }
+          />
+        ))}
+      </div>
+      {characterGenerationError && !showCharacterAdjust ? (
+        <p className="text-xs text-[#ffb9b9]">{characterGenerationError}</p>
+      ) : null}
+      <div className="flex gap-3 pt-2">
+        <Button
+          type="button"
+          onClick={handleCharacterNext}
+          disabled={!characterSelection || characterStatus === 'generating'}
+        >
+          {isJa ? '次へ進む' : 'Next'}
+        </Button>
         <button
           type="button"
-          className={`${primaryButtonClass} ${characterSelection ? '' : 'opacity-50 pointer-events-none'}`}
-          onClick={handleCharacterNext}
+          className="rounded-lg border border-divider px-4 py-2 text-sm text-textSecondary transition hover:border-accent"
+          onClick={() => setShowCharacterAdjust((prev) => !prev)}
+          disabled={characterStatus === 'generating'}
         >
-          {isJa ? 'つぎへ' : 'Next'}
+          {isJa ? '調整する' : 'Adjust'}
         </button>
       </div>
+      {showCharacterAdjust ? (
+        <div className="space-y-3 rounded-2xl border border-divider bg-[rgba(237,241,241,0.04)] p-4">
+          <p className="text-xs text-textSecondary">
+            {isJa
+              ? '気になるところがあれば書き直して、あらためて呼び出せます。'
+              : 'Tweak the description to regenerate new companions.'}
+          </p>
+          <RichInput
+            label=""
+            placeholder={
+              isJa
+                ? '薄い水色で半透明。胸に小さな灯。歩くと鈴の音…'
+                : 'Pale blue and translucent; a small light in its chest...'
+            }
+            value={appearanceText}
+            onChange={handleAppearanceChange}
+            maxLength={400}
+            helperText={minLengthHint}
+            error={appearanceTouched && !appearanceValid ? minLengthHint : undefined}
+          />
+          {characterGenerationError ? <p className="text-xs text-[#ffb9b9]">{characterGenerationError}</p> : null}
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              onClick={handleCharacterApplyAdjust}
+              disabled={characterStatus === 'generating'}
+            >
+              {characterStatus === 'generating' ? generatingLabel : isJa ? '反映する' : 'Apply'}
+            </Button>
+            <button
+              type="button"
+              className="rounded-lg border border-divider px-4 py-2 text-sm text-textSecondary transition hover:border-accent"
+              onClick={() => setShowCharacterAdjust(false)}
+            >
+              {isJa ? '閉じる' : 'Close'}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 
@@ -1612,7 +1651,98 @@ export default function EmokaiStepPage({ params }: Props) {
             </div>
           </section>
         );
-      case 3:
+      case 3: {
+        const locationLabel = geoCoords
+          ? formatCoordinates(geoCoords.lat, geoCoords.lng, isJa)
+          : placeText.trim().length
+            ? placeText
+            : geoStatus === 'loading'
+              ? isJa
+                ? '位置情報を取得しています…'
+                : 'Fetching your location…'
+              : isJa
+                ? '位置情報がまだ取得できていません'
+                : 'Location not available yet';
+
+        return (
+          <section className="space-y-4">
+            <StepLabel text={stepLabelText} />
+            <h2 className="text-base font-semibold text-textPrimary">
+              {isJa ? 'あなたの場所' : 'Your place'}
+            </h2>
+            <p className="text-sm text-textSecondary">
+              {isJa
+                ? '地図を見ながら、エモカイと結びついた場所を思い浮かべてください。'
+                : 'Look at the map and recall the place tied to your Emokai.'}
+            </p>
+            <div className="relative overflow-hidden rounded-3xl border border-divider bg-[rgba(237,241,241,0.08)]">
+              {mapEmbedUrl ? (
+                <>
+                  <iframe
+                    src={mapEmbedUrl}
+                    title={isJa ? '選択した場所の地図' : 'Selected place map'}
+                    loading="lazy"
+                    className="h-[260px] w-full"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                  <div className="pointer-events-none absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2">
+                    <div className="absolute inset-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
+                    <div className="absolute inset-0 rounded-full border border-white/60" />
+                  </div>
+                </>
+              ) : (
+                <div className="flex h-[260px] items-center justify-center text-xs text-textSecondary">
+                  {geoStatus === 'loading'
+                    ? isJa
+                      ? '地図を準備しています…'
+                      : 'Preparing the map…'
+                    : isJa
+                      ? '地図を表示できません。下の「調整する」から場所を入力できます。'
+                      : 'Map is unavailable. You can input the place below.'}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-between text-xs text-textSecondary">
+              <span>{locationLabel}</span>
+              <button
+                type="button"
+                className="rounded-lg border border-divider px-3 py-1 text-xs text-textSecondary transition hover:border-accent"
+                onClick={requestGeolocation}
+                disabled={geoStatus === 'loading'}
+              >
+                {isJa ? '再取得' : 'Retry'}
+              </button>
+            </div>
+            {geoStatus === 'error' ? (
+              <div className="space-y-2">
+                <RichInput
+                  label=""
+                  placeholder={
+                    isJa
+                      ? '例：渋谷駅 ハチ公前広場'
+                      : 'e.g., Shibuya Station, Hachiko Square'
+                  }
+                  value={placeText}
+                  onChange={handlePlaceChange}
+                  maxLength={300}
+                  helperText={minLengthHint}
+                  error={placeTouched && !placeValid ? minLengthHint : undefined}
+                />
+                {geoError ? <p className="text-xs text-[#ffb9b9]">{geoError}</p> : null}
+                <p className="text-xs text-textSecondary">
+                  {isJa ? '手動で場所を記入すると先へ進めます。' : 'Describe the place manually to continue.'}
+                </p>
+              </div>
+            ) : null}
+            <div className="pt-2">
+              <Button type="button" onClick={() => router.push(`/${locale}/emokai/step/4`)} disabled={!placeValid}>
+                {isJa ? 'つづける' : 'Continue'}
+              </Button>
+            </div>
+          </section>
+        );
+      }
+      case 4:
         return (
           <section className="space-y-3">
             <StepLabel text={stepLabelText} />
@@ -1622,58 +1752,12 @@ export default function EmokaiStepPage({ params }: Props) {
             <p className="text-sm text-textSecondary">
               {isJa
                 ? '目を閉じて、その場所を歩くところを想像してみましょう。風、光、音…かすかな“気配”を感じられますか。その先で、エモカイが待っています。'
-                : 'Close your eyes and walk there in your mind. Wind, light, sound—the hint of a presence awaits.'}
+                : 'Close your eyes and walk there in your mind. Wind, light, and faint presence await.'}
             </p>
             <div className="pt-4">
-              <button
-                type="button"
-                className={primaryButtonClass}
-                onClick={() => router.push(`/${locale}/emokai/step/4`)}
-              >
+              <Button type="button" onClick={() => router.push(`/${locale}/emokai/step/5`)}>
                 {isJa ? 'つづける' : 'Continue'}
-              </button>
-            </div>
-          </section>
-        );
-      case 4:
-        return (
-          <section className="space-y-3">
-            <StepLabel text={stepLabelText} />
-            <h2 className="text-base font-semibold text-textPrimary">
-              {isJa ? 'あなたの場所' : 'Your place'}
-            </h2>
-            <p className="text-sm text-textSecondary">
-              {isJa
-                ? 'どんな景色ですか。どんな匂い、どんな色、どんな空気？ あなたのことばが、エモカイの形になります。'
-                : 'What do you see, smell, feel? Your words give the Emokai its shape.'}
-            </p>
-            <RichInput
-              label=""
-              placeholder={
-                isJa
-                  ? '木陰のベンチ。あたたかいひかりと、土と草の匂い…'
-                  : 'A shaded bench; warm light; the smell of earth and grass...'
-              }
-              value={placeText}
-              onChange={handlePlaceChange}
-              maxLength={300}
-              helperText={minLengthHint}
-              error={placeTouched && !placeValid ? minLengthHint : undefined}
-            />
-            <div className="pt-2">
-              <button
-                type="button"
-                className={primaryButtonClass}
-                onClick={() => {
-                  if (!placeValid) {
-                    setPlaceTouched(true);
-                    return;
-                  }
-                  router.push(`/${locale}/emokai/step/5`);
-                }}
-              >
-                {isJa ? '場所を映し出す' : 'Reveal the place'}
-              </button>
+              </Button>
             </div>
           </section>
         );
@@ -1890,7 +1974,19 @@ export default function EmokaiStepPage({ params }: Props) {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-canvas">
-      <Header title="EMOKAI" />
+      <Header
+        title="EMOKAI"
+        hideTitle
+        leading={
+          <Image
+            src="/Logo.png"
+            alt="Emokai"
+            width={132}
+            height={48}
+            priority
+          />
+        }
+      />
       <Divider />
       <div className="space-y-6 px-4 py-6 sm:px-6">{content}</div>
     </main>
