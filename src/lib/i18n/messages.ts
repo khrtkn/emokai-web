@@ -100,7 +100,8 @@ export const messages = {
       title: "AR Display",
       status: {
         ar: "ARモードを開始できます",
-        fallback: "ARが利用できないため3Dビューアを使用します"
+        fallback: "ARが利用できないため3Dビューアを使用します",
+        pending: "iOS向けモデルを準備しています。数秒後にもう一度お試しください"
       },
       deviceTitle: "デバイス情報",
       deviceDetected: "検出されたデバイス: {device}",
@@ -254,7 +255,8 @@ export const messages = {
       title: "AR Display",
       status: {
         ar: "You can launch AR mode",
-        fallback: "AR not available. Switching to 3D viewer"
+        fallback: "AR not available. Switching to 3D viewer",
+        pending: "Preparing the USDZ for iOS. Try again in a few seconds."
       },
       deviceTitle: "Device Information",
       deviceDetected: "Detected device: {device}",

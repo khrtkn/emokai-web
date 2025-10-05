@@ -15,6 +15,13 @@ type PermissionState = "idle" | "granted" | "denied";
 
 type ViewerMode = "ar" | "fallback";
 
+type ModelInfo = {
+  hasModel: boolean;
+  hasUsdz: boolean;
+  primaryUrl: string | null;
+  usdzUrl: string | null;
+};
+
 export function ARLauncher() {
   const t = useTranslations("ar");
   const locale = useLocale();
@@ -25,13 +32,17 @@ export function ARLauncher() {
   const [permissionState, setPermissionState] = useState<PermissionState>("idle");
   const [viewerMode, setViewerMode] = useState<ViewerMode>("fallback");
   const [error, setError] = useState<string | null>(null);
+  const [modelInfo, setModelInfo] = useState<ModelInfo>({ hasModel: false, hasUsdz: false, primaryUrl: null, usdzUrl: null });
+  const [pendingUsdz, setPendingUsdz] = useState(false);
 
   useEffect(() => {
     const detected = detectDeviceType();
     setDeviceType(detected);
     const capability = checkARCapability();
     setSupport(capability);
-    setViewerMode(capability === "supported" ? "ar" : "fallback");
+    if (detected !== "ios") {
+      setViewerMode(capability === "supported" ? "ar" : "fallback");
+    }
     console.log("[ar-launcher] init", {
       detected,
       capability
@@ -43,8 +54,51 @@ export function ARLauncher() {
     if (support === "unsupported") {
       setError(t("support.unsupported"));
       setViewerMode("fallback");
+      setPendingUsdz(false);
     }
   }, [support, t]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = sessionStorage.getItem(GENERATION_RESULTS_KEY);
+    if (!raw) {
+      setModelInfo({ hasModel: false, hasUsdz: false, primaryUrl: null, usdzUrl: null });
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw) as {
+        results?: {
+          model?: {
+            url?: string | null;
+            alternates?: {
+              usdz?: string | null;
+            };
+          };
+        };
+      };
+      const model = parsed?.results?.model;
+      if (!model) {
+        setModelInfo({ hasModel: false, hasUsdz: false, primaryUrl: null, usdzUrl: null });
+        return;
+      }
+      const primaryUrl = model.url ?? null;
+      const normalizedPrimary = primaryUrl ? primaryUrl.toLowerCase() : "";
+      const usdzAlternate = model.alternates?.usdz ?? null;
+      const hasUsdz = Boolean(
+        normalizedPrimary.endsWith(".usdz") || (typeof usdzAlternate === "string" && usdzAlternate.toLowerCase().includes(".usdz"))
+      );
+      const usdzUrl = normalizedPrimary.endsWith(".usdz") ? primaryUrl : usdzAlternate ?? null;
+      console.log("[ar-launcher] model info", {
+        hasUsdz,
+        primaryUrl,
+        usdzUrl
+      });
+      setModelInfo({ hasModel: true, hasUsdz, primaryUrl, usdzUrl });
+    } catch (parseError) {
+      console.warn("[ar-launcher] failed to parse generation results", parseError);
+      setModelInfo({ hasModel: false, hasUsdz: false, primaryUrl: null, usdzUrl: null });
+    }
+  }, [locale, support, deviceType]);
 
   useEffect(() => {
     const stored = sessionStorage.getItem(CAMERA_PERMISSION_KEY);
@@ -55,7 +109,33 @@ export function ARLauncher() {
     }
   }, []);
 
+  useEffect(() => {
+    if (support === "unsupported") {
+      setViewerMode("fallback");
+      setPendingUsdz(false);
+      return;
+    }
+
+    if (deviceType === "ios") {
+      if (modelInfo.hasUsdz) {
+        setViewerMode("ar");
+        setPendingUsdz(false);
+        setError(null);
+      } else if (modelInfo.hasModel) {
+        setViewerMode("ar");
+        setPendingUsdz(true);
+      } else {
+        setViewerMode("fallback");
+        setPendingUsdz(false);
+      }
+      return;
+    }
+
+    setPendingUsdz(false);
+  }, [deviceType, modelInfo, support]);
+
   const isIOS = deviceType === "ios";
+  const requiresCameraPermission = !isIOS;
 
   const handleRequestPermission = async () => {
     if (!navigator?.mediaDevices?.getUserMedia) {
@@ -77,20 +157,28 @@ export function ARLauncher() {
   };
 
   const handleLaunch = () => {
+    if (pendingUsdz) {
+      setError(t("status.pending"));
+      console.warn("[ar-launcher] launch blocked: pending usdz");
+      return;
+    }
+
     const raw = sessionStorage.getItem(GENERATION_RESULTS_KEY);
     if (!raw) {
       setError(t("missingResults"));
       console.warn("[ar-launcher] launch blocked: missing results");
       return;
     }
-    if (viewerMode === "ar" && permissionState !== "granted") {
+    if (viewerMode === "ar" && requiresCameraPermission && permissionState !== "granted") {
       setError(t("permissionRequired"));
       console.warn("[ar-launcher] launch blocked: camera permission", { viewerMode, permissionState });
       return;
     }
     console.log("[ar-launcher] launching", {
       viewerMode,
-      permissionState
+      permissionState,
+      pendingUsdz,
+      usdzReady: modelInfo.hasUsdz
     });
     trackEvent("ar_launch", { action: viewerMode === "ar" ? "launch_ar" : "launch_fallback", locale });
     router.push(`/${locale}/ar/session?mode=${viewerMode}`);
@@ -104,12 +192,14 @@ export function ARLauncher() {
     router.push(`/${locale}/gallery`);
   };
 
-  const canLaunch = viewerMode === "ar" ? permissionState === "granted" : true;
+  const canLaunch = viewerMode === "ar"
+    ? !pendingUsdz && (requiresCameraPermission ? permissionState === "granted" : true)
+    : true;
   const launchLabel = viewerMode === "ar" ? t("launchAR") : t("openViewer");
   const primaryButtonClass =
     "w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
 
-  const bannerMessage = error ? error : t(`status.${viewerMode}`);
+  const bannerMessage = error ? error : pendingUsdz ? t("status.pending") : t(`status.${viewerMode}`);
 
   return (
     <div className="flex flex-col">
@@ -150,6 +240,9 @@ export function ARLauncher() {
           body={
             <div className="space-y-2">
               <p>{t(`viewer.${viewerMode}`)}</p>
+              {isIOS && pendingUsdz ? (
+                <p className="text-xs text-[#ffb9b9]">{t("status.pending")}</p>
+              ) : null}
               {!isIOS ? (
                 <button
                   type="button"
