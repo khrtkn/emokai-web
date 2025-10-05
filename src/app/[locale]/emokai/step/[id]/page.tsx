@@ -342,12 +342,6 @@ export default function EmokaiStepPage({ params }: Props) {
     }
   }, [locale, rawStep, router]);
 
-  useEffect(() => {
-    if (step !== 3) return;
-    if (geoStatus !== 'idle') return;
-    requestGeolocation();
-  }, [geoStatus, requestGeolocation, step]);
-
   const initialPlace = useMemo(() => loadSessionString(PLACE_STORAGE_KEY), []);
   const [placeText, setPlaceText] = useState(initialPlace);
   const [placeTouched, setPlaceTouched] = useState(initialPlace.trim().length > 0);
@@ -371,6 +365,12 @@ export default function EmokaiStepPage({ params }: Props) {
   const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (step !== 3) return;
+    if (geoStatus !== 'idle') return;
+    requestGeolocation();
+  }, [geoStatus, requestGeolocation, step]);
 
   const initialEmotions = useMemo(() => loadSessionArray(EMOTIONS_STORAGE_KEY), []);
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>(initialEmotions);
