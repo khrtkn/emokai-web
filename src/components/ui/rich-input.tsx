@@ -11,13 +11,14 @@ export type RichInputProps = {
   helperText?: string;
   error?: string;
   rows?: number;
+  showCounter?: boolean;
 };
 
 export const RichInput = forwardRef<HTMLTextAreaElement, RichInputProps>(function RichInput(
-  { label, placeholder, value, onChange, maxLength, helperText, error, rows },
+  { label, placeholder, value, onChange, maxLength, helperText, error, rows, showCounter },
   ref
 ) {
-  const showCounter = typeof maxLength === "number";
+  const shouldShowCounter = showCounter !== false && typeof maxLength === "number";
   const characters = value.length;
   const isCompact = rows === 1;
   const textareaRows = rows ?? 6;
@@ -41,10 +42,12 @@ export const RichInput = forwardRef<HTMLTextAreaElement, RichInputProps>(functio
           onChange={(event) => onChange(event.target.value)}
           maxLength={maxLength}
         />
-        <div className="mt-2 flex justify-between text-xs text-textSecondary">
-          {error ? <span className="text-[#ffb9b9]">{error}</span> : <span>{helperText}</span>}
-          {showCounter ? <span>{characters}/{maxLength}</span> : null}
-        </div>
+        {error || helperText || shouldShowCounter ? (
+          <div className="mt-2 flex justify-between text-xs text-textSecondary">
+            {error ? <span className="text-[#ffb9b9]">{error}</span> : <span>{helperText}</span>}
+            {shouldShowCounter ? <span>{characters}/{maxLength}</span> : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );

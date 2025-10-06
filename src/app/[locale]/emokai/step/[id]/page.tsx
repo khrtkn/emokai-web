@@ -45,7 +45,7 @@ import { isLiveApisEnabled } from '@/lib/env/client';
 import { getModelTargetFormats } from '@/lib/device';
 
 const MIN_TEXT_LENGTH = 1;
-const TOTAL_STEPS = 14;
+const TOTAL_STEPS = 15;
 
 const BASIC_EMOTIONS = [
   'Joy',
@@ -451,7 +451,7 @@ export default function EmokaiStepPage({ params }: Props) {
   }, [stageProcessedImage]);
 
   useEffect(() => {
-    if (step === 14) {
+    if (step === 15) {
       setCreations(listCreations());
     }
   }, [step]);
@@ -962,7 +962,7 @@ export default function EmokaiStepPage({ params }: Props) {
       promptOverride: prompt,
       referenceHint,
     });
-    router.push(`/${locale}/emokai/step/6`);
+    router.push(`/${locale}/emokai/step/7`);
   };
 
   const handleProceedToCharacterStep = async () => {
@@ -991,7 +991,7 @@ export default function EmokaiStepPage({ params }: Props) {
     setCharacterGenerationError(null);
     const success = await runCharacterGeneration('character_options_initial');
     if (success) {
-      router.push(`/${locale}/emokai/step/9`);
+      router.push(`/${locale}/emokai/step/10`);
     }
   };
 
@@ -1044,7 +1044,7 @@ export default function EmokaiStepPage({ params }: Props) {
       return;
     }
     setShowStageAdjust(false);
-    router.push(`/${locale}/emokai/step/7`);
+    router.push(`/${locale}/emokai/step/8`);
   };
 
   const handleStageApplyAdjust = async () => {
@@ -1080,7 +1080,7 @@ export default function EmokaiStepPage({ params }: Props) {
       return;
     }
     setShowCharacterAdjust(false);
-    router.push(`/${locale}/emokai/step/10`);
+    router.push(`/${locale}/emokai/step/11`);
   };
 
   const handleCharacterApplyAdjust = async () => {
@@ -1299,7 +1299,7 @@ export default function EmokaiStepPage({ params }: Props) {
   };
 
   useEffect(() => {
-    if (step !== 10) return;
+    if (step !== 11) return;
     if (generationRunning) return;
     if (generationResults) return;
     startGenerationJobs();
@@ -1669,7 +1669,7 @@ export default function EmokaiStepPage({ params }: Props) {
         <button
           type="button"
           className={primaryButtonClass}
-          onClick={() => router.push(`/${locale}/emokai/step/11`)}
+          onClick={() => router.push(`/${locale}/emokai/step/14`)}
         >
           {isJa ? 'つぎへ' : 'Next'}
         </button>
@@ -1698,7 +1698,7 @@ export default function EmokaiStepPage({ params }: Props) {
         <button
           type="button"
           className={secondaryButtonClass}
-          onClick={() => router.push(`/${locale}/emokai/step/14`)}
+          onClick={() => router.push(`/${locale}/emokai/step/15`)}
         >
           {isJa ? 'つぎへ' : 'Next'}
         </button>
@@ -1879,48 +1879,42 @@ export default function EmokaiStepPage({ params }: Props) {
 
         return (
           <section className="flex h-full flex-col space-y-4">
-            <div className="overflow-y-auto space-y-4">
+            <div className="space-y-3">
               <StepLabel text={stepLabelText} />
-              <div className="space-y-3">
-                <div className="relative">
-                  <RichInput
-                    rows={1}
-                    label=""
-                    placeholder={
-                      isJa
-                        ? '例：渋谷駅 ハチ公前広場'
-                        : 'e.g., Shibuya Station, Hachiko Square'
-                    }
-                    value={placeText}
-                    onChange={handlePlaceChange}
-                    maxLength={300}
-                    helperText={
-                      isJa
-                        ? '場所や住所を入力すると地図が移動します。'
-                        : 'Type a place or address to update the map.'
-                    }
-                    error={placeTouched && !placeValid ? minLengthHint : undefined}
-                  />
-                  <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-textSecondary">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      fill="currentColor"
-                      viewBox="0 0 16 16"
-                    >
-                      <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85Zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z" />
-                    </svg>
-                  </div>
+              <h2 className="text-base font-semibold text-textPrimary">
+                {isJa ? 'あなたの場所' : 'Your place'}
+              </h2>
+              <p className="text-sm text-textSecondary">
+                {isJa
+                  ? '地図を見ながら、エモカイと結びついた場所を思い浮かべてください。'
+                  : 'Look at the map and recall the place tied to your Emokai.'}
+              </p>
+              <div className="relative">
+                <RichInput
+                  rows={1}
+                  label=""
+                  placeholder={
+                    isJa
+                      ? '場所や住所を入力すると地図が移動します。'
+                      : 'Type a place or address to move the map.'
+                  }
+                  value={placeText}
+                  onChange={handlePlaceChange}
+                  maxLength={300}
+                  showCounter={false}
+                  error={placeTouched && !placeValid ? minLengthHint : undefined}
+                />
+                <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-textSecondary">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    viewBox="0 0 16 16"
+                  >
+                    <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85Zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z" />
+                  </svg>
                 </div>
-                <h2 className="text-base font-semibold text-textPrimary">
-                  {isJa ? 'あなたの場所' : 'Your place'}
-                </h2>
-                <p className="text-sm text-textSecondary">
-                  {isJa
-                    ? '地図を見ながら、エモカイと結びついた場所を思い浮かべてください。'
-                    : 'Look at the map and recall the place tied to your Emokai.'}
-                </p>
               </div>
             </div>
             <div className="flex h-[320px] flex-col">
@@ -1966,6 +1960,30 @@ export default function EmokaiStepPage({ params }: Props) {
         );
       }
       case 4:
+        return (
+          <section className="space-y-4">
+            <StepLabel text={stepLabelText} />
+            <h2 className="text-base font-semibold text-textPrimary">
+              {isJa ? '場所を思い出す' : 'Recall the place'}
+            </h2>
+            <p className="text-sm text-textSecondary">
+              {isJa
+                ? '目を閉じて、その場所を歩いてみましょう。空気の温度や足元の感触をたしかめてください。'
+                : 'Close your eyes and walk there in your mind. Notice the temperature of the air and how the ground feels underfoot.'}
+            </p>
+            <p className="text-sm text-textSecondary">
+              {isJa
+                ? '風や光、音、匂い…さっき思い浮かべた場所の気配を感じてみてください。'
+                : 'Listen for wind, light, sounds, and scents—let the mood of that place surround you.'}
+            </p>
+            <div className="pt-4">
+              <Button type="button" onClick={() => router.push(`/${locale}/emokai/step/5`)}>
+                {nextLabel}
+              </Button>
+            </div>
+          </section>
+        );
+      case 5:
         return (
           <section className="space-y-4">
             <StepLabel text={stepLabelText} />
@@ -2022,7 +2040,7 @@ export default function EmokaiStepPage({ params }: Props) {
                     setEmotionTouched(true);
                     return;
                   }
-                  router.push(`/${locale}/emokai/step/5`);
+                  router.push(`/${locale}/emokai/step/6`);
                 }}
               >
                 {isJa ? 'つぎへ' : 'Next'}
@@ -2030,7 +2048,7 @@ export default function EmokaiStepPage({ params }: Props) {
             </div>
           </section>
         );
-      case 5:
+      case 6:
         return (
           <section className="space-y-3">
             <StepLabel text={stepLabelText} />
@@ -2075,9 +2093,9 @@ export default function EmokaiStepPage({ params }: Props) {
             </div>
           </section>
         );
-      case 6:
-        return renderStageStep();
       case 7:
+        return renderStageStep();
+      case 8:
         return (
           <section className="space-y-3">
             <StepLabel text={stepLabelText} />
@@ -2111,7 +2129,7 @@ export default function EmokaiStepPage({ params }: Props) {
                     setActionTouched(true);
                     return;
                   }
-                  router.push(`/${locale}/emokai/step/8`);
+                  router.push(`/${locale}/emokai/step/9`);
                 }}
               >
                 {isJa ? 'つぎへ' : 'Next'}
@@ -2119,7 +2137,7 @@ export default function EmokaiStepPage({ params }: Props) {
             </div>
           </section>
         );
-      case 8:
+      case 9:
         return (
           <section className="space-y-3">
             <StepLabel text={stepLabelText} />
@@ -2162,17 +2180,17 @@ export default function EmokaiStepPage({ params }: Props) {
             </div>
           </section>
         );
-      case 9:
-        return renderCharacterStep();
       case 10:
-        return renderGenerationStep();
+        return renderCharacterStep();
       case 11:
-        return renderDiscoveryStep();
+        return renderGenerationStep();
       case 12:
-        return renderDetailStep();
+        return renderDiscoveryStep();
       case 13:
-        return renderSummonStep();
+        return renderDetailStep();
       case 14:
+        return renderSummonStep();
+      case 15:
         return renderGalleryStep();
       default:
         return null;
