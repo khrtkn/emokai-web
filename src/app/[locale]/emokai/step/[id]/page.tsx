@@ -536,11 +536,10 @@ export default function EmokaiStepPage({ params }: Props) {
       // 内部用プロンプト（UI文言には出さないが機能上は必要）
       lines.push(
         localeKey === 'ja'
-          ? 'フォトリアルな背景のみの画像を4枚生成してください。人物は含めないでください。'
-          : 'Generate four photorealistic background-only images (no people).',
+          ? "フォトリアルな背景のみの画像を4枚生成してください。人物は含めないでください。"
+          : "Generate four photorealistic background-only images (no people).",
       );
-      return lines.join('
-');
+      return lines.join('\n');
     },
     [localeKey, placeText, reasonText, stageLocationReference, streetViewDescription],
   );
