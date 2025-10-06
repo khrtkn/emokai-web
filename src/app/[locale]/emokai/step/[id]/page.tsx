@@ -40,7 +40,7 @@ import {
 } from '@/lib/session-lock';
 import type { Locale } from '@/lib/i18n/messages';
 import { saveCreation, listCreations, type CreationPayload } from '@/lib/persistence';
-import { cacheImage, getCachedImage } from '@/lib/image-cache';
+import { cacheImage, getCachedImage, base64ToBlob } from '@/lib/image-cache';
 import { isLiveApisEnabled } from '@/lib/env/client';
 import { getModelTargetFormats } from '@/lib/device';
 
@@ -479,9 +479,34 @@ export default function EmokaiStepPage({ params }: Props) {
     return undefined;
   }, [step]);
 
+  const stageLocationReference = useMemo(() => {
+    const trimmed = placeText.trim();
+    if (geoCoords) {
+      return `${geoCoords.lat.toFixed(6)}, ${geoCoords.lng.toFixed(6)}`;
+    }
+    if (trimmed && isCoordinateLabel(trimmed)) {
+      return trimmed;
+    }
+    return null;
+  }, [geoCoords, placeText]);
+
   const stagePrompt = useMemo(() => {
     const lines: string[] = [];
     lines.push(localeKey === 'ja' ? `場所の情景: ${placeText}` : `Scene description: ${placeText}`);
+    if (stageLocationReference) {
+      lines.push(
+        localeKey === 'ja'
+          ? `位置の手がかり: ${stageLocationReference}`
+          : `Location hint: ${stageLocationReference}`,
+      );
+      if (geoCoords) {
+        lines.push(
+          localeKey === 'ja'
+            ? '参考: Google Street View の画像を添付しています。'
+            : 'Reference: Google Street View imagery is attached.',
+        );
+      }
+    }
     if (reasonText.trim()) {
       lines.push(
         localeKey === 'ja' ? `大切な理由: ${reasonText}` : `Why it matters: ${reasonText}`,
@@ -494,7 +519,7 @@ export default function EmokaiStepPage({ params }: Props) {
         : 'Generate four photorealistic background-only images (no people).',
     );
     return lines.join('\n');
-  }, [localeKey, placeText, reasonText]);
+  }, [localeKey, placeText, reasonText, stageLocationReference, geoCoords]);
 
   const characterPrompt = useMemo(() => {
     const lines: string[] = [];
@@ -620,6 +645,35 @@ export default function EmokaiStepPage({ params }: Props) {
     if (geoStatus !== 'idle') return;
     requestGeolocation();
   }, [geoStatus, requestGeolocation, step]);
+
+  const fetchStreetViewReference = useCallback(async (): Promise<ProcessedImage | null> => {
+    if (!isLiveApisEnabled()) return null;
+    if (!geoCoords) return null;
+    try {
+      const params = new URLSearchParams({
+        lat: geoCoords.lat.toString(),
+        lng: geoCoords.lng.toString()
+      });
+      const response = await fetch(`/api/maps/streetview?${params.toString()}`);
+      if (!response.ok) {
+        return null;
+      }
+      const data = (await response.json()) as { base64?: string; mimeType?: string };
+      if (!data?.base64) {
+        return null;
+      }
+      const blob = base64ToBlob(data.base64, data.mimeType ?? 'image/jpeg');
+      const webpUrl = URL.createObjectURL(blob);
+      return {
+        blob,
+        webpUrl,
+        size: blob.size
+      };
+    } catch (error) {
+      console.error('Failed to fetch Street View reference', error);
+      return null;
+    }
+  }, [geoCoords]);
 
   const toggleEmotion = (emotion: string) => {
     setEmotionTouched(true);
@@ -758,7 +812,16 @@ export default function EmokaiStepPage({ params }: Props) {
       setReasonTouched(true);
       return;
     }
-    await runStageGeneration({ processedImage: null, trackLabel: 'stage_auto', autoSelect: true });
+    let referenceImage: ProcessedImage | null = null;
+    if (geoCoords) {
+      referenceImage = await fetchStreetViewReference();
+    }
+
+    await runStageGeneration({
+      processedImage: referenceImage,
+      trackLabel: 'stage_auto',
+      autoSelect: true,
+    });
     router.push(`/${locale}/emokai/step/6`);
   };
 
@@ -2000,7 +2063,7 @@ export default function EmokaiStepPage({ params }: Props) {
   })();
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-canvas">
+    <main className="mx-auto flex h-screen w-full max-w-md flex-col bg-canvas">
       <Header
         title="EMOKAI"
         hideTitle
@@ -2016,7 +2079,7 @@ export default function EmokaiStepPage({ params }: Props) {
         }
       />
       <Divider />
-      <div className="space-y-6 px-4 py-6 sm:px-6">{content}</div>
+      <div className="flex-1 space-y-6 overflow-y-auto px-4 py-6 sm:px-6">{content}</div>
     </main>
   );
 }

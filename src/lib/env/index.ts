@@ -6,7 +6,8 @@ const serverSchema = z.object({
   TRIPO_API_KEY: z.string().min(1, "TRIPO_API_KEY is required"),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, "SUPABASE_SERVICE_ROLE_KEY is required"),
   SUPABASE_URL: z.string().url("SUPABASE_URL must be a valid URL"),
-  GA4_MEASUREMENT_ID: z.string().min(1, "GA4_MEASUREMENT_ID is required")
+  GA4_MEASUREMENT_ID: z.string().min(1, "GA4_MEASUREMENT_ID is required"),
+  GOOGLE_MAPS_API_KEY: z.string().min(1, "GOOGLE_MAPS_API_KEY is required").optional()
 });
 
 export type ServerEnv = z.infer<typeof serverSchema>;
@@ -22,7 +23,8 @@ export function getServerEnv(): ServerEnv {
     TRIPO_API_KEY: process.env.TRIPO_API_KEY,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     SUPABASE_URL: process.env.SUPABASE_URL,
-    GA4_MEASUREMENT_ID: process.env.GA4_MEASUREMENT_ID
+    GA4_MEASUREMENT_ID: process.env.GA4_MEASUREMENT_ID,
+    GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY
   });
 
   if (!parsed.success) {
