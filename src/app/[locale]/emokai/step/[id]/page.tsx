@@ -521,19 +521,19 @@ export default function EmokaiStepPage({ params }: Props) {
         lines.push(
           localeKey === 'ja'
             ? imageryType === 'satellite'
-              ? `衛星写真情報: ${effectiveDescription}`
-              : `Google Street View 情報: ${effectiveDescription}`
+              ? `参考画像メモ（上空視点）: ${effectiveDescription}`
+              : `参考画像メモ（ストリートビュー）: ${effectiveDescription}`
             : imageryType === 'satellite'
-              ? `Satellite imagery description: ${effectiveDescription}`
-              : `Google Street View description: ${effectiveDescription}`,
+              ? `Notes from overhead reference: ${effectiveDescription}`
+              : `Notes from Street View reference: ${effectiveDescription}`,
         );
       }
       if (imageryType) {
         lines.push(
           imageryType === 'satellite'
             ? localeKey === 'ja'
-              ? '参考: 衛星写真を添付しています。'
-              : 'Reference: Satellite imagery is attached.'
+              ? '参考: 上空視点の参考画像を添付しています。'
+              : 'Reference: Overhead imagery is attached.'
             : localeKey === 'ja'
               ? '参考: Google Street View の画像を添付しています。'
               : 'Reference: Google Street View imagery is attached.',
@@ -902,11 +902,19 @@ export default function EmokaiStepPage({ params }: Props) {
     const staticImage = await fetchStaticMapReference();
     if (staticImage) {
       referenceImage = staticImage;
-      const description = mapQuery
-        ? `${mapQuery} (satellite view)`
-        : stageLocationReference
-          ? `(${stageLocationReference}) satellite view`
-          : undefined;
+      const description = (() => {
+        if (mapQuery) {
+          return isJa
+            ? `${mapQuery} 周辺を上空から見た際の地形と配置`
+            : `Overhead layout and landmarks around ${mapQuery}`;
+        }
+        if (stageLocationReference) {
+          return isJa
+            ? `座標 ${stageLocationReference} 付近の俯瞰イメージ`
+            : `Overhead sense near coordinates ${stageLocationReference}`;
+        }
+        return undefined;
+      })();
       referenceHint = {
         description,
         type: 'satellite',
