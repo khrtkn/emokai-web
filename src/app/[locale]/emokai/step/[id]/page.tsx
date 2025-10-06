@@ -1131,7 +1131,7 @@ export default function EmokaiStepPage({ params }: Props) {
 
   const mapEmbedUrl = useMemo(() => {
     if (!mapQuery) return null;
-    return `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=16&output=embed`;
+    return `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=16&t=k&output=embed`;
   }, [mapQuery]);
 
   const persistCreation = () => {
@@ -1705,6 +1705,38 @@ export default function EmokaiStepPage({ params }: Props) {
                   onChange={handlePlaceChange}
                   maxLength={300}
                   helperText={minLengthHint}
+                  error={placeTouched && !placeValid ? minLengthHint : undefined}
+                />
+                <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-textSecondary">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    viewBox="0 0 16 16"
+                  >
+                    <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85Zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="space-y-3">
+              <div className="relative">
+                <RichInput
+                  rows={1}
+                  label=""
+                  placeholder={
+                    isJa
+                      ? '例：渋谷駅 ハチ公前広場'
+                      : 'e.g., Shibuya Station, Hachiko Square'
+                  }
+                  value={placeText}
+                  onChange={handlePlaceChange}
+                  maxLength={300}
+                  helperText={
+                    isJa
+                      ? '場所や住所を入力すると地図が移動します。'
+                      : 'Type a place or address to update the map.'
+                  }
                   error={placeTouched && !placeValid ? minLengthHint : undefined}
                 />
                 <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-textSecondary">

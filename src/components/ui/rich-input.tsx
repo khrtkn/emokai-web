@@ -10,26 +10,32 @@ export type RichInputProps = {
   maxLength?: number;
   helperText?: string;
   error?: string;
+  rows?: number;
 };
 
 export const RichInput = forwardRef<HTMLTextAreaElement, RichInputProps>(function RichInput(
-  { label, placeholder, value, onChange, maxLength, helperText, error },
+  { label, placeholder, value, onChange, maxLength, helperText, error, rows },
   ref
 ) {
   const showCounter = typeof maxLength === "number";
   const characters = value.length;
+  const isCompact = rows === 1;
+  const textareaRows = rows ?? 6;
+  const textareaHeightClass = isCompact ? "min-h-[44px]" : "h-40";
+  const containerPadding = isCompact ? "py-2" : "py-3";
 
   return (
     <div className="space-y-2">
       {label ? <label className="block text-sm font-medium text-textPrimary">{label}</label> : null}
       <div
-        className={`rounded-3xl border px-4 py-3 ${
+        className={`rounded-3xl border px-4 ${containerPadding} ${
           error ? "border-[#ff7c7c]" : "border-divider bg-[rgba(237,241,241,0.04)]"
         }`}
       >
         <textarea
           ref={ref}
-          className="h-40 w-full resize-none bg-transparent text-sm text-textPrimary outline-none"
+          rows={textareaRows}
+          className={`${textareaHeightClass} w-full resize-none bg-transparent text-sm text-textPrimary outline-none`}
           placeholder={placeholder}
           value={value}
           onChange={(event) => onChange(event.target.value)}
