@@ -129,6 +129,8 @@ type StageSelectionPayload = {
   timestamp: number;
 };
 
+type StageReferenceHint = { description?: string; type?: 'streetview' | 'satellite' };
+
 type CharacterSelectionPayload = {
   selectedId: string;
   description: string;
@@ -380,6 +382,7 @@ export default function EmokaiStepPage({ params }: Props) {
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>(initialEmotions);
   const [emotionTouched, setEmotionTouched] = useState(initialEmotions.length > 0);
   const emotionValid = selectedEmotions.length > 0;
+  const [streetViewDescription, setStreetViewDescription] = useState<string | null>(null);
 
   const storedStageSelection = useMemo(() => readStageSelection(), []);
   const [stageOptions, setStageOptions] = useState<StageOption[]>(
@@ -490,36 +493,57 @@ export default function EmokaiStepPage({ params }: Props) {
     return null;
   }, [geoCoords, placeText]);
 
-  const stagePrompt = useMemo(() => {
-    const lines: string[] = [];
-    lines.push(localeKey === 'ja' ? `場所の情景: ${placeText}` : `Scene description: ${placeText}`);
-    if (stageLocationReference) {
-      lines.push(
-        localeKey === 'ja'
-          ? `位置の手がかり: ${stageLocationReference}`
-          : `Location hint: ${stageLocationReference}`,
-      );
-      if (geoCoords) {
+  const buildStagePrompt = useCallback(
+    (reference?: StageReferenceHint) => {
+      const lines: string[] = [];
+      lines.push(localeKey === 'ja' ? `場所の情景: ${placeText}` : `Scene description: ${placeText}`);
+      if (stageLocationReference) {
         lines.push(
           localeKey === 'ja'
-            ? '参考: Google Street View の画像を添付しています。'
-            : 'Reference: Google Street View imagery is attached.',
+            ? `位置の手がかり: ${stageLocationReference}`
+            : `Location hint: ${stageLocationReference}`,
         );
       }
-    }
-    if (reasonText.trim()) {
+      const effectiveDescription = reference?.description ?? streetViewDescription;
+      const imageryType = reference?.type ?? (streetViewDescription ? 'streetview' : undefined);
+      if (effectiveDescription) {
+        lines.push(
+          localeKey === 'ja'
+            ? imageryType === 'satellite'
+              ? `衛星写真情報: ${effectiveDescription}`
+              : `Google Street View 情報: ${effectiveDescription}`
+            : imageryType === 'satellite'
+              ? `Satellite imagery description: ${effectiveDescription}`
+              : `Google Street View description: ${effectiveDescription}`,
+        );
+      }
+      if (imageryType) {
+        lines.push(
+          imageryType === 'satellite'
+            ? localeKey === 'ja'
+              ? '参考: 衛星写真を添付しています。'
+              : 'Reference: Satellite imagery is attached.'
+            : localeKey === 'ja'
+              ? '参考: Google Street View の画像を添付しています。'
+              : 'Reference: Google Street View imagery is attached.',
+        );
+      }
+      if (reasonText.trim()) {
+        lines.push(
+          localeKey === 'ja' ? `大切な理由: ${reasonText}` : `Why it matters: ${reasonText}`,
+        );
+      }
+      // 内部用プロンプト（UI文言には出さないが機能上は必要）
       lines.push(
-        localeKey === 'ja' ? `大切な理由: ${reasonText}` : `Why it matters: ${reasonText}`,
+        localeKey === 'ja'
+          ? 'フォトリアルな背景のみの画像を4枚生成してください。人物は含めないでください。'
+          : 'Generate four photorealistic background-only images (no people).',
       );
-    }
-    // 内部用プロンプト（UI文言には出さないが機能上は必要）
-    lines.push(
-      localeKey === 'ja'
-        ? 'フォトリアルな背景のみの画像を4枚生成してください。人物は含めないでください。'
-        : 'Generate four photorealistic background-only images (no people).',
-    );
-    return lines.join('\n');
-  }, [localeKey, placeText, reasonText, stageLocationReference, geoCoords]);
+      return lines.join('
+');
+    },
+    [localeKey, placeText, reasonText, stageLocationReference, streetViewDescription],
+  );
 
   const characterPrompt = useMemo(() => {
     const lines: string[] = [];
@@ -572,6 +596,7 @@ export default function EmokaiStepPage({ params }: Props) {
     setPlaceText(value);
     saveSessionString(PLACE_STORAGE_KEY, value);
     setStageGenerationError(null);
+    setStreetViewDescription(null);
   };
 
   const handleReasonChange = (value: string) => {
@@ -617,6 +642,7 @@ export default function EmokaiStepPage({ params }: Props) {
     }
     setGeoStatus('loading');
     setGeoError(null);
+    setStreetViewDescription(null);
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
@@ -640,21 +666,21 @@ export default function EmokaiStepPage({ params }: Props) {
     );
   }, [isJa]);
 
-  useEffect(() => {
-    if (step !== 3) return;
-    if (geoStatus !== 'idle') return;
-    requestGeolocation();
-  }, [geoStatus, requestGeolocation, step]);
 
-  const fetchStreetViewReference = useCallback(async (): Promise<ProcessedImage | null> => {
+  const fetchStaticMapReference = useCallback(async (): Promise<ProcessedImage | null> => {
     if (!isLiveApisEnabled()) return null;
-    if (!geoCoords) return null;
+    const center = geoCoords
+      ? `${geoCoords.lat.toFixed(6)},${geoCoords.lng.toFixed(6)}`
+      : mapQuery || null;
+    if (!center) return null;
     try {
       const params = new URLSearchParams({
-        lat: geoCoords.lat.toString(),
-        lng: geoCoords.lng.toString()
+        center,
+        maptype: 'satellite',
+        zoom: '16',
+        scale: '2'
       });
-      const response = await fetch(`/api/maps/streetview?${params.toString()}`);
+      const response = await fetch(`/api/maps/static?${params.toString()}`);
       if (!response.ok) {
         return null;
       }
@@ -662,7 +688,7 @@ export default function EmokaiStepPage({ params }: Props) {
       if (!data?.base64) {
         return null;
       }
-      const blob = base64ToBlob(data.base64, data.mimeType ?? 'image/jpeg');
+      const blob = base64ToBlob(data.base64, data.mimeType ?? 'image/png');
       const webpUrl = URL.createObjectURL(blob);
       return {
         blob,
@@ -670,10 +696,53 @@ export default function EmokaiStepPage({ params }: Props) {
         size: blob.size
       };
     } catch (error) {
-      console.error('Failed to fetch Street View reference', error);
+      console.error('Failed to fetch static map', error);
       return null;
     }
-  }, [geoCoords]);
+  }, [geoCoords, mapQuery, isLiveApisEnabled]);
+
+  useEffect(() => {
+    if (step !== 3) return;
+    if (geoStatus !== 'idle') return;
+    requestGeolocation();
+  }, [geoStatus, requestGeolocation, step]);
+
+  const fetchStreetViewReference = useCallback(async (): Promise<{ image: ProcessedImage; description?: string } | null> => {
+    if (!isLiveApisEnabled()) return null;
+    if (!geoCoords) return null;
+    try {
+      const params = new URLSearchParams({
+        lat: geoCoords.lat.toString(),
+        lng: geoCoords.lng.toString(),
+      });
+      const response = await fetch(`/api/maps/streetview?${params.toString()}`);
+      if (!response.ok) {
+        return null;
+      }
+      const data = (await response.json()) as {
+        base64?: string;
+        mimeType?: string;
+        metadata?: { description?: string };
+      };
+      if (!data?.base64) {
+        return null;
+      }
+      const blob = base64ToBlob(data.base64, data.mimeType ?? 'image/jpeg');
+      const webpUrl = URL.createObjectURL(blob);
+      return {
+        image: {
+          blob,
+          webpUrl,
+          size: blob.size,
+        },
+        description: data.metadata?.description ?? undefined,
+      };
+    } catch (error) {
+      console.error('Failed to fetch Street View reference', error);
+      setStreetViewDescription(null);
+      return null;
+    }
+  }, [geoCoords, isLiveApisEnabled]);
 
   const toggleEmotion = (emotion: string) => {
     setEmotionTouched(true);
@@ -698,10 +767,14 @@ export default function EmokaiStepPage({ params }: Props) {
     processedImage = null,
     trackLabel,
     autoSelect = false,
+    referenceHint,
+    promptOverride,
   }: {
     processedImage?: ProcessedImage | null;
     trackLabel: string;
     autoSelect?: boolean;
+    referenceHint?: StageReferenceHint;
+    promptOverride?: string;
   }): Promise<boolean> => {
     setStageStatus('generating');
     setStageModerationError(null);
@@ -732,7 +805,8 @@ export default function EmokaiStepPage({ params }: Props) {
     trackEvent('generation_start', { step: trackLabel, locale });
 
     try {
-      const moderation = await moderateText(stagePrompt, localeKey);
+      const prompt = promptOverride ?? buildStagePrompt(referenceHint);
+      const moderation = await moderateText(prompt, localeKey);
       if (!moderation.allowed) {
         setStageGenerationError(
           moderation.reason ??
@@ -742,7 +816,7 @@ export default function EmokaiStepPage({ params }: Props) {
         return false;
       }
 
-      const generated = await createStageOptions(stagePrompt, processedImage ?? null);
+      const generated = await createStageOptions(prompt, processedImage ?? null);
       setStageOptions(generated);
       setStageStatus('ready');
       if (generated.length && autoSelect) {
@@ -813,14 +887,43 @@ export default function EmokaiStepPage({ params }: Props) {
       return;
     }
     let referenceImage: ProcessedImage | null = null;
-    if (geoCoords) {
-      referenceImage = await fetchStreetViewReference();
+    let referenceHint: StageReferenceHint | undefined;
+
+    const staticImage = await fetchStaticMapReference();
+    if (staticImage) {
+      referenceImage = staticImage;
+      const description = mapQuery
+        ? `${mapQuery} (satellite view)`
+        : stageLocationReference
+          ? `(${stageLocationReference}) satellite view`
+          : undefined;
+      referenceHint = {
+        description,
+        type: 'satellite',
+      };
+      setStreetViewDescription(null);
+    } else if (geoCoords) {
+      const result = await fetchStreetViewReference();
+      if (result) {
+        referenceImage = result.image;
+        referenceHint = {
+          description: result.description,
+          type: 'streetview',
+        };
+        setStreetViewDescription(result.description ?? null);
+      } else {
+        setStreetViewDescription(null);
+      }
     }
+
+    const prompt = buildStagePrompt(referenceHint);
 
     await runStageGeneration({
       processedImage: referenceImage,
       trackLabel: 'stage_auto',
       autoSelect: true,
+      promptOverride: prompt,
+      referenceHint,
     });
     router.push(`/${locale}/emokai/step/6`);
   };
@@ -871,7 +974,11 @@ export default function EmokaiStepPage({ params }: Props) {
       );
       return false;
     }
-    const success = await runStageGeneration({ processedImage: null, trackLabel: 'stage_text_regen' });
+    const success = await runStageGeneration({
+      processedImage: null,
+      trackLabel: 'stage_text_regen',
+      promptOverride: buildStagePrompt(),
+    });
     return success;
   };
 
