@@ -1692,33 +1692,62 @@ export default function EmokaiStepPage({ params }: Props) {
                 ? '地図を見ながら、エモカイと結びついた場所を思い浮かべてください。'
                 : 'Look at the map and recall the place tied to your Emokai.'}
             </p>
-            <div className="relative overflow-hidden rounded-3xl border border-divider bg-[rgba(237,241,241,0.08)]">
-              {mapEmbedUrl ? (
-                <>
-                  <iframe
-                    src={mapEmbedUrl}
-                    title={isJa ? '選択した場所の地図' : 'Selected place map'}
-                    loading="lazy"
-                    className="h-[260px] w-full"
-                    referrerPolicy="no-referrer-when-downgrade"
-                  />
-                  <div className="pointer-events-none absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2">
-                    <div className="absolute inset-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
-                    <div className="absolute inset-0 rounded-full border border-white/60" />
-                  </div>
-                </>
-              ) : (
-                <div className="flex h-[260px] items-center justify-center text-xs text-textSecondary">
-                  {geoStatus === 'loading'
-                    ? isJa
-                      ? '地図を準備しています…'
-                      : 'Preparing the map…'
-                    : isJa
-                      ? '地図を表示できません。下の「調整する」から場所を入力できます。'
-                      : 'Map is unavailable. You can input the place below.'}
+            <div className="space-y-3">
+              <div className="relative">
+                <RichInput
+                  label=""
+                  placeholder={
+                    isJa
+                      ? '例：渋谷駅 ハチ公前広場'
+                      : 'e.g., Shibuya Station, Hachiko Square'
+                  }
+                  value={placeText}
+                  onChange={handlePlaceChange}
+                  maxLength={300}
+                  helperText={minLengthHint}
+                  error={placeTouched && !placeValid ? minLengthHint : undefined}
+                />
+                <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-textSecondary">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    viewBox="0 0 16 16"
+                  >
+                    <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85Zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z" />
+                  </svg>
                 </div>
-              )}
+              </div>
+              <div className="relative overflow-hidden rounded-3xl border border-divider bg-[rgba(237,241,241,0.08)]">
+                {mapEmbedUrl ? (
+                  <>
+                    <iframe
+                      src={mapEmbedUrl}
+                      title={isJa ? '選択した場所の地図' : 'Selected place map'}
+                      loading="lazy"
+                      className="h-[260px] w-full"
+                      referrerPolicy="no-referrer-when-downgrade"
+                    />
+                    <div className="pointer-events-none absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2">
+                      <div className="absolute inset-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
+                      <div className="absolute inset-0 rounded-full border border-white/60" />
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex h-[260px] items-center justify-center text-xs text-textSecondary">
+                    {geoStatus === 'loading'
+                      ? isJa
+                        ? '地図を準備しています…'
+                        : 'Preparing the map…'
+                      : isJa
+                        ? '地図を表示できません。下の「調整する」から場所を入力できます。'
+                        : 'Map is unavailable. You can input the place below.'}
+                  </div>
+                )}
+              </div>
             </div>
+            {geoError ? <p className="text-xs text-[#ffb9b9]">{geoError}</p> : null}
             <div className="flex items-center justify-between text-xs text-textSecondary">
               <span>{locationLabel}</span>
               <button
@@ -1729,27 +1758,6 @@ export default function EmokaiStepPage({ params }: Props) {
               >
                 {isJa ? '再取得' : 'Retry'}
               </button>
-            </div>
-            <div className="space-y-2">
-              <RichInput
-                label=""
-                placeholder={
-                  isJa
-                    ? '例：渋谷駅 ハチ公前広場'
-                    : 'e.g., Shibuya Station, Hachiko Square'
-                }
-                value={placeText}
-                onChange={handlePlaceChange}
-                maxLength={300}
-                helperText={minLengthHint}
-                error={placeTouched && !placeValid ? minLengthHint : undefined}
-              />
-              {geoError ? <p className="text-xs text-[#ffb9b9]">{geoError}</p> : null}
-              <p className="text-xs text-textSecondary">
-                {isJa
-                  ? '場所や住所を入力すると地図が移動します。'
-                  : 'Type a place or address to update the map.'}
-              </p>
             </div>
             <div className="pt-2">
               <Button type="button" onClick={() => router.push(`/${locale}/emokai/step/4`)} disabled={!placeValid}>
@@ -2000,6 +2008,7 @@ export default function EmokaiStepPage({ params }: Props) {
             alt="Emokai"
             width={132}
             height={100}
+            className="h-full w-auto"
             priority
           />
         }
