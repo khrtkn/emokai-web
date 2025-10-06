@@ -507,6 +507,13 @@ export default function EmokaiStepPage({ params }: Props) {
   const buildStagePrompt = useCallback(
     (reference?: StageReferenceHint) => {
       const lines: string[] = [];
+      if (reasonText.trim()) {
+        lines.push(
+          localeKey === 'ja'
+            ? `この場所が特別な理由: ${reasonText}`
+            : `Why this spot matters: ${reasonText}`,
+        );
+      }
       lines.push(localeKey === 'ja' ? `場所の情景: ${placeText}` : `Scene description: ${placeText}`);
       if (stageLocationReference) {
         lines.push(
@@ -539,11 +546,23 @@ export default function EmokaiStepPage({ params }: Props) {
               : 'Reference: Google Street View imagery is attached.',
         );
       }
+      lines.push(
+        localeKey === 'ja'
+          ? '描写範囲: 上記の場所そのものと半径30mほどの周辺に集中し、都市全体や広域の俯瞰ではなく「その場所で目に入る景色」を写してください。'
+          : 'Focus area: stay within the spot described above (roughly a 30m radius) and depict what someone standing there would see, not a broad citywide vista.',
+      );
       if (reasonText.trim()) {
         lines.push(
-          localeKey === 'ja' ? `大切な理由: ${reasonText}` : `Why it matters: ${reasonText}`,
+          localeKey === 'ja'
+            ? '上記の「この場所が特別な理由」を軸に、感情と結びついた視点や被写体を優先してください。'
+            : 'Use the “why it matters” note above to guide the vantage point and atmosphere.',
         );
       }
+      lines.push(
+        localeKey === 'ja'
+          ? '被写体は景色・建築・自然要素のみ。人物や動物、クルマなどの生活主体は映さず、フォトリアルな質感で表現してください。'
+          : 'Include only scenery, architecture, and natural elements—no people, animals, or vehicles—and render everything photorealistically.',
+      );
       // 内部用プロンプト（UI文言には出さないが機能上は必要）
       lines.push(
         localeKey === 'ja'
