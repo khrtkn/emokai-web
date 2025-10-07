@@ -54,6 +54,33 @@ type EmotionGroup = {
   emotions: string[];
 };
 
+const EMOTION_LABELS_JA: Record<string, string> = {
+  Ecstasy: '有頂天',
+  Joy: '喜び',
+  Serenity: '穏やかさ',
+  Admiration: '賞賛',
+  Trust: '信頼',
+  Acceptance: '受容',
+  Terror: '恐怖',
+  Fear: '恐れ',
+  Apprehension: '不安',
+  Amazement: '驚嘆',
+  Surprise: '驚き',
+  Distraction: '戸惑い',
+  Grief: '深い悲しみ',
+  Sadness: '悲しみ',
+  Pensiveness: '物思い',
+  Loathing: '激しい嫌悪',
+  Disgust: '嫌悪',
+  Boredom: '退屈',
+  Rage: '激怒',
+  Anger: '怒り',
+  Annoyance: '苛立ち',
+  Vigilance: '警戒',
+  Anticipation: '期待',
+  Interest: '興味',
+};
+
 const EMOTION_GROUPS: EmotionGroup[] = [
   { id: 'joy', label: { en: 'Joy', ja: '喜び' }, emotions: ['Ecstasy', 'Joy', 'Serenity'] },
   { id: 'trust', label: { en: 'Trust', ja: '信頼' }, emotions: ['Admiration', 'Trust', 'Acceptance'] },
@@ -512,6 +539,10 @@ export default function EmokaiStepPage({ params }: Props) {
   const creationLoadingMessage = isJa
     ? '景色・エモカイ・物語を組み合わせています。'
     : 'Combining scenery, companion, and story.';
+  const getEmotionLabel = useCallback(
+    (emotion: string) => (isJa ? EMOTION_LABELS_JA[emotion] ?? emotion : emotion),
+    [isJa],
+  );
 
   const stepLabelText = useMemo(() => {
     if (step >= 2 && step <= 9) {
@@ -1690,7 +1721,11 @@ export default function EmokaiStepPage({ params }: Props) {
           <p className="text-xs uppercase tracking-[0.2em] opacity-70">
             {isJa ? '気持ち' : 'Emotions'}
           </p>
-          <p>{selectedEmotions.length ? selectedEmotions.join(isJa ? '、' : ', ') : '—'}</p>
+          <p>
+            {selectedEmotions.length
+              ? selectedEmotions.map((emotion) => getEmotionLabel(emotion)).join(isJa ? '、' : ', ')
+              : '—'}
+          </p>
         </div>
         <div>
           <p className="text-xs uppercase tracking-[0.2em] opacity-70">
@@ -2042,9 +2077,6 @@ export default function EmokaiStepPage({ params }: Props) {
             <div className="space-y-3">
               {EMOTION_GROUPS.map((group) => (
                 <div key={group.id} className="space-y-2">
-                  <p className="text-xs font-semibold text-textSecondary">
-                    {isJa ? group.label.ja : group.label.en}
-                  </p>
                   <div className="flex flex-wrap gap-2">
                     {group.emotions.map((emotion) => {
                       const selected = selectedEmotions.includes(emotion);
@@ -2067,8 +2099,8 @@ export default function EmokaiStepPage({ params }: Props) {
                           className={buttonClass}
                           style={style}
                           onClick={() => toggleEmotion(emotion)}
-                        >
-                          {emotion}
+                          >
+                          {getEmotionLabel(emotion)}
                         </button>
                       );
                     })}
@@ -2282,7 +2314,6 @@ export default function EmokaiStepPage({ params }: Props) {
           />
         }
       />
-      <Divider />
       <div className="flex-1 space-y-6 overflow-y-auto px-4 py-6 sm:px-6">{content}</div>
     </main>
   );
