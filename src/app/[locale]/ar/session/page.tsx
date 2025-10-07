@@ -1,12 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { notFound } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 
-import { Divider, Header, InstructionBanner } from "@/components/ui";
+import { Button, Header, InstructionBanner } from "@/components/ui";
 import { detectDeviceType } from "@/lib/device";
-import { GENERATION_RESULTS_KEY } from "@/lib/storage-keys";
+import { AR_SUMMON_KEY, GENERATION_RESULTS_KEY } from "@/lib/storage-keys";
 import { FallbackViewer } from "@/components/fallback-viewer";
 
 type StoredModel = {
@@ -54,6 +55,8 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
 
   const t = useTranslations("ar");
   const locale = useLocale();
+  const router = useRouter();
+  const isJa = locale === "ja";
   const device = detectDeviceType();
   const [modelUrl, setModelUrl] = useState<string | null>(null);
   const [viewerError, setViewerError] = useState<string | null>(null);
@@ -70,6 +73,12 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
       isIOS
     });
   }, [currentMode, device, isIOS]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(AR_SUMMON_KEY, "true");
+    }
+  }, []);
 
   useEffect(() => {
     if (currentMode !== "fallback") return;
@@ -224,20 +233,38 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-canvas">
       <Header
-        title={currentMode === "ar" ? t("session.title") : t("session.fallbackTitle")}
-        action={{
-          type: "link",
-          label: t("session.back"),
-          href: `/${locale}/result`,
-          showArrow: false
-        }}
+        title="EMOKAI"
+        hideTitle
+        leading={
+          <Image
+            src="/Logo.png"
+            alt="Emokai"
+            width={132}
+            height={100}
+            className="h-full w-auto"
+            priority
+          />
+        }
       />
-      <Divider />
-      <div className="space-y-6 px-4 py-6 sm:px-6">
-        <InstructionBanner tone={viewerError ? "error" : "default"}>
-          {bannerMessage}
-        </InstructionBanner>
+      <div className="flex-1 space-y-6 px-4 py-6 sm:px-6">
+        <InstructionBanner tone={viewerError ? "error" : "default"}>{bannerMessage}</InstructionBanner>
         {viewerContent}
+        <div className="space-y-3 pt-2">
+          <Button
+            type="button"
+            className="w-full"
+            onClick={() => router.push(`/${locale}/emokai/step/14`)}
+          >
+            {isJa ? '送り出しの画面へ進む' : 'Continue to send-off'}
+          </Button>
+          <button
+            type="button"
+            className="w-full rounded-lg border border-divider px-4 py-2 text-sm text-textSecondary transition hover:border-accent"
+            onClick={() => router.push(`/${locale}/ar`)}
+          >
+            {isJa ? '呼び出し画面に戻る' : 'Back to AR launcher'}
+          </button>
+        </div>
       </div>
     </main>
   );

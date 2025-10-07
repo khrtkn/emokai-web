@@ -1,9 +1,12 @@
-import ResultViewer from "@/components/result-viewer";
+import { redirect } from "next/navigation";
 
-export default function ResultPage() {
-  return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-canvas">
-      <ResultViewer />
-    </main>
-  );
+type Props = {
+  params: {
+    locale: string;
+  };
+};
+
+export default function ResultRedirect({ params }: Props) {
+  const { locale } = params;
+  redirect(`/${locale}/emokai/step/14`);
 }

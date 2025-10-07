@@ -1,9 +1,7 @@
-import { render } from "@testing-library/react";
+import LocaleHomePage from '@/app/[locale]/page';
 
-import HomePage from "@/app/[locale]/page";
-
-describe("HomePage", () => {
-  it("redirects to the Emokai flow", () => {
-    expect(() => render(<HomePage />)).toThrowError(/NEXT_REDIRECT/i);
+describe('HomePage', () => {
+  it('redirects to the Emokai flow', () => {
+    expect(() => LocaleHomePage({ params: { locale: 'en' } })).toThrowError(/NEXT_REDIRECT/i);
   });
 });

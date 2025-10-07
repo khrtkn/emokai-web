@@ -1,12 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 
 import { detectDeviceType, checkARCapability, ARSupport } from "@/lib/device";
-import { GENERATION_RESULTS_KEY } from "@/lib/storage-keys";
-import { Divider, Header, InstructionBanner, MessageBlock } from "@/components/ui";
+import { AR_SUMMON_KEY, GENERATION_RESULTS_KEY } from "@/lib/storage-keys";
+import { Button, Header, InstructionBanner } from "@/components/ui";
 import { trackEvent } from "@/lib/analytics";
 
 const CAMERA_PERMISSION_KEY = "camera-permission";
@@ -206,93 +207,58 @@ export function ARLauncher() {
       pendingUsdz,
       usdzReady: modelInfo.hasUsdz
     });
+    sessionStorage.setItem(AR_SUMMON_KEY, "true");
     trackEvent("ar_launch", { action: viewerMode === "ar" ? "launch_ar" : "launch_fallback", locale });
     router.push(`/${locale}/ar/session?mode=${viewerMode}`);
-  };
-
-  const handleBackToResult = () => {
-    router.push(`/${locale}/result`);
-  };
-
-  const handleOpenGallery = () => {
-    router.push(`/${locale}/gallery`);
   };
 
   const canLaunch = viewerMode === "ar"
     ? !pendingUsdz && (requiresCameraPermission ? permissionState === "granted" : true)
     : true;
   const launchLabel = viewerMode === "ar" ? t("launchAR") : t("openViewer");
-  const primaryButtonClass =
-    "w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
 
-  const bannerMessage = error ? error : pendingUsdz ? t("status.pending") : t(`status.${viewerMode}`);
+  const statusMessage = error
+    ? error
+    : pendingUsdz
+      ? t("status.pending")
+      : t(`status.${viewerMode}`);
+
+  const viewerHint = viewerMode === "ar" ? t("session.instructions") : t("session.fallbackInstructions");
 
   return (
-    <div className="flex flex-col">
-      <Header title={t("title")} />
-      <Divider />
-      <div className="space-y-6 px-4 py-6 sm:px-6">
-        <InstructionBanner tone={error ? "error" : "default"}>
-          {bannerMessage}
-        </InstructionBanner>
-        <MessageBlock
-          title={t("deviceTitle")}
-          body={
-            <div className="space-y-2">
-              <p>{t("deviceDetected", { device: t(`device.${deviceType}`) })}</p>
-              <p>{t(`support.${support}`)}</p>
-            </div>
-          }
-        />
-        {!isIOS && support !== "unsupported" ? (
-          <MessageBlock
-            title={t("permissionTitle")}
-            body={
-              <div className="space-y-3">
-                <p>{t("permissionDescription")}</p>
-                <button
-                  type="button"
-                  onClick={handleRequestPermission}
-                  className="w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-black transition hover:opacity-90"
-                >
-                  {permissionState === "granted" ? t("permissionGranted") : t("requestPermission")}
-                </button>
-              </div>
-            }
+    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-canvas">
+      <Header
+        title="EMOKAI"
+        hideTitle
+        leading={
+          <Image
+            src="/Logo.png"
+            alt="Emokai"
+            width={132}
+            height={100}
+            className="h-full w-auto"
+            priority
           />
+        }
+      />
+      <div className="flex-1 space-y-6 px-4 py-6 sm:px-6">
+        <InstructionBanner tone={error ? "error" : "default"}>{statusMessage}</InstructionBanner>
+        {requiresCameraPermission && permissionState !== "granted" ? (
+          <Button onClick={handleRequestPermission} className="w-full">
+            {t("requestPermission")}
+          </Button>
         ) : null}
-        <MessageBlock
-          title={t("viewerTitle")}
-          body={
-            <div className="space-y-2">
-              <p>{t(`viewer.${viewerMode}`)}</p>
-              {isIOS && pendingUsdz ? (
-                <p className="text-xs text-[#ffb9b9]">{t("status.pending")}</p>
-              ) : null}
-              {!isIOS ? (
-                <button
-                  type="button"
-                  onClick={() => setViewerMode(viewerMode === "ar" ? "fallback" : "ar")}
-                  className="rounded-lg border border-divider px-4 py-2 text-xs text-textSecondary"
-                >
-                  {viewerMode === "ar" ? t("switchFallback") : t("switchAR")}
-                </button>
-              ) : null}
-            </div>
-          }
-        />
-        <div className="pt-2">
-          <button
-            type="button"
-            onClick={handleLaunch}
-            disabled={!canLaunch}
-            className={primaryButtonClass}
-          >
-            {launchLabel}
-          </button>
+        <div className="space-y-2 text-sm text-textSecondary">
+          <p>{viewerHint}</p>
+          {isIOS && pendingUsdz ? (
+            <p className="text-xs text-[#ffb9b9]">{t("status.pending")}</p>
+          ) : null}
         </div>
+        <Button onClick={handleLaunch} disabled={!canLaunch} className="w-full">
+          {launchLabel}
+        </Button>
       </div>
-    </div>
+    </main>
   );
 }
 

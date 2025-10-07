@@ -1,5 +1,3 @@
-import { Blob as NodeBlob } from 'buffer';
-
 import { createStageOptions } from '@/lib/stage-generation';
 import type { ProcessedImage } from '@/lib/image';
 
@@ -12,8 +10,13 @@ describe('stage-generation', () => {
   });
 
   it('returns 4 options using processed image preview', async () => {
+    const mockBlob = {
+      type: 'image/webp',
+      arrayBuffer: async () => Uint8Array.from([120]).buffer,
+    } as unknown as Blob;
+
     const processed: ProcessedImage = {
-      blob: new NodeBlob(['x']),
+      blob: mockBlob,
       webpUrl: 'blob:preview',
       size: 42
     };

@@ -8,12 +8,14 @@
   - Oct 08 2025: Added dedicated loop-GIF loading screens for scenery regeneration to keep the flow immersive while waiting on AI outputs.
 - [x] Character flow (Step B): description moderation, Nanobanana character outputs, selection UI, progress bar kickoff, session lock.
   - Oct 08 2025: Integrated the matching loop-GIF loading screen while Emokai options generate.
+  - Oct 08 2025: Added character naming during the generation step so the chosen name is stored in the record and send-off flow.
 - [x] Parallel jobs (Step C1–C3): TripoAPI model generation (timeouts, storage), Nanobanana composite, OpenAI narrative with sanitization and status updates.
   - Oct 05 2025: Added automatic USDZ conversion via Tripo "convert_model" tasks when native output missing; emits debug logs for format selection on preview builds.
   - Oct 08 2025: Reused the creation loop-GIF screen during the combined 3D/Composite/Story jobs to surface progress while assets build.
 - [x] Result screens (Step D): narrative view, composite display, AR entry gating, license notice, unload cancellation handling.
   - Oct 08 2025: Refined post-AR flow — Step14 now swaps from summon-only to a release confirmation, and Step15 sends the user back to the gallery with a single send-off action.
 - [x] AR & 3D viewer (Step E): WebAR implementation, permission prompts, plane detection guidance, capture/save per OS, fallback viewer.
+  - Oct 08 2025: Simplified the AR launcher/session UI — centered header logo, trimmed device info, and aligned fallback navigation with the send-off flow.
 - [x] Persistence & sharing (Step F): daily limits, asset/metadata persistence, expiring share URLs, share sheet, OGP metadata.
 - [x] Gallery (Step G): paginated public grid, detail view with AR/share options, license display, infinite scroll.
 - [x] Error & retry framework: localized messaging, retries, partial success handling, cancellation notices, accessible alerts.

@@ -75,7 +75,19 @@ export async function createCharacterOptions(description: string): Promise<Chara
     throw new Error("Nanobanana character response malformed");
   }
 
-  return options.map((option) => {
+  const seenBase64 = new Set<string>();
+  const filtered = options.filter((option) => {
+    if (!option?.imageBase64) {
+      return false;
+    }
+    if (seenBase64.has(option.imageBase64)) {
+      return false;
+    }
+    seenBase64.add(option.imageBase64);
+    return true;
+  });
+
+  const mapped = filtered.map((option) => {
     if (!option?.imageBase64 || !option?.mimeType) {
       throw new Error("Nanobanana character response missing image data");
     }
@@ -91,4 +103,6 @@ export async function createCharacterOptions(description: string): Promise<Chara
       mimeType: option.mimeType
     } satisfies CharacterOption;
   });
+
+  return mapped;
 }
