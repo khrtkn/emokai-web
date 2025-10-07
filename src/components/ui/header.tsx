@@ -46,7 +46,7 @@ function HeaderActionButton({ action }: { action: HeaderAction }) {
 
 export function Header({ title, leading, action, hideTitle = false }: HeaderProps) {
   return (
-    <header className="flex h-[72px] items-center justify-between gap-3 px-4 py-4 sm:px-6">
+    <header className="flex h-[96px] items-center justify-between gap-3 px-4 py-6 sm:px-6">
       <div className="flex items-center gap-3">
         {leading}
         <h1 className={hideTitle ? "heading-prosty sr-only" : "heading-prosty"}>{title}</h1>

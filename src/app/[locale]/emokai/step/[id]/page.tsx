@@ -736,11 +736,6 @@ export default function EmokaiStepPage({ params }: Props) {
         const { latitude, longitude } = position.coords;
         setGeoCoords({ lat: latitude, lng: longitude });
         setGeoStatus('success');
-        const coordinateLabel = formatCoordinates(latitude, longitude, isJa);
-        setPlaceTouched(true);
-        setPlaceText(coordinateLabel);
-        saveSessionString(PLACE_STORAGE_KEY, coordinateLabel);
-        setStageGenerationError(null);
       },
       (error) => {
         console.warn('Geolocation error', error);
@@ -788,12 +783,6 @@ export default function EmokaiStepPage({ params }: Props) {
       return null;
     }
   }, [geoCoords, mapQuery, liveApisEnabled]);
-
-  useEffect(() => {
-    if (step !== 3) return;
-    if (geoStatus !== 'idle') return;
-    requestGeolocation();
-  }, [geoStatus, requestGeolocation, step]);
 
   const fetchStreetViewReference = useCallback(async (): Promise<{ image: ProcessedImage; description?: string } | null> => {
     if (!liveApisEnabled) return null;
@@ -1945,7 +1934,7 @@ export default function EmokaiStepPage({ params }: Props) {
               </div>
             </div>
             <div className="flex h-[320px] flex-col">
-              <div className="relative flex-1 overflow-hidden rounded-3xl border border-divider bg-[rgba(237,241,241,0.08)]">
+            <div className="relative flex-1 overflow-hidden rounded-3xl border border-divider bg-[rgba(237,241,241,0.08)]">
                 {mapEmbedUrl ? (
                   <iframe
                     src={mapEmbedUrl}
