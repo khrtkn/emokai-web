@@ -11,6 +11,7 @@ import {
   Header,
   ImageOption,
   InstructionBanner,
+  LoadingScreen,
   MessageBlock,
   ProgressBar,
   RichInput,
@@ -473,6 +474,18 @@ export default function EmokaiStepPage({ params }: Props) {
   const summonLabel = isJa ? '呼び出す' : 'Summon';
   const createAnotherLabel = isJa ? '新しくつくる' : 'Create new';
   const generatingLabel = isJa ? '交信しています...' : 'Imagining...';
+  const stageLoadingTitle = isJa ? '景色を映し出しています' : 'Rendering the scenery';
+  const stageLoadingMessage = isJa
+    ? 'あなたが思い浮かべた場所の空気や光を集めています。'
+    : 'Gathering the atmosphere of the place you described.';
+  const characterLoadingTitle = isJa ? 'エモカイの姿を描いています' : 'Shaping your Emokai';
+  const characterLoadingMessage = isJa
+    ? 'エモカイがあなたの気持ちを受け取っています。'
+    : 'Letting your Emokai take form from your feelings.';
+  const creationLoadingTitle = isJa ? 'エモカイを呼び出しています…' : 'Preparing your Emokai...';
+  const creationLoadingMessage = isJa
+    ? '景色・エモカイ・物語を組み合わせています。'
+    : 'Combining scenery, companion, and story.';
 
   const stepLabelText = useMemo(() => {
     if (step >= 2 && step <= 9) {
@@ -2215,6 +2228,32 @@ export default function EmokaiStepPage({ params }: Props) {
       />
       <Divider />
       <div className="flex-1 space-y-6 overflow-y-auto px-4 py-6 sm:px-6">{content}</div>
+      <LoadingScreen
+        visible={stageStatus === 'generating'}
+        variant="stage"
+        title={stageLoadingTitle}
+        message={stageLoadingMessage}
+      />
+      <LoadingScreen
+        visible={characterStatus === 'generating'}
+        variant="character"
+        title={characterLoadingTitle}
+        message={characterLoadingMessage}
+      />
+      <LoadingScreen
+        visible={step === 11 && generationRunning}
+        variant="creation"
+        title={creationLoadingTitle}
+        message={creationLoadingMessage}
+        footer={
+          <div className="space-y-3">
+            <ProgressBar stages={progressStages} />
+            <p className="text-xs text-textSecondary">
+              {isJa ? 'もう少しだけお待ちください。' : 'Almost there—hold tight.'}
+            </p>
+          </div>
+        }
+      />
     </main>
   );
 }

@@ -15,3 +15,5 @@ export { StoryCard } from "./story-card";
 export type { StoryCardProps } from "./story-card";
 export { Button } from "./button";
 export type { ButtonProps } from "./button";
+export { LoadingScreen } from "./loading-screen";
+export type { LoadingScreenProps, LoadingVariant } from "./loading-screen";
