@@ -92,7 +92,8 @@ export async function generateModel(input: ModelInput): Promise<ModelResult> {
 
 export async function generateComposite(
   stage: CompositeInput | null,
-  character: CompositeInput
+  character: CompositeInput,
+  instruction?: string
 ): Promise<CompositeResult> {
   if (!isLiveApisEnabled()) {
     await wait(2000);
@@ -115,7 +116,7 @@ export async function generateComposite(
 
   const response = await fetch("/api/nanobanana/composite", {
     method: "POST",
-    body: buildCompositeFormData(stage, character)
+    body: buildCompositeFormData(stage, character, instruction)
   });
 
   if (!response.ok) {
@@ -139,11 +140,14 @@ export async function generateComposite(
   return composite;
 }
 
-function buildCompositeFormData(stage: CompositeInput, character: CompositeInput) {
+function buildCompositeFormData(stage: CompositeInput, character: CompositeInput, instruction?: string) {
   const form = new FormData();
 
   appendImage(form, "background", stage);
   appendImage(form, "character", character);
+  if (instruction) {
+    form.append("instruction", instruction);
+  }
 
   return form;
 }

@@ -169,7 +169,7 @@ export class NanobananaClient {
       {
         text:
           request.instruction ??
-          'Combine these two images: place the character from the second image onto the background from the first image. Generate a new composite image.',
+          'Combine these two images: place the character from the second image onto the background from the first image. Match lighting, scale the character appropriately, add a soft contact shadow, and ensure the character feels anchored in the scene.',
       },
     ];
 

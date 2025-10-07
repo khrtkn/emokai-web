@@ -83,11 +83,27 @@ const EMOTION_LABELS_JA: Record<string, string> = {
 
 const EMOTION_GROUPS: EmotionGroup[] = [
   { id: 'joy', label: { en: 'Joy', ja: '喜び' }, emotions: ['Ecstasy', 'Joy', 'Serenity'] },
-  { id: 'trust', label: { en: 'Trust', ja: '信頼' }, emotions: ['Admiration', 'Trust', 'Acceptance'] },
+  {
+    id: 'trust',
+    label: { en: 'Trust', ja: '信頼' },
+    emotions: ['Admiration', 'Trust', 'Acceptance'],
+  },
   { id: 'fear', label: { en: 'Fear', ja: '恐れ' }, emotions: ['Terror', 'Fear', 'Apprehension'] },
-  { id: 'surprise', label: { en: 'Surprise', ja: '驚き' }, emotions: ['Amazement', 'Surprise', 'Distraction'] },
-  { id: 'sadness', label: { en: 'Sadness', ja: '悲しみ' }, emotions: ['Grief', 'Sadness', 'Pensiveness'] },
-  { id: 'disgust', label: { en: 'Disgust', ja: '嫌悪' }, emotions: ['Loathing', 'Disgust', 'Boredom'] },
+  {
+    id: 'surprise',
+    label: { en: 'Surprise', ja: '驚き' },
+    emotions: ['Amazement', 'Surprise', 'Distraction'],
+  },
+  {
+    id: 'sadness',
+    label: { en: 'Sadness', ja: '悲しみ' },
+    emotions: ['Grief', 'Sadness', 'Pensiveness'],
+  },
+  {
+    id: 'disgust',
+    label: { en: 'Disgust', ja: '嫌悪' },
+    emotions: ['Loathing', 'Disgust', 'Boredom'],
+  },
   { id: 'anger', label: { en: 'Anger', ja: '怒り' }, emotions: ['Rage', 'Anger', 'Annoyance'] },
   {
     id: 'anticipation',
@@ -153,7 +169,12 @@ function isCoordinateLabel(value: string) {
   const text = value.trim();
   if (!text) return false;
   const lower = text.toLowerCase();
-  if (lower.includes('北緯') || lower.includes('南緯') || lower.includes('東経') || lower.includes('西経')) {
+  if (
+    lower.includes('北緯') ||
+    lower.includes('南緯') ||
+    lower.includes('東経') ||
+    lower.includes('西経')
+  ) {
     return true;
   }
   return /^[-+]?\d+(\.\d+)?\s*,\s*[-+]?\d+(\.\d+)?$/.test(text);
@@ -306,8 +327,7 @@ function readGenerationPayload(): StoredGenerationPayload | null {
       const cached = composite.cacheKey ? getCachedImage(composite.cacheKey) : null;
 
       if (cached) {
-        composite.url =
-          cached.objectUrl ?? `data:${cached.mimeType};base64,${cached.base64}`;
+        composite.url = cached.objectUrl ?? `data:${cached.mimeType};base64,${cached.base64}`;
       } else if (composite.imageBase64 && (!composite.url || !composite.url.startsWith('data:'))) {
         const mime = composite.mimeType || 'image/png';
         composite.url = `data:${mime};base64,${composite.imageBase64}`;
@@ -523,17 +543,17 @@ export default function EmokaiStepPage({ params }: Props) {
   const selectOneHint = isJa ? '少なくとも1つえらんでください' : 'Please select at least one.';
   const nextLabel = isJa ? 'つづける' : 'Continue';
   const summonLabel = isJa ? '呼び出す' : 'Summon';
-  const stageLoadingTitle = isJa ? '景色を映し出しています' : 'Rendering the scenery';
+  const stageLoadingTitle = isJa ? '景色を現像しています…' : 'Rendering the scenery';
   const stageLoadingMessage = isJa
-    ? 'あなたが思い浮かべた場所の空気や光を集めています。'
+    ? 'あなたの感情から場所を再構築しています。'
     : 'Gathering the atmosphere of the place you described.';
-  const characterLoadingTitle = isJa ? 'エモカイの姿を描いています' : 'Shaping your Emokai';
+  const characterLoadingTitle = isJa ? 'あなたのエモカイを現像しています…' : 'Shaping your Emokai';
   const characterLoadingMessage = isJa
-    ? 'エモカイがあなたの気持ちを受け取っています。'
+    ? '場所と感情からエモカイの姿を再構築しています。'
     : 'Letting your Emokai take form from your feelings.';
   const creationLoadingTitle = isJa ? 'エモカイを呼び出しています…' : 'Preparing your Emokai...';
   const creationLoadingMessage = isJa
-    ? '景色・エモカイ・物語を組み合わせています。'
+    ? 'あなたのエモカイに関わる情報を調査しています。'
     : 'Combining scenery, companion, and story.';
   const getEmotionLabel = useCallback(
     (emotion: string) => (isJa ? EMOTION_LABELS_JA[emotion] ?? emotion : emotion),
@@ -576,11 +596,13 @@ export default function EmokaiStepPage({ params }: Props) {
       if (reasonText.trim()) {
         lines.push(
           localeKey === 'ja'
-            ? `この場所が特別な理由: ${reasonText}`
+            ? `その感情を思い出させるエピソードを教えてください。: ${reasonText}`
             : `Why this spot matters: ${reasonText}`,
         );
       }
-      lines.push(localeKey === 'ja' ? `場所の情景: ${placeText}` : `Scene description: ${placeText}`);
+      lines.push(
+        localeKey === 'ja' ? `場所の情景: ${placeText}` : `Scene description: ${placeText}`,
+      );
       if (stageLocationReference) {
         lines.push(
           localeKey === 'ja'
@@ -626,14 +648,14 @@ export default function EmokaiStepPage({ params }: Props) {
       }
       lines.push(
         localeKey === 'ja'
-          ? '被写体は景色・建築・自然要素のみ。人物や動物、クルマなどの生活主体は映さず、フォトリアルな質感で表現してください。'
+          ? '被写体は景色・建築・自然要素のみ。人物や動物、クルマ、文字などの生活主体は映さず、フォトリアルな質感で表現してください。'
           : 'Include only scenery, architecture, and natural elements—no people, animals, or vehicles—and render everything photorealistically.',
       );
       // 内部用プロンプト（UI文言には出さないが機能上は必要）
       lines.push(
         localeKey === 'ja'
-          ? "フォトリアルな背景のみの画像を4枚生成してください。人物は含めないでください。"
-          : "Generate four photorealistic background-only images (no people).",
+          ? 'フォトリアルな背景のみの画像を2枚生成してください。人物は含めないでください。'
+          : 'Generate two photorealistic background-only images (no people).',
       );
       return lines.join('\n');
     },
@@ -644,20 +666,13 @@ export default function EmokaiStepPage({ params }: Props) {
     const lines: string[] = [];
     lines.push(
       localeKey === 'ja'
-        ? '以下の情報をもとに、感情の妖怪『エモカイ』の外見イメージをつくってください。'
-        : 'Using the following details, create visual ideas for the Emokai.',
+        ? '以下の情報をもとに、独創的な感情の妖怪『エモカイ』の外見イメージをつくってください。'
+        : 'Using the following details, create visual ideas for the 妖怪 pf emotion.',
     );
     lines.push(localeKey === 'ja' ? `場所: ${placeText}` : `Place: ${placeText}`);
     lines.push(
       localeKey === 'ja' ? `この場所が大切な理由: ${reasonText}` : `Why it matters: ${reasonText}`,
     );
-    if (selectedEmotions.length) {
-      lines.push(
-        localeKey === 'ja'
-          ? `抱く気持ち: ${selectedEmotions.join('、')}`
-          : `Emotions: ${selectedEmotions.join(', ')}`,
-      );
-    }
     lines.push(
       localeKey === 'ja' ? `エモカイのふるまい: ${actionText}` : `Emokai's action: ${actionText}`,
     );
@@ -667,16 +682,16 @@ export default function EmokaiStepPage({ params }: Props) {
     lines.push(
       localeKey === 'ja'
         ? '上記の内容を3Dモデルレンダリング風の画像プロンプトへ変換し、キャラクターを正面から描写してください。背景は完全な白 (純白) とし、余計な要素を配置しないでください。スタジオの柔らかい照明で、被写体が均一に照らされるようにしてください。'
-        : 'Convert the above into an image prompt for a 3D model render of the character from the front. Use a pure white background with no other elements, and light it with soft studio lighting for even illumination.'
+        : 'Convert the above into an image prompt for a 3D model render of the character from the front. Use a pure white background with no other elements, and light it with soft studio lighting for even illumination.',
     );
     return lines.join('\n');
   }, [localeKey, placeText, reasonText, selectedEmotions, actionText, appearanceText]);
 
   const storyPrompt = useMemo(() => {
     if (localeKey === 'ja') {
-      return `あなたは感情の妖怪『エモカイ』の語り部です。以下の情報をもとに、日本語で500文字程度の物語を作成してください。\n\n場所: ${placeText}\n大切な理由: ${reasonText}\n抱く気持ち: ${selectedEmotions.join('、') || '不明'}\nふるまい: ${actionText}\n見た目: ${appearanceText}`;
+      return `あなたは感情の妖怪『エモカイ』の語り部です。以下の情報をもとに、日本語で300文字程度の伝承を作成してください。\n\n場所: ${placeText}\n大切な理由: ${reasonText}\n抱く気持ち: ${selectedEmotions.join('、') || '不明'}\nふるまい: ${actionText}\n見た目: ${appearanceText}`;
     }
-    return `You are the storyteller of an Emokai. Write ~500 chars.\n\nPlace: ${placeText}\nWhy it matters: ${reasonText}\nEmotions: ${selectedEmotions.join(', ') || 'Unknown'}\nAction: ${actionText}\nAppearance: ${appearanceText}`;
+    return `You are the storyteller of an Emokai. Write ~300 chars.\n\nPlace: ${placeText}\nWhy it matters: ${reasonText}\nEmotions: ${selectedEmotions.join(', ') || 'Unknown'}\nAction: ${actionText}\nAppearance: ${appearanceText}`;
   }, [localeKey, placeText, reasonText, selectedEmotions, actionText, appearanceText]);
 
   const handlePlaceChange = (value: string) => {
@@ -749,7 +764,6 @@ export default function EmokaiStepPage({ params }: Props) {
     );
   }, [isJa]);
 
-
   const fetchStaticMapReference = useCallback(async (): Promise<ProcessedImage | null> => {
     if (!liveApisEnabled) return null;
     const center = geoCoords
@@ -761,7 +775,7 @@ export default function EmokaiStepPage({ params }: Props) {
         center,
         maptype: 'satellite',
         zoom: '16',
-        scale: '2'
+        scale: '2',
       });
       const response = await fetch(`/api/maps/static?${params.toString()}`);
       if (!response.ok) {
@@ -776,7 +790,7 @@ export default function EmokaiStepPage({ params }: Props) {
       return {
         blob,
         webpUrl,
-        size: blob.size
+        size: blob.size,
       };
     } catch (error) {
       console.error('Failed to fetch static map', error);
@@ -784,7 +798,10 @@ export default function EmokaiStepPage({ params }: Props) {
     }
   }, [geoCoords, mapQuery, liveApisEnabled]);
 
-  const fetchStreetViewReference = useCallback(async (): Promise<{ image: ProcessedImage; description?: string } | null> => {
+  const fetchStreetViewReference = useCallback(async (): Promise<{
+    image: ProcessedImage;
+    description?: string;
+  } | null> => {
     if (!liveApisEnabled) return null;
     if (!geoCoords) return null;
     try {
@@ -1307,7 +1324,29 @@ export default function EmokaiStepPage({ params }: Props) {
         return null;
       });
 
-    const compositePromise = generateComposite(stageInput, characterInput)
+    const compositeInstruction = isJa
+      ? [
+          '背景画像の中央から少し手前にキャラクターを配置してください。',
+          '背景の光源方向と強さに合わせて、キャラクターの明るさやカラーを馴染ませます。',
+          '足元に柔らかい影を落とし、地面と自然につながるようにしてください。',
+          actionText.trim()
+            ? `キャラクターのふるまい: ${actionText.trim()} を反映させたポーズや雰囲気にしてください。`
+            : undefined,
+        ]
+          .filter(Boolean)
+          .join('\n')
+      : [
+          'Place the character slightly in front of the center of the background.',
+          'Match lighting direction and intensity so the character blends naturally with the scene.',
+          'Add a soft contact shadow at the character’s feet to anchor them to the ground.',
+          actionText.trim()
+            ? `Incorporate this behavior into the pose or mood: ${actionText.trim()}`
+            : undefined,
+        ]
+          .filter(Boolean)
+          .join('\n');
+
+    const compositePromise = generateComposite(stageInput, characterInput, compositeInstruction)
       .then((composite) => {
         setGenerationState((prev) => ({ ...prev, composite: 'complete' }));
         mergeResults({ composite });
@@ -1366,6 +1405,19 @@ export default function EmokaiStepPage({ params }: Props) {
     }
   };
 
+  const handleGenerationRetry = useCallback(() => {
+    if (generationRunning) return;
+    setGenerationError(null);
+    setGenerationState(INITIAL_GENERATION_STATE);
+    setGenerationResults(null);
+    startGenerationJobs();
+  }, [generationRunning, startGenerationJobs]);
+
+  const handleGenerationSkip = useCallback(() => {
+    setGenerationError(null);
+    router.push(`/${locale}/emokai/step/12`);
+  }, [locale, router]);
+
   useEffect(() => {
     if (step !== 11) return;
     if (generationRunning) return;
@@ -1392,6 +1444,11 @@ export default function EmokaiStepPage({ params }: Props) {
   const storyReady = generationState.story === 'complete' && !!generationResults?.results?.story;
   const modelReady = generationState.model === 'complete' && !!generationResults?.results?.model;
   const allReady = compositeReady && storyReady && modelReady;
+
+  const modelFailed = generationState.model === 'error';
+  const compositeFailed = generationState.composite === 'error';
+  const storyFailed = generationState.story === 'error';
+  const hasGenerationFailure = modelFailed || compositeFailed || storyFailed;
 
   const mapEmbedUrl = useMemo(() => {
     if (!mapQuery) return null;
@@ -1428,25 +1485,27 @@ export default function EmokaiStepPage({ params }: Props) {
               onSelect={handleStageSelect}
               label={isJa ? 'これにする' : 'Choose this'}
               image={
-                <img src={option.previewUrl} alt={isJa ? '景色' : 'Scenery'} className="h-full w-full object-cover" />
+                <img
+                  src={option.previewUrl}
+                  alt={isJa ? '景色' : 'Scenery'}
+                  className="h-full w-full object-cover"
+                />
               }
             />
           ))}
         </div>
         {!stageOptions.length ? (
           <p className="text-xs text-textSecondary">
-            {isJa ? '調整すると、あたらしい景色があらわれます。' : 'Adjust the description to refresh the scenery.'}
+            {isJa
+              ? '調整すると、あたらしい景色があらわれます。'
+              : 'Adjust the description to refresh the scenery.'}
           </p>
         ) : null}
         {stageGenerationError && !showStageAdjust ? (
           <p className="text-xs text-[#ffb9b9]">{stageGenerationError}</p>
         ) : null}
         <div className="flex gap-3 pt-2">
-          <Button
-            type="button"
-            disabled={!stageSelection}
-            onClick={handleStageNext}
-          >
+          <Button type="button" disabled={!stageSelection} onClick={handleStageNext}>
             {isJa ? '次へ進む' : 'Next'}
           </Button>
           <button
@@ -1479,16 +1538,20 @@ export default function EmokaiStepPage({ params }: Props) {
             />
             <RichInput
               label=""
-              placeholder={
-                isJa ? 'なぜその場所が大切なのか…' : 'Why this place matters...'
-              }
+              placeholder={isJa ? 'なぜその場所が大切なのか…' : 'Why this place matters...'}
               value={reasonText}
               onChange={handleReasonChange}
               maxLength={300}
               helperText={minLengthHint}
-              error={reasonTouched && reasonText.trim().length < MIN_TEXT_LENGTH ? minLengthHint : undefined}
+              error={
+                reasonTouched && reasonText.trim().length < MIN_TEXT_LENGTH
+                  ? minLengthHint
+                  : undefined
+              }
             />
-            {stageGenerationError ? <p className="text-xs text-[#ffb9b9]">{stageGenerationError}</p> : null}
+            {stageGenerationError ? (
+              <p className="text-xs text-[#ffb9b9]">{stageGenerationError}</p>
+            ) : null}
             <div className="flex gap-3">
               <Button type="button" onClick={handleStageApplyAdjust}>
                 {isJa ? '反映する' : 'Apply'}
@@ -1535,7 +1598,11 @@ export default function EmokaiStepPage({ params }: Props) {
               onSelect={handleCharacterSelect}
               label={isJa ? 'これにする' : 'Choose this'}
               image={
-                <img src={option.previewUrl} alt={isJa ? 'エモカイ' : 'Emokai'} className="h-full w-full object-cover" />
+                <img
+                  src={option.previewUrl}
+                  alt={isJa ? 'エモカイ' : 'Emokai'}
+                  className="h-full w-full object-cover"
+                />
               }
             />
           ))}
@@ -1575,7 +1642,9 @@ export default function EmokaiStepPage({ params }: Props) {
               helperText={minLengthHint}
               error={appearanceTouched && !appearanceValid ? minLengthHint : undefined}
             />
-            {characterGenerationError ? <p className="text-xs text-[#ffb9b9]">{characterGenerationError}</p> : null}
+            {characterGenerationError ? (
+              <p className="text-xs text-[#ffb9b9]">{characterGenerationError}</p>
+            ) : null}
             <div className="flex gap-3">
               <Button type="button" onClick={handleCharacterApplyAdjust}>
                 {isJa ? '反映する' : 'Apply'}
@@ -1596,6 +1665,70 @@ export default function EmokaiStepPage({ params }: Props) {
 
   const renderGenerationStep = () => {
     if (!allReady) {
+      if (hasGenerationFailure) {
+        const failureTitle = isJa ? '準備が完了しませんでした' : 'Something is still missing';
+        const failureBody = generationError
+          ? generationError
+          : isJa
+            ? '一部の素材が届いていません。もう一度試すか、あるいはこのまま進むこともできます。'
+            : 'Some pieces did not finish. You can retry or move forward with what we have.';
+        const failureList = [
+          {
+            id: 'model',
+            label: isJa ? '3Dモデル' : '3D model',
+            failed: modelFailed,
+          },
+          {
+            id: 'composite',
+            label: isJa ? '合成画像' : 'Composite image',
+            failed: compositeFailed,
+          },
+          {
+            id: 'story',
+            label: isJa ? '物語' : 'Story',
+            failed: storyFailed,
+          },
+        ];
+
+        return (
+          <section className="space-y-4">
+            <h2 className="text-base font-semibold text-textPrimary">{failureTitle}</h2>
+            <p className="text-sm text-textSecondary">{failureBody}</p>
+            <ul className="space-y-2 text-xs text-textSecondary">
+              {failureList.map(({ id, label, failed }) => (
+                <li
+                  key={id}
+                  className="flex items-center justify-between rounded-2xl border border-divider px-3 py-2"
+                >
+                  <span>{label}</span>
+                  <span className={failed ? 'text-[#ffb9b9]' : 'text-emerald-300'}>
+                    {failed ? (isJa ? '失敗' : 'Failed') : isJa ? '完了' : 'Ready'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="space-y-2">
+              <Button type="button" onClick={handleGenerationRetry} disabled={generationRunning}>
+                {generationRunning
+                  ? isJa
+                    ? 'もう一度ためしています…'
+                    : 'Retrying...'
+                  : isJa
+                    ? 'もう一度ためす'
+                    : 'Try again'}
+              </Button>
+              <button
+                type="button"
+                className="w-full rounded-lg border border-divider px-4 py-2 text-sm text-textSecondary transition hover:border-accent"
+                onClick={handleGenerationSkip}
+              >
+                {isJa ? 'このまま進む' : 'Skip and continue'}
+              </button>
+            </div>
+          </section>
+        );
+      }
+
       return (
         <LoadingScreen
           visible
@@ -1763,11 +1896,7 @@ export default function EmokaiStepPage({ params }: Props) {
         {hasSummoned ? (
           <>
             <div className="pt-2">
-              <button
-                type="button"
-                className={primaryButtonClass}
-                onClick={handleSummonContinue}
-              >
+              <button type="button" className={primaryButtonClass} onClick={handleSummonContinue}>
                 {isJa ? '次へ進む' : 'Continue'}
               </button>
             </div>
@@ -1934,7 +2063,7 @@ export default function EmokaiStepPage({ params }: Props) {
               </div>
             </div>
             <div className="flex h-[320px] flex-col">
-            <div className="relative flex-1 overflow-hidden rounded-3xl border border-divider bg-[rgba(237,241,241,0.08)]">
+              <div className="relative flex-1 overflow-hidden rounded-3xl border border-divider bg-[rgba(237,241,241,0.08)]">
                 {mapEmbedUrl ? (
                   <iframe
                     src={mapEmbedUrl}
@@ -1968,7 +2097,11 @@ export default function EmokaiStepPage({ params }: Props) {
               </div>
             </div>
             <div className="pt-2">
-              <Button type="button" onClick={() => router.push(`/${locale}/emokai/step/4`)} disabled={!placeValid}>
+              <Button
+                type="button"
+                onClick={() => router.push(`/${locale}/emokai/step/4`)}
+                disabled={!placeValid}
+              >
                 {isJa ? 'つづける' : 'Continue'}
               </Button>
             </div>
@@ -2007,7 +2140,9 @@ export default function EmokaiStepPage({ params }: Props) {
               {isJa ? 'この場所で感じる気持ち' : 'Feelings in this place'}
             </h2>
             <p className="text-sm text-textSecondary">
-              {isJa ? '当てはまるものをえらんでください。（いくつでも）' : 'Choose what fits (any number).'}
+              {isJa
+                ? '当てはまるものをえらんでください。（いくつでも）'
+                : 'Choose what fits (any number).'}
             </p>
             <div className="space-y-3">
               {EMOTION_GROUPS.map((group) => (
@@ -2034,7 +2169,7 @@ export default function EmokaiStepPage({ params }: Props) {
                           className={buttonClass}
                           style={style}
                           onClick={() => toggleEmotion(emotion)}
-                          >
+                        >
                           {getEmotionLabel(emotion)}
                         </button>
                       );
