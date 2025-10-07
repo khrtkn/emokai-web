@@ -42,7 +42,7 @@ export function LoadingScreen({
   const asset = VARIANT_ASSETS[variant];
 
   const content = (
-    <div className="flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl border border-[rgba(237,241,241,0.12)] bg-[rgba(10,14,14,0.96)] p-6 text-center shadow-2xl">
+    <div className="flex w-full max-w-sm flex-col items-center gap-4 p-6 text-center">
       <img src={asset.src} alt={asset.alt} className="h-32 w-32 object-contain" loading="lazy" />
       <div className="space-y-2">
         <p id={titleId} className="text-sm font-semibold text-textPrimary">

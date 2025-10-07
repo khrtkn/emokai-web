@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -48,139 +48,62 @@ import { getModelTargetFormats } from '@/lib/device';
 const MIN_TEXT_LENGTH = 1;
 const TOTAL_STEPS = 15;
 
-const BASIC_EMOTIONS = [
-  'Joy',
-  'Trust',
-  'Fear',
-  'Surprise',
-  'Sadness',
-  'Disgust',
-  'Anger',
-  'Anticipation',
-];
-
-const DETAIL_EMOTIONS = [
-  'Ecstasy',
-  'Admiration',
-  'Terror',
-  'Amazement',
-  'Grief',
-  'Loathing',
-  'Rage',
-  'Vigilance',
-  'Serenity',
-  'Acceptance',
-  'Apprehension',
-  'Distraction',
-  'Pensiveness',
-  'Boredom',
-  'Annoyance',
-  'Interest',
-];
-
-const EMOTION_PALETTE: Record<string, { idle: string; active: string }> = {
-  Joy: {
-    idle: 'border-amber-300 text-amber-100 hover:bg-amber-100/30',
-    active: 'border-transparent bg-amber-200 text-amber-900 shadow-sm',
-  },
-  Serenity: {
-    idle: 'border-amber-300 text-amber-100 hover:bg-amber-100/30',
-    active: 'border-transparent bg-amber-200 text-amber-900 shadow-sm',
-  },
-  Ecstasy: {
-    idle: 'border-amber-300 text-amber-100 hover:bg-amber-100/30',
-    active: 'border-transparent bg-amber-200 text-amber-900 shadow-sm',
-  },
-  Trust: {
-    idle: 'border-sky-300 text-sky-100 hover:bg-sky-100/30',
-    active: 'border-transparent bg-sky-200 text-sky-900 shadow-sm',
-  },
-  Acceptance: {
-    idle: 'border-sky-300 text-sky-100 hover:bg-sky-100/30',
-    active: 'border-transparent bg-sky-200 text-sky-900 shadow-sm',
-  },
-  Admiration: {
-    idle: 'border-sky-300 text-sky-100 hover:bg-sky-100/30',
-    active: 'border-transparent bg-sky-200 text-sky-900 shadow-sm',
-  },
-  Fear: {
-    idle: 'border-purple-400 text-purple-100 hover:bg-purple-100/30',
-    active: 'border-transparent bg-purple-300 text-purple-900 shadow-sm',
-  },
-  Apprehension: {
-    idle: 'border-purple-400 text-purple-100 hover:bg-purple-100/30',
-    active: 'border-transparent bg-purple-300 text-purple-900 shadow-sm',
-  },
-  Terror: {
-    idle: 'border-purple-400 text-purple-100 hover:bg-purple-100/30',
-    active: 'border-transparent bg-purple-300 text-purple-900 shadow-sm',
-  },
-  Surprise: {
-    idle: 'border-blue-300 text-blue-100 hover:bg-blue-100/30',
-    active: 'border-transparent bg-blue-200 text-blue-900 shadow-sm',
-  },
-  Distraction: {
-    idle: 'border-blue-300 text-blue-100 hover:bg-blue-100/30',
-    active: 'border-transparent bg-blue-200 text-blue-900 shadow-sm',
-  },
-  Amazement: {
-    idle: 'border-blue-300 text-blue-100 hover:bg-blue-100/30',
-    active: 'border-transparent bg-blue-200 text-blue-900 shadow-sm',
-  },
-  Sadness: {
-    idle: 'border-indigo-300 text-indigo-100 hover:bg-indigo-100/30',
-    active: 'border-transparent bg-indigo-200 text-indigo-900 shadow-sm',
-  },
-  Pensiveness: {
-    idle: 'border-indigo-300 text-indigo-100 hover:bg-indigo-100/30',
-    active: 'border-transparent bg-indigo-200 text-indigo-900 shadow-sm',
-  },
-  Grief: {
-    idle: 'border-indigo-300 text-indigo-100 hover:bg-indigo-100/30',
-    active: 'border-transparent bg-indigo-200 text-indigo-900 shadow-sm',
-  },
-  Disgust: {
-    idle: 'border-emerald-300 text-emerald-100 hover:bg-emerald-100/30',
-    active: 'border-transparent bg-emerald-200 text-emerald-900 shadow-sm',
-  },
-  Boredom: {
-    idle: 'border-emerald-300 text-emerald-100 hover:bg-emerald-100/30',
-    active: 'border-transparent bg-emerald-200 text-emerald-900 shadow-sm',
-  },
-  Loathing: {
-    idle: 'border-emerald-300 text-emerald-100 hover:bg-emerald-100/30',
-    active: 'border-transparent bg-emerald-200 text-emerald-900 shadow-sm',
-  },
-  Anger: {
-    idle: 'border-rose-300 text-rose-100 hover:bg-rose-100/30',
-    active: 'border-transparent bg-rose-300 text-rose-900 shadow-sm',
-  },
-  Annoyance: {
-    idle: 'border-rose-300 text-rose-100 hover:bg-rose-100/30',
-    active: 'border-transparent bg-rose-300 text-rose-900 shadow-sm',
-  },
-  Rage: {
-    idle: 'border-rose-300 text-rose-100 hover:bg-rose-100/30',
-    active: 'border-transparent bg-rose-300 text-rose-900 shadow-sm',
-  },
-  Anticipation: {
-    idle: 'border-orange-300 text-orange-100 hover:bg-orange-100/30',
-    active: 'border-transparent bg-orange-200 text-orange-900 shadow-sm',
-  },
-  Interest: {
-    idle: 'border-orange-300 text-orange-100 hover:bg-orange-100/30',
-    active: 'border-transparent bg-orange-200 text-orange-900 shadow-sm',
-  },
-  Vigilance: {
-    idle: 'border-orange-300 text-orange-100 hover:bg-orange-100/30',
-    active: 'border-transparent bg-orange-200 text-orange-900 shadow-sm',
-  },
+type EmotionGroup = {
+  id: string;
+  label: { en: string; ja: string };
+  emotions: string[];
 };
 
-const DEFAULT_EMOTION_PALETTE = {
-  idle: 'border-divider text-textSecondary hover:border-accent',
-  active: 'border-transparent bg-accent text-black shadow-sm',
+const EMOTION_GROUPS: EmotionGroup[] = [
+  { id: 'joy', label: { en: 'Joy', ja: '喜び' }, emotions: ['Ecstasy', 'Joy', 'Serenity'] },
+  { id: 'trust', label: { en: 'Trust', ja: '信頼' }, emotions: ['Admiration', 'Trust', 'Acceptance'] },
+  { id: 'fear', label: { en: 'Fear', ja: '恐れ' }, emotions: ['Terror', 'Fear', 'Apprehension'] },
+  { id: 'surprise', label: { en: 'Surprise', ja: '驚き' }, emotions: ['Amazement', 'Surprise', 'Distraction'] },
+  { id: 'sadness', label: { en: 'Sadness', ja: '悲しみ' }, emotions: ['Grief', 'Sadness', 'Pensiveness'] },
+  { id: 'disgust', label: { en: 'Disgust', ja: '嫌悪' }, emotions: ['Loathing', 'Disgust', 'Boredom'] },
+  { id: 'anger', label: { en: 'Anger', ja: '怒り' }, emotions: ['Rage', 'Anger', 'Annoyance'] },
+  {
+    id: 'anticipation',
+    label: { en: 'Anticipation', ja: '期待' },
+    emotions: ['Vigilance', 'Anticipation', 'Interest'],
+  },
+];
+
+const EMOTION_COLORS: Record<string, { solid: string; light: string; onSolid: string }> = {
+  Ecstasy: { solid: '#B45309', light: '#F59E0B', onSolid: '#FFFBEB' },
+  Joy: { solid: '#F59E0B', light: '#FCD34D', onSolid: '#1F2937' },
+  Serenity: { solid: '#FEF3C7', light: '#FDE68A', onSolid: '#92400E' },
+  Admiration: { solid: '#0F766E', light: '#2DD4BF', onSolid: '#ECFEFF' },
+  Trust: { solid: '#14B8A6', light: '#5EEAD4', onSolid: '#022C22' },
+  Acceptance: { solid: '#99F6E4', light: '#5EEAD4', onSolid: '#0F172A' },
+  Terror: { solid: '#312E81', light: '#6366F1', onSolid: '#E0E7FF' },
+  Fear: { solid: '#4338CA', light: '#818CF8', onSolid: '#E0E7FF' },
+  Apprehension: { solid: '#A5B4FC', light: '#C7D2FE', onSolid: '#1E1B4B' },
+  Amazement: { solid: '#1E3A8A', light: '#60A5FA', onSolid: '#DBEAFE' },
+  Surprise: { solid: '#2563EB', light: '#60A5FA', onSolid: '#DBEAFE' },
+  Distraction: { solid: '#93C5FD', light: '#BFDBFE', onSolid: '#1E3A8A' },
+  Grief: { solid: '#1D4ED8', light: '#60A5FA', onSolid: '#EFF6FF' },
+  Sadness: { solid: '#3B82F6', light: '#93C5FD', onSolid: '#EFF6FF' },
+  Pensiveness: { solid: '#BFDBFE', light: '#DBEAFE', onSolid: '#1E3A8A' },
+  Loathing: { solid: '#166534', light: '#34D399', onSolid: '#ECFDF5' },
+  Disgust: { solid: '#15803D', light: '#4ADE80', onSolid: '#ECFDF5' },
+  Boredom: { solid: '#BBF7D0', light: '#A7F3D0', onSolid: '#064E3B' },
+  Rage: { solid: '#7F1D1D', light: '#F87171', onSolid: '#FEF2F2' },
+  Anger: { solid: '#B91C1C', light: '#F87171', onSolid: '#FEF2F2' },
+  Annoyance: { solid: '#FCA5A5', light: '#FECACA', onSolid: '#7F1D1D' },
+  Vigilance: { solid: '#7C2D12', light: '#FB923C', onSolid: '#FFF7ED' },
+  Anticipation: { solid: '#EA580C', light: '#FDBA74', onSolid: '#FFF7ED' },
+  Interest: { solid: '#FED7AA', light: '#FDE68A', onSolid: '#7C2D12' },
 };
+
+const DEFAULT_EMOTION_COLORS = {
+  solid: '#2563EB',
+  light: '#60A5FA',
+  onSolid: '#EFF6FF',
+};
+
+const emotionButtonClass =
+  'rounded-full border px-3 py-2 text-xs transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
 
 function formatCoordinates(lat: number, lng: number, isJa: boolean) {
   const latAbs = Math.abs(lat).toFixed(4);
@@ -589,12 +512,6 @@ export default function EmokaiStepPage({ params }: Props) {
   const creationLoadingMessage = isJa
     ? '景色・エモカイ・物語を組み合わせています。'
     : 'Combining scenery, companion, and story.';
-  const pillClass = (emotion: string, selected: boolean) => {
-    const palette = EMOTION_PALETTE[emotion] ?? DEFAULT_EMOTION_PALETTE;
-    return `rounded-full border px-3 py-2 text-xs transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
-      selected ? palette.active : palette.idle
-    }`;
-  };
 
   const stepLabelText = useMemo(() => {
     if (step >= 2 && step <= 9) {
@@ -2122,39 +2039,48 @@ export default function EmokaiStepPage({ params }: Props) {
             <p className="text-sm text-textSecondary">
               {isJa ? '当てはまるものをえらんでください。（いくつでも）' : 'Choose what fits (any number).'}
             </p>
-            <div className="flex flex-wrap gap-2">
-              {BASIC_EMOTIONS.map((emotion) => {
-                const selected = selectedEmotions.includes(emotion);
-                return (
-                  <button
-                    key={emotion}
-                    type="button"
-                    className={pillClass(emotion, selected)}
-                    onClick={() => toggleEmotion(emotion)}
-                  >
-                    {emotion}
-                  </button>
-                );
-              })}
+            <div className="space-y-3">
+              {EMOTION_GROUPS.map((group) => (
+                <div key={group.id} className="space-y-2">
+                  <p className="text-xs font-semibold text-textSecondary">
+                    {isJa ? group.label.ja : group.label.en}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {group.emotions.map((emotion) => {
+                      const selected = selectedEmotions.includes(emotion);
+                      const palette = EMOTION_COLORS[emotion] ?? DEFAULT_EMOTION_COLORS;
+                      const style: CSSProperties = selected
+                        ? {
+                            backgroundColor: palette.solid,
+                            color: palette.onSolid,
+                            borderColor: palette.solid,
+                          }
+                        : {
+                            borderColor: palette.light,
+                            color: palette.light,
+                          };
+                      const buttonClass = `${emotionButtonClass} ${selected ? 'shadow-sm' : ''}`;
+                      return (
+                        <button
+                          key={emotion}
+                          type="button"
+                          className={buttonClass}
+                          style={style}
+                          onClick={() => toggleEmotion(emotion)}
+                        >
+                          {emotion}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
             <p className="text-xs text-textSecondary opacity-70">
-              {isJa ? 'こまかな気持ちもえらべます' : 'You can pick more detailed feelings too'}
+              {isJa
+                ? '左から強い感情で、右にいくほど穏やかなニュアンスになります。'
+                : 'Left is the strongest tone and it softens toward the right.'}
             </p>
-            <div className="flex flex-wrap gap-2">
-              {DETAIL_EMOTIONS.map((emotion) => {
-                const selected = selectedEmotions.includes(emotion);
-                return (
-                  <button
-                    key={emotion}
-                    type="button"
-                    className={pillClass(emotion, selected)}
-                    onClick={() => toggleEmotion(emotion)}
-                  >
-                    {emotion}
-                  </button>
-                );
-              })}
-            </div>
             {!emotionValid && emotionTouched ? (
               <p className="text-xs text-[#ffb9b9]">
                 {isJa ? 'まだ気持ちが映っていません。ひとつ選んでみましょう。' : selectOneHint}
