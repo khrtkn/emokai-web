@@ -16,8 +16,6 @@ import {
   ProgressBar,
   RichInput,
 } from '@/components/ui';
-import { EmotionWheel } from '@/components/EmotionWheel';
-import type { EmotionWheelPetal } from '@/components/EmotionWheel';
 import { moderateText } from '@/lib/moderation';
 import type { ProcessedImage } from '@/lib/image';
 import { createStageOptions, type StageOption } from '@/lib/stage-generation';
@@ -50,109 +48,139 @@ import { getModelTargetFormats } from '@/lib/device';
 const MIN_TEXT_LENGTH = 1;
 const TOTAL_STEPS = 15;
 
-const EMOTION_LABELS_JA: Record<string, string> = {
-  Joy: '喜び',
-  Serenity: '穏やかさ',
-  Ecstasy: '有頂天',
-  Trust: '信頼',
-  Acceptance: '受容',
-  Admiration: '賞賛',
-  Fear: '恐れ',
-  Apprehension: '不安',
-  Terror: '恐怖',
-  Surprise: '驚き',
-  Distraction: '戸惑い',
-  Amazement: '驚嘆',
-  Sadness: '悲しみ',
-  Pensiveness: '物思い',
-  Grief: '深い悲しみ',
-  Disgust: '嫌悪',
-  Boredom: '退屈',
-  Loathing: '激しい嫌悪',
-  Anger: '怒り',
-  Annoyance: '苛立ち',
-  Rage: '激怒',
-  Anticipation: '期待',
-  Interest: '興味',
-  Vigilance: '警戒',
-};
-
-const EMOTION_WHEEL_CONFIG: EmotionWheelPetal[] = [
-  {
-    id: 'joy',
-    colors: ['#FFE066', '#FFB347'],
-    nodes: [
-      { value: 'Ecstasy', ring: 'inner' as const },
-      { value: 'Joy', ring: 'middle' as const },
-      { value: 'Serenity', ring: 'outer' as const },
-    ],
-  },
-  {
-    id: 'trust',
-    colors: ['#9BE7FF', '#5EC2FF'],
-    nodes: [
-      { value: 'Admiration', ring: 'inner' as const },
-      { value: 'Trust', ring: 'middle' as const },
-      { value: 'Acceptance', ring: 'outer' as const },
-    ],
-  },
-  {
-    id: 'fear',
-    colors: ['#CAB2FF', '#8C6CFF'],
-    nodes: [
-      { value: 'Terror', ring: 'inner' as const },
-      { value: 'Fear', ring: 'middle' as const },
-      { value: 'Apprehension', ring: 'outer' as const },
-    ],
-  },
-  {
-    id: 'surprise',
-    colors: ['#B8F2FF', '#4EC7FF'],
-    nodes: [
-      { value: 'Amazement', ring: 'inner' as const },
-      { value: 'Surprise', ring: 'middle' as const },
-      { value: 'Distraction', ring: 'outer' as const },
-    ],
-  },
-  {
-    id: 'sadness',
-    colors: ['#9DB5FF', '#5670FF'],
-    nodes: [
-      { value: 'Grief', ring: 'inner' as const },
-      { value: 'Sadness', ring: 'middle' as const },
-      { value: 'Pensiveness', ring: 'outer' as const },
-    ],
-  },
-  {
-    id: 'disgust',
-    colors: ['#C9F5B9', '#6ECB63'],
-    nodes: [
-      { value: 'Loathing', ring: 'inner' as const },
-      { value: 'Disgust', ring: 'middle' as const },
-      { value: 'Boredom', ring: 'outer' as const },
-    ],
-  },
-  {
-    id: 'anger',
-    colors: ['#FF9DA6', '#FF4D6D'],
-    nodes: [
-      { value: 'Rage', ring: 'inner' as const },
-      { value: 'Anger', ring: 'middle' as const },
-      { value: 'Annoyance', ring: 'outer' as const },
-    ],
-  },
-  {
-    id: 'anticipation',
-    colors: ['#FFE7A1', '#F7B733'],
-    nodes: [
-      { value: 'Vigilance', ring: 'inner' as const },
-      { value: 'Anticipation', ring: 'middle' as const },
-      { value: 'Interest', ring: 'outer' as const },
-    ],
-  },
+const BASIC_EMOTIONS = [
+  'Joy',
+  'Trust',
+  'Fear',
+  'Surprise',
+  'Sadness',
+  'Disgust',
+  'Anger',
+  'Anticipation',
 ];
 
-const ALL_EMOTION_OPTIONS = EMOTION_WHEEL_CONFIG.flatMap((petal) => petal.nodes.map((node) => node.value));
+const DETAIL_EMOTIONS = [
+  'Ecstasy',
+  'Admiration',
+  'Terror',
+  'Amazement',
+  'Grief',
+  'Loathing',
+  'Rage',
+  'Vigilance',
+  'Serenity',
+  'Acceptance',
+  'Apprehension',
+  'Distraction',
+  'Pensiveness',
+  'Boredom',
+  'Annoyance',
+  'Interest',
+];
+
+const EMOTION_PALETTE: Record<string, { idle: string; active: string }> = {
+  Joy: {
+    idle: 'border-amber-300 text-amber-100 hover:bg-amber-100/30',
+    active: 'border-transparent bg-amber-200 text-amber-900 shadow-sm',
+  },
+  Serenity: {
+    idle: 'border-amber-300 text-amber-100 hover:bg-amber-100/30',
+    active: 'border-transparent bg-amber-200 text-amber-900 shadow-sm',
+  },
+  Ecstasy: {
+    idle: 'border-amber-300 text-amber-100 hover:bg-amber-100/30',
+    active: 'border-transparent bg-amber-200 text-amber-900 shadow-sm',
+  },
+  Trust: {
+    idle: 'border-sky-300 text-sky-100 hover:bg-sky-100/30',
+    active: 'border-transparent bg-sky-200 text-sky-900 shadow-sm',
+  },
+  Acceptance: {
+    idle: 'border-sky-300 text-sky-100 hover:bg-sky-100/30',
+    active: 'border-transparent bg-sky-200 text-sky-900 shadow-sm',
+  },
+  Admiration: {
+    idle: 'border-sky-300 text-sky-100 hover:bg-sky-100/30',
+    active: 'border-transparent bg-sky-200 text-sky-900 shadow-sm',
+  },
+  Fear: {
+    idle: 'border-purple-400 text-purple-100 hover:bg-purple-100/30',
+    active: 'border-transparent bg-purple-300 text-purple-900 shadow-sm',
+  },
+  Apprehension: {
+    idle: 'border-purple-400 text-purple-100 hover:bg-purple-100/30',
+    active: 'border-transparent bg-purple-300 text-purple-900 shadow-sm',
+  },
+  Terror: {
+    idle: 'border-purple-400 text-purple-100 hover:bg-purple-100/30',
+    active: 'border-transparent bg-purple-300 text-purple-900 shadow-sm',
+  },
+  Surprise: {
+    idle: 'border-blue-300 text-blue-100 hover:bg-blue-100/30',
+    active: 'border-transparent bg-blue-200 text-blue-900 shadow-sm',
+  },
+  Distraction: {
+    idle: 'border-blue-300 text-blue-100 hover:bg-blue-100/30',
+    active: 'border-transparent bg-blue-200 text-blue-900 shadow-sm',
+  },
+  Amazement: {
+    idle: 'border-blue-300 text-blue-100 hover:bg-blue-100/30',
+    active: 'border-transparent bg-blue-200 text-blue-900 shadow-sm',
+  },
+  Sadness: {
+    idle: 'border-indigo-300 text-indigo-100 hover:bg-indigo-100/30',
+    active: 'border-transparent bg-indigo-200 text-indigo-900 shadow-sm',
+  },
+  Pensiveness: {
+    idle: 'border-indigo-300 text-indigo-100 hover:bg-indigo-100/30',
+    active: 'border-transparent bg-indigo-200 text-indigo-900 shadow-sm',
+  },
+  Grief: {
+    idle: 'border-indigo-300 text-indigo-100 hover:bg-indigo-100/30',
+    active: 'border-transparent bg-indigo-200 text-indigo-900 shadow-sm',
+  },
+  Disgust: {
+    idle: 'border-emerald-300 text-emerald-100 hover:bg-emerald-100/30',
+    active: 'border-transparent bg-emerald-200 text-emerald-900 shadow-sm',
+  },
+  Boredom: {
+    idle: 'border-emerald-300 text-emerald-100 hover:bg-emerald-100/30',
+    active: 'border-transparent bg-emerald-200 text-emerald-900 shadow-sm',
+  },
+  Loathing: {
+    idle: 'border-emerald-300 text-emerald-100 hover:bg-emerald-100/30',
+    active: 'border-transparent bg-emerald-200 text-emerald-900 shadow-sm',
+  },
+  Anger: {
+    idle: 'border-rose-300 text-rose-100 hover:bg-rose-100/30',
+    active: 'border-transparent bg-rose-300 text-rose-900 shadow-sm',
+  },
+  Annoyance: {
+    idle: 'border-rose-300 text-rose-100 hover:bg-rose-100/30',
+    active: 'border-transparent bg-rose-300 text-rose-900 shadow-sm',
+  },
+  Rage: {
+    idle: 'border-rose-300 text-rose-100 hover:bg-rose-100/30',
+    active: 'border-transparent bg-rose-300 text-rose-900 shadow-sm',
+  },
+  Anticipation: {
+    idle: 'border-orange-300 text-orange-100 hover:bg-orange-100/30',
+    active: 'border-transparent bg-orange-200 text-orange-900 shadow-sm',
+  },
+  Interest: {
+    idle: 'border-orange-300 text-orange-100 hover:bg-orange-100/30',
+    active: 'border-transparent bg-orange-200 text-orange-900 shadow-sm',
+  },
+  Vigilance: {
+    idle: 'border-orange-300 text-orange-100 hover:bg-orange-100/30',
+    active: 'border-transparent bg-orange-200 text-orange-900 shadow-sm',
+  },
+};
+
+const DEFAULT_EMOTION_PALETTE = {
+  idle: 'border-divider text-textSecondary hover:border-accent',
+  active: 'border-transparent bg-accent text-black shadow-sm',
+};
 
 function formatCoordinates(lat: number, lng: number, isJa: boolean) {
   const latAbs = Math.abs(lat).toFixed(4);
@@ -561,31 +589,12 @@ export default function EmokaiStepPage({ params }: Props) {
   const creationLoadingMessage = isJa
     ? '景色・エモカイ・物語を組み合わせています。'
     : 'Combining scenery, companion, and story.';
-  const emotionWheelInstructions = isJa
-    ? '感じるものをタップして追加しましょう'
-    : 'Tap to add the feelings that fit.';
-
-  const getEmotionLabel = useCallback(
-    (emotion: string) => (isJa ? EMOTION_LABELS_JA[emotion] ?? emotion : emotion),
-    [isJa],
-  );
-
-  const emotionOrder = useMemo(() => {
-    const order = new Map<string, number>();
-    ALL_EMOTION_OPTIONS.forEach((value, index) => {
-      order.set(value, index);
-    });
-    return order;
-  }, []);
-
-  const orderedSelectedEmotions = useMemo(() => {
-    if (!selectedEmotions.length) return [] as string[];
-    return [...selectedEmotions].sort((a, b) => {
-      const aIndex = emotionOrder.get(a) ?? Number.MAX_SAFE_INTEGER;
-      const bIndex = emotionOrder.get(b) ?? Number.MAX_SAFE_INTEGER;
-      return aIndex - bIndex;
-    });
-  }, [emotionOrder, selectedEmotions]);
+  const pillClass = (emotion: string, selected: boolean) => {
+    const palette = EMOTION_PALETTE[emotion] ?? DEFAULT_EMOTION_PALETTE;
+    return `rounded-full border px-3 py-2 text-xs transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+      selected ? palette.active : palette.idle
+    }`;
+  };
 
   const stepLabelText = useMemo(() => {
     if (step >= 2 && step <= 9) {
@@ -698,11 +707,11 @@ export default function EmokaiStepPage({ params }: Props) {
     lines.push(
       localeKey === 'ja' ? `この場所が大切な理由: ${reasonText}` : `Why it matters: ${reasonText}`,
     );
-    if (orderedSelectedEmotions.length) {
+    if (selectedEmotions.length) {
       lines.push(
         localeKey === 'ja'
-          ? `抱く気持ち: ${orderedSelectedEmotions.join('、')}`
-          : `Emotions: ${orderedSelectedEmotions.join(', ')}`,
+          ? `抱く気持ち: ${selectedEmotions.join('、')}`
+          : `Emotions: ${selectedEmotions.join(', ')}`,
       );
     }
     lines.push(
@@ -717,14 +726,14 @@ export default function EmokaiStepPage({ params }: Props) {
         : 'Convert the above into an image prompt for a 3D model render of the character from the front. Use a pure white background with no other elements, and light it with soft studio lighting for even illumination.'
     );
     return lines.join('\n');
-  }, [localeKey, placeText, reasonText, orderedSelectedEmotions, actionText, appearanceText]);
+  }, [localeKey, placeText, reasonText, selectedEmotions, actionText, appearanceText]);
 
   const storyPrompt = useMemo(() => {
     if (localeKey === 'ja') {
-      return `あなたは感情の妖怪『エモカイ』の語り部です。以下の情報をもとに、日本語で500文字程度の物語を作成してください。\n\n場所: ${placeText}\n大切な理由: ${reasonText}\n抱く気持ち: ${orderedSelectedEmotions.join('、') || '不明'}\nふるまい: ${actionText}\n見た目: ${appearanceText}`;
+      return `あなたは感情の妖怪『エモカイ』の語り部です。以下の情報をもとに、日本語で500文字程度の物語を作成してください。\n\n場所: ${placeText}\n大切な理由: ${reasonText}\n抱く気持ち: ${selectedEmotions.join('、') || '不明'}\nふるまい: ${actionText}\n見た目: ${appearanceText}`;
     }
-    return `You are the storyteller of an Emokai. Write ~500 chars.\n\nPlace: ${placeText}\nWhy it matters: ${reasonText}\nEmotions: ${orderedSelectedEmotions.join(', ') || 'Unknown'}\nAction: ${actionText}\nAppearance: ${appearanceText}`;
-  }, [localeKey, placeText, reasonText, orderedSelectedEmotions, actionText, appearanceText]);
+    return `You are the storyteller of an Emokai. Write ~500 chars.\n\nPlace: ${placeText}\nWhy it matters: ${reasonText}\nEmotions: ${selectedEmotions.join(', ') || 'Unknown'}\nAction: ${actionText}\nAppearance: ${appearanceText}`;
+  }, [localeKey, placeText, reasonText, selectedEmotions, actionText, appearanceText]);
 
   const handlePlaceChange = (value: string) => {
     setPlaceTouched(true);
@@ -1764,11 +1773,7 @@ export default function EmokaiStepPage({ params }: Props) {
           <p className="text-xs uppercase tracking-[0.2em] opacity-70">
             {isJa ? '気持ち' : 'Emotions'}
           </p>
-          <p>
-            {orderedSelectedEmotions.length
-              ? orderedSelectedEmotions.map((emotion) => getEmotionLabel(emotion)).join(isJa ? '、' : ', ')
-              : '—'}
-          </p>
+          <p>{selectedEmotions.length ? selectedEmotions.join(isJa ? '、' : ', ') : '—'}</p>
         </div>
         <div>
           <p className="text-xs uppercase tracking-[0.2em] opacity-70">
@@ -2115,39 +2120,41 @@ export default function EmokaiStepPage({ params }: Props) {
               {isJa ? 'この場所で感じる気持ち' : 'Feelings in this place'}
             </h2>
             <p className="text-sm text-textSecondary">
-              {isJa
-                ? '輪の中から、場所に溶け込む気持ちをタップしてください。いくつでも追加できます。'
-                : 'Tap the petals that match how this place feels. Choose as many as you like.'}
+              {isJa ? '当てはまるものをえらんでください。（いくつでも）' : 'Choose what fits (any number).'}
             </p>
-            <EmotionWheel
-              petals={EMOTION_WHEEL_CONFIG}
-              selected={selectedEmotions}
-              onToggle={toggleEmotion}
-              getLabel={getEmotionLabel}
-              allEmotions={ALL_EMOTION_OPTIONS}
-              instructions={emotionWheelInstructions}
-            />
-            {orderedSelectedEmotions.length ? (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-textSecondary">
-                  {isJa ? '選んだ気持ち' : 'Selected feelings'}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {orderedSelectedEmotions.map((emotion) => (
-                    <span
-                      key={emotion}
-                      className="rounded-full border border-divider px-3 py-1 text-xs text-textPrimary"
-                    >
-                      {getEmotionLabel(emotion)}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <p className="text-xs text-textSecondary opacity-70">
-                {isJa ? 'ひとつ以上選ぶと先に進めます。' : 'Choose at least one feeling to continue.'}
-              </p>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {BASIC_EMOTIONS.map((emotion) => {
+                const selected = selectedEmotions.includes(emotion);
+                return (
+                  <button
+                    key={emotion}
+                    type="button"
+                    className={pillClass(emotion, selected)}
+                    onClick={() => toggleEmotion(emotion)}
+                  >
+                    {emotion}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-textSecondary opacity-70">
+              {isJa ? 'こまかな気持ちもえらべます' : 'You can pick more detailed feelings too'}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {DETAIL_EMOTIONS.map((emotion) => {
+                const selected = selectedEmotions.includes(emotion);
+                return (
+                  <button
+                    key={emotion}
+                    type="button"
+                    className={pillClass(emotion, selected)}
+                    onClick={() => toggleEmotion(emotion)}
+                  >
+                    {emotion}
+                  </button>
+                );
+              })}
+            </div>
             {!emotionValid && emotionTouched ? (
               <p className="text-xs text-[#ffb9b9]">
                 {isJa ? 'まだ気持ちが映っていません。ひとつ選んでみましょう。' : selectOneHint}

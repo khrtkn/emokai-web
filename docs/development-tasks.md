@@ -6,7 +6,6 @@
 - [x] Stage flow (Step A): text entry with moderation, upload pipeline (camera/library permissions, EXIF strip, resize/WebP, cleanup), Nanobanana stage generation, selection UI.
   - Oct 07 2025: Updated early-step flow — Step3 now hosts the map search with compact placeholder guidance, Step4 becomes a guided visualization (“目を閉じて…”) before feelings selection, Step5 captures emotions ahead of the reason text. Stage prompt prioritizes the “why” copy, enforces a 30 m focus radius, and requests photoreal scenery-only outputs.
   - Oct 08 2025: Added dedicated loop-GIF loading screens for scenery regeneration to keep the flow immersive while waiting on AI outputs.
-  - Oct 08 2025: Replaced the feelings list with a Plutchik-inspired emotion wheel for Step5, including accessible fallbacks and localized labels.
 - [x] Character flow (Step B): description moderation, Nanobanana character outputs, selection UI, progress bar kickoff, session lock.
   - Oct 08 2025: Integrated the matching loop-GIF loading screen while Emokai options generate.
 - [x] Parallel jobs (Step C1–C3): TripoAPI model generation (timeouts, storage), Nanobanana composite, OpenAI narrative with sanitization and status updates.
