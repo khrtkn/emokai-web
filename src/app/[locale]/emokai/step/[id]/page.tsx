@@ -545,7 +545,7 @@ export default function EmokaiStepPage({ params }: Props) {
   const summonLabel = isJa ? '呼び出す' : 'Summon';
   const stageLoadingTitle = isJa ? '景色を現像しています…' : 'Rendering the scenery';
   const stageLoadingMessage = isJa
-    ? 'あなたの感情から場所を再構築しています。'
+    ? 'エモカイを引き寄せるため、あなたの情景を再現しています。'
     : 'Gathering the atmosphere of the place you described.';
   const characterLoadingTitle = isJa ? 'あなたのエモカイを現像しています…' : 'Shaping your Emokai';
   const characterLoadingMessage = isJa
@@ -1967,21 +1967,33 @@ export default function EmokaiStepPage({ params }: Props) {
     switch (step) {
       case 1:
         return (
-          <section className="space-y-3">
-            <InstructionBanner tone="default">
-              {isJa ? '感情の妖怪をさがしに行こう。' : 'Set out to find the yokai of feelings.'}
-            </InstructionBanner>
-            <h2 className="text-base font-semibold text-textPrimary">EMOKAI</h2>
-            <p className="text-sm text-textSecondary">
-              {isJa ? '感情の妖怪をさがしに行こう。' : 'Find the yokai of feelings.'}
-            </p>
+          <section className="space-y-4">
+            <h2 className="text-base font-semibold text-textPrimary">
+              {isJa ? 'エモカイについて' : 'About Emokai'}
+            </h2>
+            <div className="space-y-3 text-sm leading-6 text-textSecondary">
+              {isJa
+                ? [
+                    '近年、世界各地で感情から生まれた妖怪「エモカイ」の発見が報告されている。エモカイは、人間の情動活動が外的環境に作用し、その場に一時的な情動的構造体として形成される現象と考えられている。',
+                    '発生条件は未解明だが、個人の心理状態、場所の記憶、および周囲の社会的・気象的要因との相関が指摘されている。一部の研究機関では、これを「感情生成性存在（Emotionally Generated Entity）」として分類し、出現頻度や共鳴パターンの記録が進められている。',
+                    'そして、そのいくつかは——あなた自身から生まれる。',
+                    'このアプリは、あなたの内側から生じた感情の痕跡を追跡し、世界のどこかに漂う“あなた由来のエモカイ”を観測するための装置です。どこかで、かつて生まれたエモカイが、今も静かに息づいているかもしれません。',
+                  ]
+                    .map((paragraph) => <p key={paragraph}>{paragraph}</p>)
+                : [
+                    'Reports of yokai born from human emotion—known as Emokai—have surfaced across the world. Researchers believe they are emotional constructs that briefly manifest when our inner states resonate with the environment.',
+                    'Although the exact conditions remain unclear, strong feelings, memory-rich locations, and surrounding social or meteorological factors seem to play a role. Some institutes classify them as “Emotionally Generated Entities” and document their emergence patterns.',
+                    'And a few of them originate from you.',
+                    'This app helps you trace those emotional echoes and observe the Emokai that drifts somewhere in the world, born from your own feelings.',
+                  ].map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+            </div>
             <div className="pt-4">
               <button
                 type="button"
                 className={primaryButtonClass}
                 onClick={() => router.push(`/${locale}/emokai/step/2`)}
               >
-                {isJa ? 'はじめる' : 'Begin'}
+                {isJa ? '観測をはじめる' : 'Start observation'}
               </button>
             </div>
           </section>
@@ -2027,39 +2039,48 @@ export default function EmokaiStepPage({ params }: Props) {
             <div className="space-y-3">
               <StepLabel text={stepLabelText} />
               <h2 className="text-base font-semibold text-textPrimary">
-                {isJa ? 'あなたの場所' : 'Your place'}
+                {isJa ? '強い感情がある場所' : 'A place tied to strong feelings'}
               </h2>
               <p className="text-sm text-textSecondary">
                 {isJa
-                  ? '地図を見ながら、エモカイと結びついた場所を思い浮かべてください。'
-                  : 'Look at the map and recall the place tied to your Emokai.'}
+                  ? 'あなたにとって、強い感情を感じるような具体的な場所を教えてください。'
+                  : 'Tell us about a specific place where you feel something strongly.'}
               </p>
-              <div className="relative">
-                <RichInput
-                  rows={1}
-                  label=""
-                  placeholder={
-                    isJa
-                      ? '場所や住所を入力すると地図が移動します。'
-                      : 'Type a place or address to move the map.'
-                  }
-                  value={placeText}
-                  onChange={handlePlaceChange}
-                  maxLength={300}
-                  showCounter={false}
-                  error={placeTouched && !placeValid ? minLengthHint : undefined}
-                />
-                <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-textSecondary">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    fill="currentColor"
-                    viewBox="0 0 16 16"
-                  >
-                    <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85Zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z" />
-                  </svg>
+              <div className="space-y-2">
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-textSecondary">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="18"
+                      height="18"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="m21 21-4.35-4.35m1.6-4.15a6.75 6.75 0 1 1-13.5 0 6.75 6.75 0 0 1 13.5 0Z"
+                      />
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    className="w-full rounded-full border border-divider bg-[rgba(237,241,241,0.06)] pl-11 pr-4 py-3 text-sm text-textPrimary placeholder:text-textSecondary/70 outline-none transition focus:border-accent"
+                    placeholder={
+                      isJa
+                        ? '場所や住所を入力すると地図が移動します。'
+                        : 'Type a place or address to move the map.'
+                    }
+                    value={placeText}
+                    onChange={(event) => handlePlaceChange(event.target.value)}
+                    maxLength={300}
+                  />
                 </div>
+                {placeTouched && !placeValid ? (
+                  <p className="text-xs text-[#ffb9b9]">{minLengthHint}</p>
+                ) : null}
               </div>
             </div>
             <div className="flex h-[320px] flex-col">
