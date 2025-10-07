@@ -473,7 +473,6 @@ export default function EmokaiStepPage({ params }: Props) {
   const selectNextLabel = isJa ? 'これにする' : 'Choose this';
   const summonLabel = isJa ? '呼び出す' : 'Summon';
   const createAnotherLabel = isJa ? '新しくつくる' : 'Create new';
-  const generatingLabel = isJa ? '交信しています...' : 'Imagining...';
   const stageLoadingTitle = isJa ? '景色を映し出しています' : 'Rendering the scenery';
   const stageLoadingMessage = isJa
     ? 'あなたが思い浮かべた場所の空気や光を集めています。'
@@ -1363,217 +1362,231 @@ export default function EmokaiStepPage({ params }: Props) {
 
   // ====== 画面パーツ ======
 
-  const renderStageStep = () => (
-    <section className="space-y-4">
-      <StepLabel text={stepLabelText} />
-      <h2 className="text-base font-semibold text-textPrimary">
-        {isJa ? '景色をえらぶ' : 'Choose the scenery'}
-      </h2>
-      {stageStatus === 'generating' ? (
-        <MessageBlock
-          title={isJa ? '景色を映し出しています' : 'Preparing scenery'}
-          body={<p>{isJa ? 'もう少しだけお待ちください。' : 'One moment.'}</p>}
+  const renderStageStep = () => {
+    if (stageStatus === 'generating') {
+      return (
+        <LoadingScreen
+          visible
+          variant="stage"
+          title={stageLoadingTitle}
+          message={stageLoadingMessage}
+          mode="page"
         />
-      ) : null}
-      <div className="grid gap-4">
-        {stageOptions.map((option) => (
-          <ImageOption
-            key={option.id}
-            id={option.id}
-            selected={stageSelection?.id === option.id}
-            onSelect={handleStageSelect}
-            label={isJa ? 'これにする' : 'Choose this'}
-            image={
-              <img src={option.previewUrl} alt={isJa ? '景色' : 'Scenery'} className="h-full w-full object-cover" />
-            }
-          />
-        ))}
-      </div>
-      {!stageOptions.length && stageStatus !== 'generating' ? (
-        <p className="text-xs text-textSecondary">
-          {isJa ? '調整すると、あたらしい景色があらわれます。' : 'Adjust the description to refresh the scenery.'}
-        </p>
-      ) : null}
-      {stageGenerationError && !showStageAdjust ? (
-        <p className="text-xs text-[#ffb9b9]">{stageGenerationError}</p>
-      ) : null}
-      <div className="flex gap-3 pt-2">
-        <Button
-          type="button"
-          disabled={!stageSelection || stageStatus === 'generating'}
-          onClick={handleStageNext}
-        >
-          {isJa ? '次へ進む' : 'Next'}
-        </Button>
-        <button
-          type="button"
-          className="rounded-lg border border-divider px-4 py-2 text-sm text-textSecondary transition hover:border-accent"
-          onClick={() => setShowStageAdjust((prev) => !prev)}
-          disabled={stageStatus === 'generating'}
-        >
-          {isJa ? '調整する' : 'Adjust'}
-        </button>
-      </div>
-      {showStageAdjust ? (
-        <div className="space-y-3 rounded-2xl border border-divider bg-[rgba(237,241,241,0.04)] p-4">
-          <p className="text-xs text-textSecondary">
-            {isJa
-              ? 'ことばを手直しすると、景色の表情が変わります。'
-              : 'Tweak the description to reshape the scenery.'}
-          </p>
-          <RichInput
-            label=""
-            placeholder={
-              isJa
-                ? '木陰のベンチ。あたたかいひかりと、土と草の匂い…'
-                : 'A bench beneath trees, warm light, the smell of earth...'
-            }
-            value={placeText}
-            onChange={handlePlaceChange}
-            maxLength={300}
-            helperText={minLengthHint}
-            error={placeTouched && !placeValid ? minLengthHint : undefined}
-          />
-          <RichInput
-            label=""
-            placeholder={
-              isJa ? 'なぜその場所が大切なのか…' : 'Why this place matters...'
-            }
-            value={reasonText}
-            onChange={handleReasonChange}
-            maxLength={300}
-            helperText={minLengthHint}
-            error={reasonTouched && reasonText.trim().length < MIN_TEXT_LENGTH ? minLengthHint : undefined}
-          />
-          {stageGenerationError ? <p className="text-xs text-[#ffb9b9]">{stageGenerationError}</p> : null}
-          <div className="flex gap-3">
-            <Button
-              type="button"
-              onClick={handleStageApplyAdjust}
-              disabled={stageStatus === 'generating'}
-            >
-              {stageStatus === 'generating' ? generatingLabel : isJa ? '反映する' : 'Apply'}
-            </Button>
-            <button
-              type="button"
-              className="rounded-lg border border-divider px-4 py-2 text-sm text-textSecondary transition hover:border-accent"
-              onClick={() => setShowStageAdjust(false)}
-            >
-              {isJa ? '閉じる' : 'Close'}
-            </button>
-          </div>
-        </div>
-      ) : null}
-    </section>
-  );
+      );
+    }
 
-  const renderCharacterStep = () => (
-    <section className="space-y-4">
-      <StepLabel text={stepLabelText} />
-      <h2 className="text-base font-semibold text-textPrimary">
-        {isJa ? '出会ったエモカイ' : 'Meet your Emokai'}
-      </h2>
-      {characterStatus === 'generating' ? (
-        <MessageBlock
-          title={isJa ? 'エモカイを呼び出しています' : 'Summoning the Emokai'}
-          body={<p>{isJa ? 'もう少しだけお待ちください。' : 'One moment.'}</p>}
+    return (
+      <section className="space-y-4">
+        <StepLabel text={stepLabelText} />
+        <h2 className="text-base font-semibold text-textPrimary">
+          {isJa ? '景色をえらぶ' : 'Choose the scenery'}
+        </h2>
+        <div className="grid gap-4">
+          {stageOptions.map((option) => (
+            <ImageOption
+              key={option.id}
+              id={option.id}
+              selected={stageSelection?.id === option.id}
+              onSelect={handleStageSelect}
+              label={isJa ? 'これにする' : 'Choose this'}
+              image={
+                <img src={option.previewUrl} alt={isJa ? '景色' : 'Scenery'} className="h-full w-full object-cover" />
+              }
+            />
+          ))}
+        </div>
+        {!stageOptions.length ? (
+          <p className="text-xs text-textSecondary">
+            {isJa ? '調整すると、あたらしい景色があらわれます。' : 'Adjust the description to refresh the scenery.'}
+          </p>
+        ) : null}
+        {stageGenerationError && !showStageAdjust ? (
+          <p className="text-xs text-[#ffb9b9]">{stageGenerationError}</p>
+        ) : null}
+        <div className="flex gap-3 pt-2">
+          <Button
+            type="button"
+            disabled={!stageSelection}
+            onClick={handleStageNext}
+          >
+            {isJa ? '次へ進む' : 'Next'}
+          </Button>
+          <button
+            type="button"
+            className="rounded-lg border border-divider px-4 py-2 text-sm text-textSecondary transition hover:border-accent"
+            onClick={() => setShowStageAdjust((prev) => !prev)}
+          >
+            {isJa ? '調整する' : 'Adjust'}
+          </button>
+        </div>
+        {showStageAdjust ? (
+          <div className="space-y-3 rounded-2xl border border-divider bg-[rgba(237,241,241,0.04)] p-4">
+            <p className="text-xs text-textSecondary">
+              {isJa
+                ? 'ことばを手直しすると、景色の表情が変わります。'
+                : 'Tweak the description to reshape the scenery.'}
+            </p>
+            <RichInput
+              label=""
+              placeholder={
+                isJa
+                  ? '木陰のベンチ。あたたかいひかりと、土と草の匂い…'
+                  : 'A bench beneath trees, warm light, the smell of earth...'
+              }
+              value={placeText}
+              onChange={handlePlaceChange}
+              maxLength={300}
+              helperText={minLengthHint}
+              error={placeTouched && !placeValid ? minLengthHint : undefined}
+            />
+            <RichInput
+              label=""
+              placeholder={
+                isJa ? 'なぜその場所が大切なのか…' : 'Why this place matters...'
+              }
+              value={reasonText}
+              onChange={handleReasonChange}
+              maxLength={300}
+              helperText={minLengthHint}
+              error={reasonTouched && reasonText.trim().length < MIN_TEXT_LENGTH ? minLengthHint : undefined}
+            />
+            {stageGenerationError ? <p className="text-xs text-[#ffb9b9]">{stageGenerationError}</p> : null}
+            <div className="flex gap-3">
+              <Button type="button" onClick={handleStageApplyAdjust}>
+                {isJa ? '反映する' : 'Apply'}
+              </Button>
+              <button
+                type="button"
+                className="rounded-lg border border-divider px-4 py-2 text-sm text-textSecondary transition hover:border-accent"
+                onClick={() => setShowStageAdjust(false)}
+              >
+                {isJa ? '閉じる' : 'Close'}
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </section>
+    );
+  };
+
+  const renderCharacterStep = () => {
+    if (characterStatus === 'generating') {
+      return (
+        <LoadingScreen
+          visible
+          variant="character"
+          title={characterLoadingTitle}
+          message={characterLoadingMessage}
+          mode="page"
         />
-      ) : null}
-      <div className="grid gap-4">
-        {characterOptions.map((option) => (
-          <ImageOption
-            key={option.id}
-            id={option.id}
-            selected={characterSelection?.id === option.id}
-            onSelect={handleCharacterSelect}
-            label={isJa ? 'これにする' : 'Choose this'}
-            image={
-              <img src={option.previewUrl} alt={isJa ? 'エモカイ' : 'Emokai'} className="h-full w-full object-cover" />
-            }
-          />
-        ))}
-      </div>
-      {characterGenerationError && !showCharacterAdjust ? (
-        <p className="text-xs text-[#ffb9b9]">{characterGenerationError}</p>
-      ) : null}
-      <div className="flex gap-3 pt-2">
-        <Button
-          type="button"
-          onClick={handleCharacterNext}
-          disabled={!characterSelection || characterStatus === 'generating'}
-        >
-          {isJa ? '次へ進む' : 'Next'}
-        </Button>
-        <button
-          type="button"
-          className="rounded-lg border border-divider px-4 py-2 text-sm text-textSecondary transition hover:border-accent"
-          onClick={() => setShowCharacterAdjust((prev) => !prev)}
-          disabled={characterStatus === 'generating'}
-        >
-          {isJa ? '調整する' : 'Adjust'}
-        </button>
-      </div>
-      {showCharacterAdjust ? (
-        <div className="space-y-3 rounded-2xl border border-divider bg-[rgba(237,241,241,0.04)] p-4">
-          <p className="text-xs text-textSecondary">
-            {isJa
-              ? '気になるところがあれば書き直して、あらためて呼び出せます。'
-              : 'Tweak the description to regenerate new companions.'}
-          </p>
-          <RichInput
-            label=""
-            placeholder={
-              isJa
-                ? '薄い水色で半透明。胸に小さな灯。歩くと鈴の音…'
-                : 'Pale blue and translucent; a small light in its chest...'
-            }
-            value={appearanceText}
-            onChange={handleAppearanceChange}
-            maxLength={400}
-            helperText={minLengthHint}
-            error={appearanceTouched && !appearanceValid ? minLengthHint : undefined}
-          />
-          {characterGenerationError ? <p className="text-xs text-[#ffb9b9]">{characterGenerationError}</p> : null}
-          <div className="flex gap-3">
-            <Button
-              type="button"
-              onClick={handleCharacterApplyAdjust}
-              disabled={characterStatus === 'generating'}
-            >
-              {characterStatus === 'generating' ? generatingLabel : isJa ? '反映する' : 'Apply'}
-            </Button>
-            <button
-              type="button"
-              className="rounded-lg border border-divider px-4 py-2 text-sm text-textSecondary transition hover:border-accent"
-              onClick={() => setShowCharacterAdjust(false)}
-            >
-              {isJa ? '閉じる' : 'Close'}
-            </button>
-          </div>
-        </div>
-      ) : null}
-    </section>
-  );
+      );
+    }
 
-  const renderGenerationStep = () => (
-    <section className="space-y-4">
-      <h2 className="text-base font-semibold text-textPrimary">
-        {isJa ? 'エモカイを呼び出しています…' : 'Preparing your Emokai...'}
-      </h2>
-      <p className="text-sm text-textSecondary">
-        {isJa
-          ? 'あなたの気持ちを手がかりに、エモカイと物語を呼び出しています。'
-          : 'Shaping the figure and story from your feelings.'}
-      </p>
-      <ProgressBar stages={progressStages} />
-      {generationError ? (
-        <p className="text-xs text-[#ffb9b9]">{generationError}</p>
-      ) : !allReady ? (
-        <p className="text-xs text-textSecondary opacity-70">
-          {isJa ? 'もう少しだけお待ちください。' : 'Almost there—hold tight.'}
+    return (
+      <section className="space-y-4">
+        <StepLabel text={stepLabelText} />
+        <h2 className="text-base font-semibold text-textPrimary">
+          {isJa ? '出会ったエモカイ' : 'Meet your Emokai'}
+        </h2>
+        <div className="grid gap-4">
+          {characterOptions.map((option) => (
+            <ImageOption
+              key={option.id}
+              id={option.id}
+              selected={characterSelection?.id === option.id}
+              onSelect={handleCharacterSelect}
+              label={isJa ? 'これにする' : 'Choose this'}
+              image={
+                <img src={option.previewUrl} alt={isJa ? 'エモカイ' : 'Emokai'} className="h-full w-full object-cover" />
+              }
+            />
+          ))}
+        </div>
+        {characterGenerationError && !showCharacterAdjust ? (
+          <p className="text-xs text-[#ffb9b9]">{characterGenerationError}</p>
+        ) : null}
+        <div className="flex gap-3 pt-2">
+          <Button type="button" onClick={handleCharacterNext} disabled={!characterSelection}>
+            {isJa ? '次へ進む' : 'Next'}
+          </Button>
+          <button
+            type="button"
+            className="rounded-lg border border-divider px-4 py-2 text-sm text-textSecondary transition hover:border-accent"
+            onClick={() => setShowCharacterAdjust((prev) => !prev)}
+          >
+            {isJa ? '調整する' : 'Adjust'}
+          </button>
+        </div>
+        {showCharacterAdjust ? (
+          <div className="space-y-3 rounded-2xl border border-divider bg-[rgba(237,241,241,0.04)] p-4">
+            <p className="text-xs text-textSecondary">
+              {isJa
+                ? '気になるところがあれば書き直して、あらためて呼び出せます。'
+                : 'Tweak the description to regenerate new companions.'}
+            </p>
+            <RichInput
+              label=""
+              placeholder={
+                isJa
+                  ? '薄い水色で半透明。胸に小さな灯。歩くと鈴の音…'
+                  : 'Pale blue and translucent; a small light in its chest...'
+              }
+              value={appearanceText}
+              onChange={handleAppearanceChange}
+              maxLength={400}
+              helperText={minLengthHint}
+              error={appearanceTouched && !appearanceValid ? minLengthHint : undefined}
+            />
+            {characterGenerationError ? <p className="text-xs text-[#ffb9b9]">{characterGenerationError}</p> : null}
+            <div className="flex gap-3">
+              <Button type="button" onClick={handleCharacterApplyAdjust}>
+                {isJa ? '反映する' : 'Apply'}
+              </Button>
+              <button
+                type="button"
+                className="rounded-lg border border-divider px-4 py-2 text-sm text-textSecondary transition hover:border-accent"
+                onClick={() => setShowCharacterAdjust(false)}
+              >
+                {isJa ? '閉じる' : 'Close'}
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </section>
+    );
+  };
+
+  const renderGenerationStep = () => {
+    if (!allReady) {
+      return (
+        <LoadingScreen
+          visible
+          variant="creation"
+          title={creationLoadingTitle}
+          message={
+            <div className="space-y-3">
+              <p className="text-xs leading-5 text-textSecondary">
+                {generationError ?? creationLoadingMessage}
+              </p>
+              <ProgressBar stages={progressStages} />
+            </div>
+          }
+          mode="page"
+        />
+      );
+    }
+
+    return (
+      <section className="space-y-4">
+        <h2 className="text-base font-semibold text-textPrimary">
+          {isJa ? 'エモカイが準備できました' : 'Your Emokai is ready'}
+        </h2>
+        <p className="text-sm text-textSecondary">
+          {isJa
+            ? '景色とエモカイ、物語がそろいました。記録を確認しましょう。'
+            : 'The scenery, companion, and story are here. Let’s review them.'}
         </p>
-      ) : null}
-      {allReady ? (
+        <ProgressBar stages={progressStages} />
         <div className="pt-2">
           <button
             type="button"
@@ -1583,9 +1596,9 @@ export default function EmokaiStepPage({ params }: Props) {
             {isJa ? '記録を確認する' : 'View record'}
           </button>
         </div>
-      ) : null}
-    </section>
-  );
+      </section>
+    );
+  };
 
   const renderDiscoveryStep = () => (
     <section className="space-y-4">
@@ -2062,6 +2075,17 @@ export default function EmokaiStepPage({ params }: Props) {
           </section>
         );
       case 6:
+        if (stageStatus === 'generating') {
+          return (
+            <LoadingScreen
+              visible
+              variant="stage"
+              title={stageLoadingTitle}
+              message={stageLoadingMessage}
+              mode="page"
+            />
+          );
+        }
         return (
           <section className="space-y-3">
             <StepLabel text={stepLabelText} />
@@ -2091,15 +2115,11 @@ export default function EmokaiStepPage({ params }: Props) {
               helperText={minLengthHint}
               error={reasonTouched && !reasonValid ? minLengthHint : undefined}
             />
-            {stageStatus === 'generating' ? (
-              <p className="text-xs text-textSecondary">{generatingLabel}</p>
-            ) : null}
             <div className="pt-2">
               <button
                 type="button"
-                className={`${primaryButtonClass} ${stageStatus === 'generating' ? 'opacity-60' : ''}`}
+                className={primaryButtonClass}
                 onClick={handleProceedToStageStep}
-                disabled={stageStatus === 'generating'}
               >
                 {isJa ? '場所を映し出す' : 'Reveal the place'}
               </button>
@@ -2151,6 +2171,17 @@ export default function EmokaiStepPage({ params }: Props) {
           </section>
         );
       case 9:
+        if (characterStatus === 'generating') {
+          return (
+            <LoadingScreen
+              visible
+              variant="character"
+              title={characterLoadingTitle}
+              message={characterLoadingMessage}
+              mode="page"
+            />
+          );
+        }
         return (
           <section className="space-y-3">
             <StepLabel text={stepLabelText} />
@@ -2175,18 +2206,14 @@ export default function EmokaiStepPage({ params }: Props) {
               helperText={minLengthHint}
               error={appearanceTouched && !appearanceValid ? minLengthHint : undefined}
             />
-            {characterStatus === 'generating' ? (
-              <p className="text-xs text-textSecondary">{generatingLabel}</p>
-            ) : null}
             {characterGenerationError ? (
               <p className="text-xs text-[#ffb9b9]">{characterGenerationError}</p>
             ) : null}
             <div className="pt-2">
               <button
                 type="button"
-                className={`${primaryButtonClass} ${characterStatus === 'generating' ? 'opacity-60' : ''}`}
+                className={primaryButtonClass}
                 onClick={handleProceedToCharacterStep}
-                disabled={characterStatus === 'generating'}
               >
                 {isJa ? 'エモカイの姿を映し出す' : 'Reveal the Emokai'}
               </button>
@@ -2228,32 +2255,6 @@ export default function EmokaiStepPage({ params }: Props) {
       />
       <Divider />
       <div className="flex-1 space-y-6 overflow-y-auto px-4 py-6 sm:px-6">{content}</div>
-      <LoadingScreen
-        visible={stageStatus === 'generating'}
-        variant="stage"
-        title={stageLoadingTitle}
-        message={stageLoadingMessage}
-      />
-      <LoadingScreen
-        visible={characterStatus === 'generating'}
-        variant="character"
-        title={characterLoadingTitle}
-        message={characterLoadingMessage}
-      />
-      <LoadingScreen
-        visible={step === 11 && generationRunning}
-        variant="creation"
-        title={creationLoadingTitle}
-        message={creationLoadingMessage}
-        footer={
-          <div className="space-y-3">
-            <ProgressBar stages={progressStages} />
-            <p className="text-xs text-textSecondary">
-              {isJa ? 'もう少しだけお待ちください。' : 'Almost there—hold tight.'}
-            </p>
-          </div>
-        }
-      />
     </main>
   );
 }

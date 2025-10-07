@@ -5,12 +5,12 @@
 - [x] Step 0 flow: device detection, language toggle, terms consent, session ID generation, permissions notice, moderation pre-checks.
 - [x] Stage flow (Step A): text entry with moderation, upload pipeline (camera/library permissions, EXIF strip, resize/WebP, cleanup), Nanobanana stage generation, selection UI.
   - Oct 07 2025: Updated early-step flow — Step3 now hosts the map search with compact placeholder guidance, Step4 becomes a guided visualization (“目を閉じて…”) before feelings selection, Step5 captures emotions ahead of the reason text. Stage prompt prioritizes the “why” copy, enforces a 30 m focus radius, and requests photoreal scenery-only outputs.
-  - Oct 08 2025: Added dedicated loop-GIF loading overlays for scenery regeneration to keep the flow immersive while waiting on AI outputs.
+  - Oct 08 2025: Added dedicated loop-GIF loading screens for scenery regeneration to keep the flow immersive while waiting on AI outputs.
 - [x] Character flow (Step B): description moderation, Nanobanana character outputs, selection UI, progress bar kickoff, session lock.
   - Oct 08 2025: Integrated the matching loop-GIF loading screen while Emokai options generate.
 - [x] Parallel jobs (Step C1–C3): TripoAPI model generation (timeouts, storage), Nanobanana composite, OpenAI narrative with sanitization and status updates.
   - Oct 05 2025: Added automatic USDZ conversion via Tripo "convert_model" tasks when native output missing; emits debug logs for format selection on preview builds.
-  - Oct 08 2025: Reused the creation loop-GIF overlay during the combined 3D/Composite/Story jobs to surface progress inside a dedicated loading screen.
+  - Oct 08 2025: Reused the creation loop-GIF screen during the combined 3D/Composite/Story jobs to surface progress while assets build.
 - [x] Result screens (Step D): narrative view, composite display, AR entry gating, license notice, unload cancellation handling.
 - [x] AR & 3D viewer (Step E): WebAR implementation, permission prompts, plane detection guidance, capture/save per OS, fallback viewer.
 - [x] Persistence & sharing (Step F): daily limits, asset/metadata persistence, expiring share URLs, share sheet, OGP metadata.
