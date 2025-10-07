@@ -1750,7 +1750,7 @@ export default function EmokaiStepPage({ params }: Props) {
     return (
       <section className="space-y-4">
         <h2 className="text-base font-semibold text-textPrimary">
-          {isJa ? 'エモカイが準備できました' : 'Your Emokai is ready'}
+          {isJa ? 'あなたのエモカイを発見しました!' : 'Your Emokai is ready'}
         </h2>
         <p className="text-sm text-textSecondary">
           {isJa
@@ -2225,13 +2225,13 @@ export default function EmokaiStepPage({ params }: Props) {
             </h2>
             <p className="text-sm text-textSecondary">
               {isJa
-                ? '目を閉じて、その場所を歩くところを想像してみましょう。風、光、音…その先でエモカイが待っています。'
-                : 'Close your eyes and picture yourself walking there—the wind, the light, the sounds, and the Emokai waiting ahead.'}
+                ? '目を閉じて、その場所を歩くところを想像してみましょう。'
+                : 'Close your eyes and picture yourself walking there.'}
             </p>
             <p className="text-sm text-textSecondary">
               {isJa
-                ? 'なぜ、その場所があなたにとって大事なのか教えてください。思い出でも、気持ちでも、願いでも。その想いが、エモカイの“こころ”になります。'
-                : 'Share why this place matters—memories, feelings, wishes. They become the Emokai’s heart.'}
+                ? 'その感情を選択した時に見えていた景色を説明してください。'
+                : 'Describe the scenery you saw when you chose that emotion.'}
             </p>
             <RichInput
               label=""
@@ -2264,12 +2264,12 @@ export default function EmokaiStepPage({ params }: Props) {
           <section className="space-y-3">
             <StepLabel text={stepLabelText} />
             <h2 className="text-base font-semibold text-textPrimary">
-              {isJa ? 'エモカイは何をする？' : 'What does the Emokai do?'}
+              {isJa ? 'あなたとエモカイ' : 'What does the Emokai do?'}
             </h2>
             <p className="text-sm text-textSecondary">
               {isJa
-                ? 'あなたがそこへ行くと、エモカイはどう動きますか。そっと寄りそう？ いたずらする？ 見守ってくれる？'
-                : 'When you arrive, how does your Emokai behave? Approaches? Teases? Watches over you?'}
+                ? 'あなたは、エモカイに何をしてほしいですか？'
+                : 'What do you want emokai to do for you?'}
             </p>
             <RichInput
               label=""
@@ -2321,7 +2321,7 @@ export default function EmokaiStepPage({ params }: Props) {
             </h2>
             <p className="text-sm text-textSecondary">
               {isJa
-                ? '色、質感、大きさ、音、匂い…思いつくことを自由に。'
+                ? 'その行動を取るために、エモカイはどのような姿・形をしていますか？'
                 : 'Color, texture, size, sounds, scents—anything you imagine.'}
             </p>
             <RichInput
