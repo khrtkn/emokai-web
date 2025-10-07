@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import createMiddleware from 'next-intl/middleware';
+import type { NextRequest } from 'next/server';
 
 const intlMiddleware = createMiddleware({
   locales: ['ja', 'en'],
   defaultLocale: 'ja'
 });
 
-export default function middleware(request: Request) {
+export default function middleware(request: NextRequest) {
   const url = new URL(request.url);
   const pathname = url.pathname;
 
