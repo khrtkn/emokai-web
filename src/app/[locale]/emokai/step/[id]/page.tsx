@@ -2,7 +2,6 @@
 
 import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import {
@@ -40,13 +39,14 @@ import {
   releaseGenerationLock,
 } from '@/lib/session-lock';
 import type { Locale } from '@/lib/i18n/messages';
-import { saveCreation, listCreations, type CreationPayload } from '@/lib/persistence';
+import { listCreations, type CreationPayload } from '@/lib/persistence';
 import { cacheImage, getCachedImage, base64ToBlob } from '@/lib/image-cache';
 import { isLiveApisEnabled } from '@/lib/env/client';
 import { getModelTargetFormats } from '@/lib/device';
 
 const MIN_TEXT_LENGTH = 1;
 const TOTAL_STEPS = 15;
+const AR_SUMMON_STORAGE_KEY = 'emokai_ar_launched';
 
 type EmotionGroup = {
   id: string;
@@ -200,8 +200,6 @@ const StepLabel = ({ text }: { text?: string }) => {
 
 const primaryButtonClass =
   'inline-block min-h-[44px] rounded-lg bg-accent px-6 text-sm font-semibold text-black transition hover:opacity-90';
-const secondaryButtonClass =
-  'inline-block rounded-lg border border-divider px-4 py-2 text-sm text-textPrimary transition hover:border-accent';
 
 function formatDate(value: string, locale: Locale) {
   try {
@@ -492,11 +490,11 @@ export default function EmokaiStepPage({ params }: Props) {
   );
 
   const [creations, setCreations] = useState<CreationPayload[]>(() => listCreations());
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [shareDetails, setShareDetails] = useState<{ url: string; expiresAt?: string } | null>(
-    null,
-  );
+  const initialSummonState = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return window.sessionStorage.getItem(AR_SUMMON_STORAGE_KEY) === 'true';
+  }, []);
+  const [hasSummoned, setHasSummoned] = useState(initialSummonState);
 
   useEffect(() => {
     if (!stageProcessedImage) return;
@@ -524,9 +522,7 @@ export default function EmokaiStepPage({ params }: Props) {
   const minLengthHint = isJa ? '何か入力してください' : 'Please enter at least one character.';
   const selectOneHint = isJa ? '少なくとも1つえらんでください' : 'Please select at least one.';
   const nextLabel = isJa ? 'つづける' : 'Continue';
-  const selectNextLabel = isJa ? 'これにする' : 'Choose this';
   const summonLabel = isJa ? '呼び出す' : 'Summon';
-  const createAnotherLabel = isJa ? '新しくつくる' : 'Create new';
   const stageLoadingTitle = isJa ? '景色を映し出しています' : 'Rendering the scenery';
   const stageLoadingMessage = isJa
     ? 'あなたが思い浮かべた場所の空気や光を集めています。'
@@ -1117,6 +1113,26 @@ export default function EmokaiStepPage({ params }: Props) {
     }
   };
 
+  const handleArSummon = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(AR_SUMMON_STORAGE_KEY, 'true');
+    }
+    setHasSummoned(true);
+    router.push(`/${locale}/ar`);
+  }, [locale, router]);
+
+  const handleSummonContinue = useCallback(() => {
+    router.push(`/${locale}/emokai/step/15`);
+  }, [locale, router]);
+
+  const handleSendOff = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem(AR_SUMMON_STORAGE_KEY);
+    }
+    setHasSummoned(false);
+    router.push(`/${locale}/gallery`);
+  }, [locale, router]);
+
   const handleCharacterRegenerate = async () => {
     if (characterPrompt.trim().length < MIN_TEXT_LENGTH) {
       setCharacterGenerationError(
@@ -1392,24 +1408,6 @@ export default function EmokaiStepPage({ params }: Props) {
     if (!mapQuery) return null;
     return `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=16&t=k&output=embed`;
   }, [mapQuery]);
-
-  const persistCreation = () => {
-    setSaveStatus('saving');
-    setSaveError(null);
-    const result = saveCreation();
-    if (result.success) {
-      setSaveStatus('saved');
-      setShareDetails({ url: result.shareUrl ?? '', expiresAt: result.expiresAt });
-      setCreations(listCreations());
-    } else {
-      setSaveStatus('error');
-      setSaveError(
-        result.error ??
-          (isJa ? 'まだ保存できていません。もう一度ためしてみましょう。' : 'Could not save.'),
-      );
-    }
-    return result;
-  };
 
   // ====== 画面パーツ ======
 
@@ -1758,141 +1756,89 @@ export default function EmokaiStepPage({ params }: Props) {
     </section>
   );
 
-  const renderSummonStep = () => (
-    <section className="space-y-4">
-      <h2 className="text-base font-semibold text-textPrimary">
-        {isJa ? 'この世界に呼び出す' : 'Bring into this world'}
-      </h2>
-      <p className="text-sm text-textSecondary">
-        {isJa
-          ? 'カメラをひらいて、近くの平らな場所にあらわれてもらいましょう。明るいところだと見つけやすいです。'
-          : 'Open the camera and place it on a flat surface. Bright places work best.'}
-      </p>
-      <div className="flex gap-3 pt-2">
-        <button
-          type="button"
-          className={primaryButtonClass}
-          onClick={() => router.push(`/${locale}/ar`)}
-        >
-          {summonLabel}
-        </button>
-        <button
-          type="button"
-          className={secondaryButtonClass}
-          onClick={() => router.push(`/${locale}/emokai/step/15`)}
-        >
-          {isJa ? 'つぎへ' : 'Next'}
-        </button>
-      </div>
-    </section>
-  );
+  const renderSummonStep = () => {
+    const description = hasSummoned
+      ? isJa
+        ? 'エモカイが現実の世界に姿を見せてくれました。旅立つ準備ができたら、次へ進みましょう。'
+        : 'Your Emokai has just visited your space. When you are ready, continue to send them off.'
+      : isJa
+        ? 'カメラをひらいて、近くの平らな場所にあらわれてもらいましょう。明るいところだと見つけやすいです。'
+        : 'Open the camera and place it on a flat surface. Bright places work best.';
+
+    return (
+      <section className="space-y-4">
+        <h2 className="text-base font-semibold text-textPrimary">
+          {isJa ? 'この世界に呼び出す' : 'Bring into this world'}
+        </h2>
+        <p className="text-sm text-textSecondary">{description}</p>
+        {hasSummoned ? (
+          <>
+            <div className="pt-2">
+              <button
+                type="button"
+                className={primaryButtonClass}
+                onClick={handleSummonContinue}
+              >
+                {isJa ? '次へ進む' : 'Continue'}
+              </button>
+            </div>
+            <button
+              type="button"
+              className="text-sm text-accent underline transition hover:opacity-80"
+              onClick={handleArSummon}
+            >
+              {isJa ? 'もう一度呼び出す' : 'Summon again'}
+            </button>
+          </>
+        ) : (
+          <div className="pt-2">
+            <button type="button" className={primaryButtonClass} onClick={handleArSummon}>
+              {summonLabel}
+            </button>
+          </div>
+        )}
+      </section>
+    );
+  };
 
   const renderGalleryStep = () => (
     <section className="space-y-4">
       <h2 className="text-base font-semibold text-textPrimary">
-        {isJa ? 'あなたのエモカイたち' : 'Your Emokai'}
+        {isJa ? 'エモカイを世界へ送り出す' : 'Send your Emokai off'}
       </h2>
-      <div className="space-y-2">
-        <button
-          type="button"
-          className={`${primaryButtonClass} ${saveStatus === 'saving' ? 'opacity-50 pointer-events-none' : ''}`}
-          onClick={() => {
-            persistCreation();
-          }}
-        >
-          {saveStatus === 'saving'
-            ? isJa
-              ? '保存しています…'
-              : 'Saving...'
-            : isJa
-              ? '作品を保存'
-              : 'Save creation'}
-        </button>
-        {saveStatus === 'error' && saveError ? (
-          <p className="text-xs text-[#ffb9b9]">{saveError}</p>
-        ) : null}
-        {shareDetails ? (
-          <div className="rounded-2xl border border-divider bg-[rgba(237,241,241,0.04)] p-4 text-xs text-textSecondary">
-            <p className="font-semibold text-textPrimary">{isJa ? '共有リンク' : 'Share link'}</p>
-            <p className="break-all pt-2">{shareDetails.url}</p>
-            {shareDetails.expiresAt ? (
-              <p className="pt-1">
-                {isJa ? '有効期限' : 'Expires'}: {formatDate(shareDetails.expiresAt, localeKey)}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
+      <p className="text-sm text-textSecondary">
+        {isJa
+          ? 'あなたのエモカイは旅に出る準備ができました。ギャラリーではいつでも再会できます。'
+          : 'Your Emokai is ready to journey onward. You can revisit them anytime in the gallery.'}
+      </p>
+      <div className="aspect-square w-full overflow-hidden rounded-2xl border border-divider bg-[rgba(237,241,241,0.08)]">
+        {(() => {
+          const composite = generationResults?.results.composite;
+          if (!composite) return null;
+          const url =
+            (composite.url &&
+            (composite.url.startsWith('data:') ||
+              composite.url.startsWith('blob:') ||
+              /^https?:/i.test(composite.url))
+              ? composite.url
+              : null) ??
+            (composite.imageBase64 && composite.mimeType
+              ? `data:${composite.mimeType};base64,${composite.imageBase64}`
+              : null);
+          if (!url) return null;
+          return (
+            <img
+              src={url}
+              alt={isJa ? 'エモカイのすがた' : 'Emokai composite'}
+              className="h-full w-full object-cover"
+            />
+          );
+        })()}
       </div>
-      {creations.length === 0 ? (
-        <MessageBlock
-          title={isJa ? 'まだいないようですね！' : 'Looks empty!'}
-          body={
-            <p>
-              {isJa ? 'まずはひとつ生み出してみましょう。' : 'Start by creating your first one.'}
-            </p>
-          }
-        />
-      ) : (
-        <div className="grid gap-4">
-          {creations.map((creation, index) => {
-            const stage = (creation.stageSelection as StageSelectionPayload | null)?.selectedOption;
-            const character = (creation.characterSelection as CharacterSelectionPayload | null)
-              ?.selectedOption;
-            const results = creation.results as StoredGenerationPayload['results'] | undefined;
-            const story = results?.story;
-            const composite = results?.composite as
-              | (CompositeResult & { mimeType?: string })
-              | undefined;
-            const compositeUrl =
-              (composite?.url &&
-              (composite.url.startsWith('data:') ||
-                composite.url.startsWith('blob:') ||
-                /^https?:/i.test(composite.url))
-                ? composite.url
-                : undefined) ??
-              (composite?.imageBase64 && composite?.mimeType
-                ? `data:${composite.mimeType};base64,${composite.imageBase64}`
-                : undefined);
-            return (
-              <div
-                key={`${creation.createdAt}-${index}`}
-                className="overflow-hidden rounded-3xl border border-divider bg-[rgba(237,241,241,0.04)]"
-              >
-                {compositeUrl ? (
-                  <img
-                    src={compositeUrl}
-                    alt={isJa ? 'エモカイ' : 'Generated composite'}
-                    className="h-40 w-full object-cover"
-                  />
-                ) : stage?.previewUrl ? (
-                  <img
-                    src={stage.previewUrl}
-                    alt={isJa ? '景色' : 'Generated stage'}
-                    className="h-40 w-full object-cover"
-                  />
-                ) : null}
-                <div className="space-y-2 p-4 text-xs text-textSecondary">
-                  <p className="font-semibold text-textPrimary">
-                    {formatDate(creation.createdAt, localeKey)}
-                  </p>
-                  <p className="line-clamp-2 text-textPrimary">{story?.content ?? ''}</p>
-                  {character?.previewUrl ? (
-                    <img
-                      src={character.previewUrl}
-                      alt={isJa ? 'エモカイ' : 'Emokai'}
-                      className="h-24 w-full rounded-2xl object-cover"
-                    />
-                  ) : null}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
       <div className="pt-2">
-        <Link href={`/${locale}/start`} className={primaryButtonClass}>
-          {createAnotherLabel}
-        </Link>
+        <button type="button" className={primaryButtonClass} onClick={handleSendOff}>
+          {isJa ? '送り出す' : 'Send off'}
+        </button>
       </div>
     </section>
   );

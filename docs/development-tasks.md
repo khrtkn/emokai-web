@@ -12,6 +12,7 @@
   - Oct 05 2025: Added automatic USDZ conversion via Tripo "convert_model" tasks when native output missing; emits debug logs for format selection on preview builds.
   - Oct 08 2025: Reused the creation loop-GIF screen during the combined 3D/Composite/Story jobs to surface progress while assets build.
 - [x] Result screens (Step D): narrative view, composite display, AR entry gating, license notice, unload cancellation handling.
+  - Oct 08 2025: Refined post-AR flow — Step14 now swaps from summon-only to a release confirmation, and Step15 sends the user back to the gallery with a single send-off action.
 - [x] AR & 3D viewer (Step E): WebAR implementation, permission prompts, plane detection guidance, capture/save per OS, fallback viewer.
 - [x] Persistence & sharing (Step F): daily limits, asset/metadata persistence, expiring share URLs, share sheet, OGP metadata.
 - [x] Gallery (Step G): paginated public grid, detail view with AR/share options, license display, infinite scroll.
