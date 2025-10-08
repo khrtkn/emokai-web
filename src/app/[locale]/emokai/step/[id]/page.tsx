@@ -368,7 +368,11 @@ async function compressBase64Image(
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
+    if (typeof window === 'undefined' || typeof window.Image === 'undefined') {
+      reject(new Error('Image constructor unavailable'));
+      return;
+    }
+    const img = new window.Image();
     img.onload = () => resolve(img);
     img.onerror = (event) => {
       reject(event instanceof ErrorEvent ? event.error : new Error('Failed to load image'));
