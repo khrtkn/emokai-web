@@ -5,7 +5,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { MutableRefObject, useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
 import dynamic from "next/dynamic";
-import type { ViewState as MapViewState } from "react-map-gl";
+import type { ViewState as MapViewState, PaddingOptions } from "react-map-gl";
 import type { GalleryCardData } from "@/components/public-gallery-grid";
 
 const Map = dynamic(() => import("react-map-gl"), { ssr: false });
@@ -55,7 +55,8 @@ export function GalleryMap({ items, cardRefs }: GalleryMapProps) {
         latitude: anchor.lat,
         zoom: 9,
         bearing: 0,
-        pitch: 0
+        pitch: 0,
+        padding: { top: 0, bottom: 0, left: 0, right: 0 }
       };
     }
     return {
@@ -63,7 +64,8 @@ export function GalleryMap({ items, cardRefs }: GalleryMapProps) {
       latitude: 35.681,
       zoom: 3,
       bearing: 0,
-      pitch: 0
+      pitch: 0,
+      padding: { top: 0, bottom: 0, left: 0, right: 0 }
     };
   }, [markers]);
 
@@ -94,7 +96,8 @@ export function GalleryMap({ items, cardRefs }: GalleryMapProps) {
             latitude: event.viewState.latitude,
             zoom: event.viewState.zoom,
             bearing: event.viewState.bearing ?? prev.bearing,
-            pitch: event.viewState.pitch ?? prev.pitch
+            pitch: event.viewState.pitch ?? prev.pitch,
+            padding: prev.padding
           }))
         }
         mapStyle={MAPBOX_STYLE_DARK}
