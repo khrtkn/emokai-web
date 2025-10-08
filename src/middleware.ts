@@ -11,7 +11,12 @@ export default function middleware(request: NextRequest) {
   const url = new URL(request.url);
   const pathname = url.pathname;
 
-  if (pathname === '/' || pathname.startsWith('/splash')) {
+  if (
+    pathname === '/' ||
+    pathname.startsWith('/splash') ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/api/gallery/review')
+  ) {
     return NextResponse.next();
   }
 
