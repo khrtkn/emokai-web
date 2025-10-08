@@ -2,7 +2,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import createNextIntlPlugin from 'next-intl/plugin';
 
-const withNextIntl = createNextIntlPlugin('./next-intl.config.ts');
+const withNextIntl = createNextIntlPlugin('./next-intl.config.ts', {
+  publicRoutes: ['/admin/:path*', '/api/gallery/review/:path*']
+});
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
