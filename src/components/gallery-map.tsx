@@ -17,6 +17,15 @@ type GalleryMapProps = {
 
 const MAPBOX_STYLE_DARK = "mapbox://styles/mapbox/dark-v11";
 
+type ViewState = {
+  longitude: number;
+  latitude: number;
+  zoom: number;
+  bearing: number;
+  pitch: number;
+  padding: number | { top: number; bottom: number; left: number; right: number };
+};
+
 export function GalleryMap({ items, cardRefs }: GalleryMapProps) {
   const locale = useLocale();
   const accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -46,15 +55,29 @@ export function GalleryMap({ items, cardRefs }: GalleryMapProps) {
     [items]
   );
 
-  const initialView = useMemo(() => {
+  const initialView = useMemo((): ViewState => {
     if (markers.length) {
       const anchor = markers[Math.floor(Math.random() * markers.length)];
-      return { longitude: anchor.lng, latitude: anchor.lat, zoom: 9 };
+      return {
+        longitude: anchor.lng,
+        latitude: anchor.lat,
+        zoom: 9,
+        bearing: 0,
+        pitch: 0,
+        padding: 0
+      };
     }
-    return { longitude: 139.767, latitude: 35.681, zoom: 3 };
+    return {
+      longitude: 139.767,
+      latitude: 35.681,
+      zoom: 3,
+      bearing: 0,
+      pitch: 0,
+      padding: 0
+    };
   }, [markers]);
 
-  const [viewState, setViewState] = useState(initialView);
+  const [viewState, setViewState] = useState<ViewState>(initialView);
 
   useEffect(() => {
     setViewState(initialView);
@@ -75,7 +98,16 @@ export function GalleryMap({ items, cardRefs }: GalleryMapProps) {
       <Map
         initialViewState={initialView}
         viewState={viewState}
-        onMove={(event) => setViewState(event.viewState)}
+        onMove={(event) =>
+          setViewState((prev) => ({
+            longitude: event.viewState.longitude,
+            latitude: event.viewState.latitude,
+            zoom: event.viewState.zoom,
+            bearing: event.viewState.bearing ?? prev.bearing,
+            pitch: event.viewState.pitch ?? prev.pitch,
+            padding: prev.padding
+          }))
+        }
         mapStyle={MAPBOX_STYLE_DARK}
         mapboxAccessToken={accessToken}
         attributionControl={false}
