@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { MutableRefObject, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 export type GalleryCardData = {
@@ -9,6 +9,9 @@ export type GalleryCardData = {
   story: string | null;
   thumbnail: string | null;
   publishedAt: string | null;
+  composite?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 type PublicGalleryGridProps = {
@@ -16,6 +19,8 @@ type PublicGalleryGridProps = {
   initialItems: GalleryCardData[];
   initialCursor: string | null;
   pageSize?: number;
+  cardRefs?: MutableRefObject<Record<string, HTMLAnchorElement | null>>;
+  onItemsChange?: (items: GalleryCardData[]) => void;
 };
 
 type ApiResponse = {
@@ -24,8 +29,11 @@ type ApiResponse = {
     characterName: string;
     story: string | null;
     publishedAt: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
     assets?: {
       thumbnail?: string | null;
+      composite?: string | null;
     } | null;
   }[];
   nextCursor: string | null;
@@ -44,7 +52,14 @@ function formatDate(value: string | null, locale: string) {
   }
 }
 
-export function PublicGalleryGrid({ locale, initialItems, initialCursor, pageSize = 12 }: PublicGalleryGridProps) {
+export function PublicGalleryGrid({
+  locale,
+  initialItems,
+  initialCursor,
+  pageSize = 12,
+  cardRefs,
+  onItemsChange
+}: PublicGalleryGridProps) {
   const isJa = locale === "ja";
   const [items, setItems] = useState<GalleryCardData[]>(initialItems);
   const [cursor, setCursor] = useState<string | null>(initialCursor);
@@ -74,6 +89,12 @@ export function PublicGalleryGrid({ locale, initialItems, initialCursor, pageSiz
 
   const hasItems = items.length > 0;
 
+  useEffect(() => {
+    if (onItemsChange) {
+      onItemsChange(items);
+    }
+  }, [items, onItemsChange]);
+
   const handleLoadMore = async () => {
     if (!cursor || loading) return;
     setLoading(true);
@@ -100,7 +121,10 @@ export function PublicGalleryGrid({ locale, initialItems, initialCursor, pageSiz
         characterName: item.characterName,
         story: item.story,
         publishedAt: item.publishedAt,
-        thumbnail: item.assets?.thumbnail ?? null
+        thumbnail: item.assets?.thumbnail ?? null,
+        composite: item.assets?.composite ?? null,
+        latitude: item.latitude ?? null,
+        longitude: item.longitude ?? null
       }));
 
       setItems((prev) => {
@@ -132,6 +156,11 @@ export function PublicGalleryGrid({ locale, initialItems, initialCursor, pageSiz
           <Link
             key={card.slug}
             href={`/${locale}/gallery/${card.slug}`}
+            ref={(node) => {
+              if (cardRefs) {
+                cardRefs.current[card.slug] = node;
+              }
+            }}
             className="group flex h-full flex-col overflow-hidden rounded-3xl border border-divider bg-[rgba(237,241,241,0.04)] transition hover:border-accent"
           >
             {card.thumbnail ? (

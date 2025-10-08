@@ -1,10 +1,10 @@
-import Link from 'next/link';
 import Image from 'next/image';
 
-import PublicGalleryGrid, { type GalleryCardData } from '@/components/public-gallery-grid';
-import { Button, Header } from '@/components/ui';
+import { Header } from '@/components/ui';
+import GalleryPublicView from '@/components/gallery-public-view';
 import { listCreations } from '@/lib/gallery/repository';
 import { buildPublicAssetUrl } from '@/lib/gallery/storage';
+import type { GalleryCardData } from '@/components/public-gallery-grid';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +17,10 @@ export default async function GalleryPage({ params }: { params: { locale: string
     characterName: item.characterName,
     story: item.story,
     thumbnail: item.thumbnailPath ? buildPublicAssetUrl(item.thumbnailPath) : null,
+    composite: item.compositePath ? buildPublicAssetUrl(item.compositePath) : null,
     publishedAt: item.publishedAt,
+    latitude: item.latitude,
+    longitude: item.longitude
   }));
 
   return (
@@ -36,26 +39,7 @@ export default async function GalleryPage({ params }: { params: { locale: string
           />
         }
       />
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-6 pb-12">
-        <section className="space-y-6 text-textPrimary">
-          <p className="text-xs uppercase tracking-[0.3em] text-textSecondary">Emokai Catalog</p>
-          <h1 className="text-3xl font-semibold">
-            {locale === 'ja' ? '観測されたエモカイたち' : 'Emokai Observed'}
-          </h1>
-          <p className="max-w-2xl text-sm text-textSecondary">
-            {locale === 'ja'
-              ? 'これまでに送り出されたエモカイの記録です。気になるエモカイを選ぶと詳しい記述と AR ビューを開けます。'
-              : 'Discover published Emokai sightings. Select a card to read the story and launch the AR view.'}
-          </p>
-          <Link href={`/${locale}/emokai/step/1`} className="inline-flex w-full sm:w-auto">
-            <Button className="w-full sm:w-auto">
-              {locale === 'ja' ? '新しいエモカイを観測する' : 'Observe a new Emokai'}
-            </Button>
-          </Link>
-        </section>
-
-        <PublicGalleryGrid locale={locale} initialItems={cards} initialCursor={nextCursor} pageSize={12} />
-      </div>
+      <GalleryPublicView locale={locale} items={cards} nextCursor={nextCursor} />
     </main>
   );
 }

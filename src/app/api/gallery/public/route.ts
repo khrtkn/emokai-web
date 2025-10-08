@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { listCreations } from '@/lib/gallery/repository';
-import { buildPublicAssetUrl, createSignedAssetUrl } from '@/lib/gallery/storage';
+import { buildPublicAssetUrl } from '@/lib/gallery/storage';
 
 const querySchema = z.object({
   locale: z.string().optional(),
@@ -40,6 +40,8 @@ export async function GET(request: NextRequest) {
         metadata: item.metadata,
         emotionLevels: item.emotionLevels,
         publishedAt: item.publishedAt,
+        latitude: item.latitude,
+        longitude: item.longitude,
         assets: {
           thumbnail: item.thumbnailPath ? buildPublicAssetUrl(item.thumbnailPath) : null,
           composite: item.compositePath ? buildPublicAssetUrl(item.compositePath) : null,
