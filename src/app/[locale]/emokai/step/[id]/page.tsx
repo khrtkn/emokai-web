@@ -625,6 +625,8 @@ export default function EmokaiStepPage({ params }: Props) {
   const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
+  const geocodeTimeoutRef = useRef<number | null>(null);
+  const lastGeocodeQueryRef = useRef<string | null>(null);
 
   const initialEmotions = useMemo(() => loadSessionArray(EMOTIONS_STORAGE_KEY), []);
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>(initialEmotions);
@@ -1360,8 +1362,8 @@ export default function EmokaiStepPage({ params }: Props) {
     if (trimmed) return trimmed;
     const stored = generationResults?.name?.trim();
     if (stored) return stored;
-    return isJa ? `エモカイ ${creations.length + 1}` : `Emokai ${creations.length + 1}`;
-  }, [characterName, generationResults, creations.length, isJa]);
+    return isJa ? '無名のエモカイ' : 'Unnamed Emokai';
+  }, [characterName, generationResults, isJa]);
 
   const storyEmotionsText = useMemo(() => {
     if (!selectedEmotions.length) {
@@ -1379,38 +1381,36 @@ export default function EmokaiStepPage({ params }: Props) {
 
     if (localeKey === 'ja') {
       return [
-        'あなたは感情の妖怪「エモカイ」の語り部です。以下の情報をもとに、日本語で400〜500文字ほどの物語を作成してください。',
-        `舞台となる場所: ${trimmedPlace}`,
-        `その場所が特別な理由: ${trimmedReason}`,
-        `ユーザーが抱く感情: ${storyEmotionsText}`,
-        `エモカイの名前: ${effectiveCharacterName}`,
-        `エモカイの見た目: ${trimmedAppearance}`,
-        `エモカイのふるまい: ${trimmedAction}`,
+        'あなたは感情の妖怪「エモカイ」の観測記録をまとめるアーカイビストです。下記の情報をもとに、約350〜450文字の調査ログを作成してください。',
+        `観測地点: ${trimmedPlace}`,
+        `その地点が帯びる理由: ${trimmedReason}`,
+        `観測された情動: ${storyEmotionsText}`,
+        `識別名: ${effectiveCharacterName}`,
+        `外見的特徴: ${trimmedAppearance}`,
+        `主なふるまい: ${trimmedAction}`,
         '',
-        '指示:',
-        `1. 物語の冒頭で場所の情景と空気感を描写し、その場にいる「あなた」の感情を示してください。`,
-        `2. エモカイは必ず「${effectiveCharacterName}」と呼び、別の名前やあだ名を付けないこと。`,
-        `3. ${effectiveCharacterName}の姿・動きが上記の見た目／ふるまいと矛盾しないように描写してください。`,
-        '4. 語り手は二人称「あなた」で、エモカイとの小さな交流を中心に心情の変化を描いてください。',
-        '5. 結末は余韻を残す一文で締めてください。'
+        '必ず守る事項:',
+        '1. 文章は研究ログ風の三段落構成（環境描写→外観と挙動→能力・注意事項）で記述する。',
+        `2. ${effectiveCharacterName} は言葉を発しない存在として扱い、会話や鳴き声は記述しない。`,
+        '3. 観測者は第三者視点で落ち着いた口調を保ちつつ、印象的な比喩や小エピソードを添えて性質を伝える。',
+        '4. 終段では観測者向けの警告、取扱い注意、あるいは記憶に残る締めの一文でまとめる。'
       ].join('\n');
     }
 
     return [
-      'You are the storyteller for an Emokai born from emotions. Using the details below, craft a 400–500 character story in English.',
-      `Setting: ${trimmedPlace}`,
-      `Why it matters: ${trimmedReason}`,
-      `Dominant feelings: ${storyEmotionsText}`,
-      `Emokai name: ${effectiveCharacterName}`,
-      `Appearance notes: ${trimmedAppearance}`,
-      `Behaviour: ${trimmedAction}`,
+      'You are compiling a field dossier for the Emokai Observation Bureau. Using the notes below, craft a 350–450 character entry.',
+      `Location: ${trimmedPlace}`,
+      `Why the site resonates: ${trimmedReason}`,
+      `Emotional signature: ${storyEmotionsText}`,
+      `Designation: ${effectiveCharacterName}`,
+      `Visual traits: ${trimmedAppearance}`,
+      `Observed behaviour: ${trimmedAction}`,
       '',
-      'Instructions:',
-      '1. Open with a vivid sense of place and the emotions the narrator (“you”) feels standing there.',
-      `2. Always refer to the Emokai as “${effectiveCharacterName}” with no alternate names.`,
-      `3. Keep ${effectiveCharacterName}'s actions and traits aligned with the appearance/behaviour notes above.`,
-      '4. Write from the second-person perspective, focusing on your brief interaction and shifting feelings.',
-      '5. End with a resonant final line that leaves a lingering impression.'
+      'Guidelines:',
+      '1. Structure the report in three concise paragraphs (environmental context → form & motion → abilities/handling notes).',
+      `2. ${effectiveCharacterName} never speaks; describe only physical cues, aura, and influence on surroundings.`,
+      '3. Maintain an archival tone—authoritative yet vivid, reminiscent of a bestiary entry.',
+      '4. Close with a memorable caution, insight, or lingering image that summarises the encounter.'
     ].join('\n');
   }, [actionText, appearanceText, effectiveCharacterName, isJa, localeKey, placeText, reasonText, storyEmotionsText]);
 
@@ -1679,6 +1679,67 @@ export default function EmokaiStepPage({ params }: Props) {
     if (!mapQuery) return null;
     return `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=16&t=k&output=embed`;
   }, [mapQuery]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!placeTouched) return;
+    const trimmed = placeText.trim();
+    if (trimmed.length < 3) return;
+    if (trimmed === lastGeocodeQueryRef.current && geoCoords) {
+      return;
+    }
+
+    if (geocodeTimeoutRef.current) {
+      window.clearTimeout(geocodeTimeoutRef.current);
+    }
+
+    geocodeTimeoutRef.current = window.setTimeout(async () => {
+      try {
+        setGeoStatus('loading');
+        setGeoError(null);
+        const response = await fetch('/api/geocode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: trimmed, locale: localeKey }),
+        });
+
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+          lastGeocodeQueryRef.current = null;
+          setGeoStatus('error');
+          setGeoError(
+            payload?.error || (isJa ? '場所を特定できませんでした。' : 'Could not locate that place.'),
+          );
+          return;
+        }
+
+        const data = (await response.json()) as {
+          latitude: number;
+          longitude: number;
+          formattedAddress?: string | null;
+        };
+
+        if (typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+          setGeoCoords({ lat: data.latitude, lng: data.longitude });
+          lastGeocodeQueryRef.current = trimmed;
+          setGeoStatus('success');
+        } else {
+          setGeoStatus('error');
+          setGeoError(isJa ? '座標情報が取得できませんでした。' : 'Coordinates missing in response.');
+        }
+      } catch (error) {
+        console.warn('Failed to geocode place', error);
+        setGeoStatus('error');
+        setGeoError(isJa ? '場所の検索に失敗しました。' : 'Failed to geocode this place.');
+      }
+    }, 600);
+
+    return () => {
+      if (geocodeTimeoutRef.current) {
+        window.clearTimeout(geocodeTimeoutRef.current);
+      }
+    };
+  }, [placeText, placeTouched, localeKey, isJa, geoCoords]);
 
   const emotionLevels = useMemo<EmotionLevelMap>(() => {
     const levels: EmotionLevelMap = {

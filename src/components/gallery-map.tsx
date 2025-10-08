@@ -2,7 +2,7 @@
 
 import "mapbox-gl/dist/mapbox-gl.css";
 
-import { MutableRefObject, useMemo, useState } from "react";
+import { MutableRefObject, useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
 import dynamic from "next/dynamic";
 import type { GalleryCardData } from "@/components/public-gallery-grid";
@@ -20,11 +20,6 @@ const MAPBOX_STYLE_DARK = "mapbox://styles/mapbox/dark-v11";
 export function GalleryMap({ items, cardRefs }: GalleryMapProps) {
   const locale = useLocale();
   const accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-  const [viewport, setViewport] = useState({
-    longitude: 139.767, // default Tokyo
-    latitude: 35.681,
-    zoom: 4
-  });
 
   const markers = useMemo(
     () =>
@@ -51,15 +46,36 @@ export function GalleryMap({ items, cardRefs }: GalleryMapProps) {
     [items]
   );
 
-  if (!markers.length || !accessToken) {
-    return null;
+  const initialView = useMemo(() => {
+    if (markers.length) {
+      const anchor = markers[Math.floor(Math.random() * markers.length)];
+      return { longitude: anchor.lng, latitude: anchor.lat, zoom: 9 };
+    }
+    return { longitude: 139.767, latitude: 35.681, zoom: 3 };
+  }, [markers]);
+
+  const [viewState, setViewState] = useState(initialView);
+
+  useEffect(() => {
+    setViewState(initialView);
+  }, [initialView]);
+
+  if (!accessToken) {
+    return (
+      <div className="flex h-[360px] w-full items-center justify-center rounded-3xl border border-divider text-sm text-textSecondary">
+        {locale === 'ja'
+          ? 'マップトークンが設定されていません。NEXT_PUBLIC_MAPBOX_TOKEN を設定してください。'
+          : 'Map token missing. Please set NEXT_PUBLIC_MAPBOX_TOKEN.'}
+      </div>
+    );
   }
 
   return (
     <div className="relative h-[360px] w-full overflow-hidden rounded-3xl border border-divider">
       <Map
-        initialViewState={viewport}
-        onMove={(event) => setViewport(event.viewState)}
+        initialViewState={initialView}
+        viewState={viewState}
+        onMove={(event) => setViewState(event.viewState)}
         mapStyle={MAPBOX_STYLE_DARK}
         mapboxAccessToken={accessToken}
         attributionControl={false}
@@ -71,6 +87,11 @@ export function GalleryMap({ items, cardRefs }: GalleryMapProps) {
           </Marker>
         ))}
       </Map>
+      {!markers.length ? (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[rgba(10,14,14,0.6)] text-sm text-textSecondary">
+          {locale === 'ja' ? '公開されたエモカイがまだマップにありません。' : 'No Emokai mapped yet.'}
+        </div>
+      ) : null}
     </div>
   );
 }
