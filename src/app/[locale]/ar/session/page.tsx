@@ -257,13 +257,14 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
           >
             {isJa ? '送り出しの画面へ進む' : 'Continue to send-off'}
           </Button>
-          <button
+          <Button
             type="button"
-            className="w-full rounded-lg border border-divider px-4 py-2 text-sm text-textSecondary transition hover:border-accent"
+            variant="secondary"
+            className="w-full"
             onClick={() => router.push(`/${locale}/ar`)}
           >
             {isJa ? '呼び出し画面に戻る' : 'Back to AR launcher'}
-          </button>
+          </Button>
         </div>
       </div>
     </main>
