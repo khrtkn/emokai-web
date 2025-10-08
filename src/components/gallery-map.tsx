@@ -2,13 +2,12 @@
 
 import "mapbox-gl/dist/mapbox-gl.css";
 
-import { MutableRefObject, useEffect, useMemo, useState } from "react";
+import { MutableRefObject, useMemo } from "react";
 import { useLocale } from "next-intl";
 import dynamic from "next/dynamic";
-import type { ViewState as MapViewState, PaddingOptions } from "react-map-gl";
 import type { GalleryCardData } from "@/components/public-gallery-grid";
 
-const Map = dynamic(() => import("react-map-gl"), { ssr: false });
+const Map = dynamic(() => import("react-map-gl").then((mod) => mod.default), { ssr: false });
 const Marker = dynamic(() => import("react-map-gl").then((mod) => mod.Marker), { ssr: false });
 
 type GalleryMapProps = {
@@ -47,33 +46,13 @@ export function GalleryMap({ items, cardRefs }: GalleryMapProps) {
     [items]
   );
 
-  const initialView = useMemo((): MapViewState => {
+  const initialViewState = useMemo(() => {
     if (markers.length) {
       const anchor = markers[Math.floor(Math.random() * markers.length)];
-      return {
-        longitude: anchor.lng,
-        latitude: anchor.lat,
-        zoom: 9,
-        bearing: 0,
-        pitch: 0,
-        padding: { top: 0, bottom: 0, left: 0, right: 0 }
-      };
+      return { longitude: anchor.lng, latitude: anchor.lat, zoom: 9, bearing: 0, pitch: 0 };
     }
-    return {
-      longitude: 139.767,
-      latitude: 35.681,
-      zoom: 3,
-      bearing: 0,
-      pitch: 0,
-      padding: { top: 0, bottom: 0, left: 0, right: 0 }
-    };
+    return { longitude: 139.767, latitude: 35.681, zoom: 3, bearing: 0, pitch: 0 };
   }, [markers]);
-
-  const [viewState, setViewState] = useState<MapViewState>(initialView);
-
-  useEffect(() => {
-    setViewState(initialView);
-  }, [initialView]);
 
   if (!accessToken) {
     return (
@@ -85,25 +64,18 @@ export function GalleryMap({ items, cardRefs }: GalleryMapProps) {
     );
   }
 
+  if (!markers.length) {
+    return (
+      <div className="flex h-[360px] w-full items-center justify-center rounded-3xl border border-divider text-sm text-textSecondary">
+        {locale === 'ja' ? '公開されたエモカイがまだマップにありません。' : 'No Emokai mapped yet.'}
+      </div>
+    );
+  }
+
   return (
     <div className="relative h-[360px] w-full overflow-hidden rounded-3xl border border-divider">
       <Map
-        initialViewState={initialView}
-        longitude={viewState.longitude}
-        latitude={viewState.latitude}
-        zoom={viewState.zoom}
-        bearing={viewState.bearing}
-        pitch={viewState.pitch}
-        onMove={(event) =>
-          setViewState((prev) => ({
-            longitude: event.viewState.longitude,
-            latitude: event.viewState.latitude,
-            zoom: event.viewState.zoom,
-            bearing: event.viewState.bearing ?? prev.bearing,
-            pitch: event.viewState.pitch ?? prev.pitch,
-            padding: prev.padding
-          }))
-        }
+        initialViewState={initialViewState}
         mapStyle={MAPBOX_STYLE_DARK}
         mapboxAccessToken={accessToken}
         attributionControl={false}
@@ -115,11 +87,6 @@ export function GalleryMap({ items, cardRefs }: GalleryMapProps) {
           </Marker>
         ))}
       </Map>
-      {!markers.length ? (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[rgba(10,14,14,0.6)] text-sm text-textSecondary">
-          {locale === 'ja' ? '公開されたエモカイがまだマップにありません。' : 'No Emokai mapped yet.'}
-        </div>
-      ) : null}
     </div>
   );
 }
