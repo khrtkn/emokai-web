@@ -136,7 +136,18 @@
 - On landscape orientation, overlay modal: “縦画面でご利用ください / Please use portrait mode.” Provide `OK` button to dismiss once device rotates back.
 - Handle keyboard safe-area by shifting instruction banner upward and keeping header sticky.
 
-## 10. Open Design Questions
+## 10. Gallery Data & Moderation Workflow
+- **Storage Architecture**: Assets split between Supabase Storage buckets — `gallery-private` (stage/character source images, GLB/USDZ) and `gallery-public` (thumbnails + composites). Only published media is mirrored into the public bucket; private assets are served with signed URLs.
+- **Database Schema**: `creations` table tracks per-entry metadata (slug, locale, emotion levels 0–3, geo coordinates, prompts, story, status, timestamps, reviewer notes). `creation_assets` captures individual files (kind, path, checksum, size) for audit/versioning. Reviewer identities live in `reviewers` table.
+- **Status Flow**: Submissions arrive as `pending`, visible only to reviewers. Approval toggles `published` and copies necessary assets to the public bucket. `rejected` retains the record without exposing media. `archived` removes from public gallery but keeps history.
+- **Emotion Parameters**: Store the eight Plutchik categories as discrete intensities (`0.0`–`3.0`, exposed to Unity as floats). Unity runtime consumes a JSON payload containing emotion levels plus stable asset links.
+- **Unity Integration**: Public API surfaces `/api/gallery` (paginated) and `/api/gallery/{slug}`. Unity requests `?platform=unity` to receive signed GLB/USDZ URLs and metadata (scale, orientation, lat/lng). URLs expire quickly; clients re-request when launch occurs.
+- **Security**: RLS allows anonymous reads only for `status = 'published'`; all writes go through server-side service role. Asset uploads verify MIME type, compute SHA-256 checksum, and log storage paths. Reviewer actions are audited with `reviewed_at/by` and optional `moderation_notes`.
+- **Submission Flow**: Step14/15 client captures the selected stage/character options, composite render, emotion intensities, and device geo hint, then posts them to `/api/gallery/submissions` before clearing session caches.
+- **Review Dashboard**: Internal `/admin/gallery` screen (requires reviewer token query param) lists pending entries with signed asset previews and moderation controls (publish / reject) powered by `/api/gallery/review`.
+- **Public Gallery API**: `/api/gallery/public` (list) and `/api/gallery/public/[slug]` (detail) surface published entries with public thumbnails/composites and signed model downloads for Unity/AR clients.
+
+## 11. Open Design Questions
 - Should the instruction marquee pause on hover/tap for accessibility? (Recommend yes.)
 - Confirm final accent color for selection/highlight to align with brand palette.
 - Determine placement of progress indicator for Steps C1–C3 when device has smaller viewport (e.g., iPhone SE).

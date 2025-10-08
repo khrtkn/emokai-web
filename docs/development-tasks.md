@@ -18,10 +18,16 @@
   - Oct 08 2025: Simplified the AR launcher/session UI — centered header logo, trimmed device info, and aligned fallback navigation with the send-off flow.
 - [x] Persistence & sharing (Step F): daily limits, asset/metadata persistence, expiring share URLs, share sheet, OGP metadata.
 - [x] Gallery (Step G): paginated public grid, detail view with AR/share options, license display, infinite scroll.
+  - Oct 09 2025: Started gallery persistence uplift — Supabase schema added for `creations`, per-asset storage records, reviewer roles, and secure bucket separation to support Unity runtime access with stable URLs.
+  - Oct 09 2025: Step15 send-off now posts to `/api/gallery/submissions`, capturing stage/character imagery, composite, emotion levels, geo metadata, and model links while clearing session storage once submission succeeds.
+  - Oct 09 2025: Added reviewer API + `/admin/gallery` dashboard (token-gated) with status filters so moderators can inspect assets, annotate notes, and publish/reject entries via signed URLs.
+  - Oct 09 2025: Exposed public gallery endpoints (`/api/gallery/public`, `/api/gallery/public/[slug]`) returning published entries for the main gallery and Unity feed.
+  - Oct 10 2025: Gallery grid now consumes the public API with "load more" pagination, inline loading/error states, and detail pages surface emotion telemetry plus AR launches via signed model URLs stored in session.
 - [x] Error & retry framework: localized messaging, retries, partial success handling, cancellation notices, accessible alerts.
 - [x] Data lifecycle jobs: temp cleanup after 30 min, 24h session purge, 7-day deletion, Supabase backup integration.
 - [x] Analytics & monitoring: GA4 events, completion/drop-off metrics, error logging schema.
 - [ ] Testing & QA: unit/integration coverage, mocked external APIs, AR/device compatibility, accessibility, localization validation.
   - Progress 2025-10-01: Added unit tests for lib modules (device detection, moderation flows, generation jobs, share URL, env loader). All unit suites pass (`pnpm test`), lint clean. Coverage report generated; next focus is increasing `src/lib/*` coverage toward 85% and wiring Playwright against a running preview.
+  - Oct 10 2025: Added component tests for the public gallery grid to validate pagination success/failure branches.
 - [ ] Deployment & ops: backend functions/background workers, secrets management, CI/CD, performance monitoring.
   - Add GitHub Actions workflow for Vercel preview deploy + Playwright E2E (`.github/workflows/preview-e2e.yml`). Requires `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` secrets set in repo. E2E uses `PLAYWRIGHT_BASE_URL` from the deployed preview URL and runs with `VERCEL_ENV=preview`.

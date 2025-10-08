@@ -28,6 +28,7 @@ import {
 import { trackEvent, trackError } from '@/lib/analytics';
 import {
   CHARACTER_SELECTION_KEY,
+  CHARACTER_OPTIONS_KEY,
   GENERATION_RESULTS_KEY,
   STAGE_SELECTION_KEY,
   CHARACTER_NAME_KEY,
@@ -214,13 +215,120 @@ type CharacterSelectionPayload = {
   timestamp: number;
 };
 
+type EmotionLevelMap = {
+  joy: number;
+  trust: number;
+  fear: number;
+  surprise: number;
+  sadness: number;
+  disgust: number;
+  anger: number;
+  anticipation: number;
+};
+
+function createCompositeInstructionText(actionText: string, isJa: boolean): string {
+  const trimmed = actionText.trim();
+  const lines: (string | undefined)[] = isJa
+    ? [
+        '背景画像の中央から少し手前にキャラクターを配置してください。',
+        '背景の光源方向と強さに合わせて、キャラクターの明るさやカラーを馴染ませます。',
+        '足元に柔らかい影を落とし、地面と自然につながるようにしてください。',
+        trimmed ? `キャラクターのふるまい: ${trimmed} を反映させたポーズや雰囲気にしてください。` : undefined,
+      ]
+    : [
+        'Place the character slightly in front of the center of the background.',
+        'Match lighting direction and intensity so the character blends naturally with the scene.',
+        'Add a soft contact shadow at the character’s feet to anchor them to the ground.',
+        trimmed ? `Incorporate this behavior into the pose or mood: ${trimmed}` : undefined,
+      ];
+
+  return lines.filter(Boolean).join('\n');
+}
+
+async function convertUrlToBase64(url: string): Promise<{ base64: string; mimeType: string } | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    const arrayBuffer = await blob.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, i + chunkSize);
+      binary += String.fromCharCode(...chunk);
+    }
+    const base64 = btoa(binary);
+    return { base64, mimeType: blob.type || 'application/octet-stream' };
+  } catch (error) {
+    console.warn('Failed to convert URL to base64', error);
+    return null;
+  }
+}
+
+function extractBase64FromDataUri(uri: string): { base64: string; mimeType: string } | null {
+  const match = /^data:(?<type>[^;]+);base64,(?<data>.+)$/i.exec(uri);
+  if (!match?.groups?.data) return null;
+  return {
+    base64: match.groups.data,
+    mimeType: match.groups.type ?? 'application/octet-stream',
+  };
+}
+
+async function readOptionImagePayload(
+  option: { cacheKey?: string; previewUrl?: string; mimeType: string },
+): Promise<{ base64: string; mimeType: string } | null> {
+  const cached = option.cacheKey ? getCachedImage(option.cacheKey) : null;
+  if (cached?.base64) {
+    return { base64: cached.base64, mimeType: cached.mimeType };
+  }
+
+  if (option.previewUrl) {
+    const dataUri = extractBase64FromDataUri(option.previewUrl);
+    if (dataUri) {
+      return dataUri;
+    }
+
+    const fetched = await convertUrlToBase64(option.previewUrl);
+    if (fetched) {
+      return { base64: fetched.base64, mimeType: fetched.mimeType || option.mimeType };
+    }
+  }
+
+  return null;
+}
+
+async function readCompositeImagePayload(
+  composite: CompositeResult,
+): Promise<{ base64: string; mimeType: string } | { url: string; mimeType: string } | null> {
+  if (composite.imageBase64) {
+    return { base64: composite.imageBase64, mimeType: composite.mimeType };
+  }
+
+  if (composite.url) {
+    const dataUri = extractBase64FromDataUri(composite.url);
+    if (dataUri) {
+      return dataUri;
+    }
+
+    const fetched = await convertUrlToBase64(composite.url);
+    if (fetched) {
+      return { base64: fetched.base64, mimeType: fetched.mimeType || composite.mimeType };
+    }
+
+    return { url: composite.url, mimeType: composite.mimeType };
+  }
+
+  return null;
+}
+
 const StepLabel = ({ text }: { text?: string }) => {
   if (!text) return null;
   return <p className="text-xs text-textSecondary">{text}</p>;
 };
 
 const primaryButtonClass =
-  'inline-block min-h-[44px] rounded-lg bg-accent px-6 text-sm font-semibold text-black transition hover:opacity-90';
+  'inline-block min-h-[44px] rounded-lg bg-accent px-6 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed';
 
 function formatDate(value: string, locale: Locale) {
   try {
@@ -407,7 +515,6 @@ const REASON_STORAGE_KEY = 'emokai_reason';
 const EMOTIONS_STORAGE_KEY = 'emokai_emotions';
 const ACTION_STORAGE_KEY = 'emokai_action';
 const APPEARANCE_STORAGE_KEY = 'emokai_appearance';
-const CHARACTER_OPTIONS_KEY = 'emokai_character_options';
 const NAME_STORAGE_KEY = CHARACTER_NAME_KEY;
 const AR_SUMMON_STORAGE_KEY = AR_SUMMON_KEY;
 
@@ -523,6 +630,10 @@ export default function EmokaiStepPage({ params }: Props) {
     return window.sessionStorage.getItem(AR_SUMMON_STORAGE_KEY) === 'true';
   }, []);
   const [hasSummoned, setHasSummoned] = useState(initialSummonState);
+  const [submissionState, setSubmissionState] = useState<'idle' | 'saving' | 'success' | 'error'>(
+    'idle',
+  );
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!stageProcessedImage) return;
@@ -1155,17 +1266,6 @@ export default function EmokaiStepPage({ params }: Props) {
     router.push(`/${locale}/emokai/step/15`);
   }, [locale, router]);
 
-  const handleSendOff = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      window.sessionStorage.removeItem(AR_SUMMON_STORAGE_KEY);
-      window.sessionStorage.removeItem(NAME_STORAGE_KEY);
-    }
-    setHasSummoned(false);
-    setCharacterName('');
-    setCharacterNameTouched(false);
-    router.push(`/${locale}/gallery`);
-  }, [locale, router]);
-
   const handleCharacterRegenerate = async () => {
     if (characterPrompt.trim().length < MIN_TEXT_LENGTH) {
       setCharacterGenerationError(
@@ -1353,27 +1453,7 @@ export default function EmokaiStepPage({ params }: Props) {
         return null;
       });
 
-    const compositeInstruction = isJa
-      ? [
-          '背景画像の中央から少し手前にキャラクターを配置してください。',
-          '背景の光源方向と強さに合わせて、キャラクターの明るさやカラーを馴染ませます。',
-          '足元に柔らかい影を落とし、地面と自然につながるようにしてください。',
-          actionText.trim()
-            ? `キャラクターのふるまい: ${actionText.trim()} を反映させたポーズや雰囲気にしてください。`
-            : undefined,
-        ]
-          .filter(Boolean)
-          .join('\n')
-      : [
-          'Place the character slightly in front of the center of the background.',
-          'Match lighting direction and intensity so the character blends naturally with the scene.',
-          'Add a soft contact shadow at the character’s feet to anchor them to the ground.',
-          actionText.trim()
-            ? `Incorporate this behavior into the pose or mood: ${actionText.trim()}`
-            : undefined,
-        ]
-          .filter(Boolean)
-          .join('\n');
+    const compositeInstruction = createCompositeInstructionText(actionText, isJa);
 
     const compositePromise = generateComposite(stageInput, characterInput, compositeInstruction)
       .then((composite) => {
@@ -1506,6 +1586,218 @@ export default function EmokaiStepPage({ params }: Props) {
     if (!mapQuery) return null;
     return `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=16&t=k&output=embed`;
   }, [mapQuery]);
+
+  const emotionLevels = useMemo<EmotionLevelMap>(() => {
+    const levels: EmotionLevelMap = {
+      joy: 0,
+      trust: 0,
+      fear: 0,
+      surprise: 0,
+      sadness: 0,
+      disgust: 0,
+      anger: 0,
+      anticipation: 0,
+    };
+
+    EMOTION_GROUPS.forEach((group) => {
+      let level = 0;
+      group.emotions.forEach((emotion, index) => {
+        if (selectedEmotions.includes(emotion)) {
+          const value = Math.max(0, 3 - index);
+          if (value > level) {
+            level = value;
+          }
+        }
+      });
+      if (group.id in levels) {
+        levels[group.id as keyof EmotionLevelMap] = level;
+      }
+    });
+
+    return levels;
+  }, [selectedEmotions]);
+
+  const handleSendOff = useCallback(async () => {
+    if (submissionState === 'saving') return;
+
+    if (!stageSelection || !characterSelection || !generationResults) {
+      setSubmissionState('error');
+      setSubmissionError(
+        isJa ? '送信に必要な情報が不足しています。' : 'Some required data is missing for submission.',
+      );
+      return;
+    }
+
+    const compositeResult = generationResults.results.composite;
+    if (!compositeResult) {
+      setSubmissionState('error');
+      setSubmissionError(
+        isJa ? '合成画像の準備が完了していません。' : 'Composite image is not available yet.',
+      );
+      return;
+    }
+
+    setSubmissionError(null);
+    setSubmissionState('saving');
+
+    try {
+      const stageImage = await readOptionImagePayload(stageSelection);
+      const characterImage = await readOptionImagePayload(characterSelection);
+      if (!stageImage || !characterImage) {
+        throw new Error('asset-missing');
+      }
+
+      const compositePayload = await readCompositeImagePayload(compositeResult);
+      if (!compositePayload) {
+        throw new Error('composite-missing');
+      }
+
+      const thumbnailPayload =
+        'base64' in compositePayload
+          ? { base64: compositePayload.base64, mimeType: compositePayload.mimeType }
+          : undefined;
+
+      const model = generationResults.results.model;
+      const modelPayload = model
+        ? {
+            primaryUrl: model.url,
+            glbUrl:
+              model.alternates?.glb ?? (model.url?.toLowerCase().endsWith('.glb') ? model.url : undefined),
+            usdzUrl: model.alternates?.usdz,
+            previewUrl: model.previewUrl ?? undefined,
+            polygons: model.polygons ?? undefined,
+            alternates: model.alternates ?? undefined,
+          }
+        : undefined;
+
+      const metadata: Record<string, unknown> = {};
+      if (generationResults.results.model?.meta) {
+        metadata.modelMeta = generationResults.results.model.meta;
+      }
+      if (generationResults.results.story?.id) {
+        metadata.storyId = generationResults.results.story.id;
+      }
+      if (generationResults.characterId) {
+        metadata.characterId = generationResults.characterId;
+      }
+
+      const references = {
+        stageOptionId: stageSelection.id,
+        characterOptionId: characterSelection.id,
+        mapQuery: mapQuery ?? undefined,
+        stageLocationReference: stageLocationReference ?? undefined,
+        streetViewDescription: streetViewDescription ?? undefined,
+      };
+
+      const payload = {
+        locale: localeKey,
+        characterName: effectiveCharacterName,
+        story: generationResults.results.story?.content ?? undefined,
+        placeDescription: placeText || undefined,
+        reasonDescription: reasonText || undefined,
+        actionDescription: actionText || undefined,
+        appearanceDescription: appearanceText || undefined,
+        stagePrompt: stageSelection.prompt,
+        characterPrompt,
+        compositeInstruction: createCompositeInstructionText(actionText, isJa),
+        stageImage,
+        characterImage,
+        compositeImage:
+          'base64' in compositePayload
+            ? { base64: compositePayload.base64, mimeType: compositePayload.mimeType }
+            : { url: compositePayload.url, mimeType: compositePayload.mimeType },
+        thumbnailImage: thumbnailPayload,
+        emotionLevels,
+        geo: geoCoords
+          ? {
+              latitude: geoCoords.lat,
+              longitude: geoCoords.lng,
+              altitude: undefined,
+            }
+          : undefined,
+        metadata: Object.keys(metadata).length ? metadata : undefined,
+        references,
+        model: modelPayload,
+        submittedBy: generationResults.characterId || undefined,
+      };
+
+      const response = await fetch('/api/gallery/submissions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        let message = isJa
+          ? '保存に失敗しました。通信状況をご確認のうえ、もう一度お試しください。'
+          : 'We could not save your Emokai. Please check your connection and try again.';
+        try {
+          const body = await response.json();
+          if (typeof body?.error === 'string') {
+            message = body.error;
+          }
+        } catch (error) {
+          console.warn('Failed to parse submission error response', error);
+        }
+        throw new Error(message);
+      }
+
+      setSubmissionState('success');
+
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem(AR_SUMMON_STORAGE_KEY);
+        window.sessionStorage.removeItem(NAME_STORAGE_KEY);
+        window.sessionStorage.removeItem(STAGE_SELECTION_KEY);
+        window.sessionStorage.removeItem(CHARACTER_SELECTION_KEY);
+        window.sessionStorage.removeItem(CHARACTER_OPTIONS_KEY);
+        window.sessionStorage.removeItem(GENERATION_RESULTS_KEY);
+      }
+
+      clearCharacterOptions();
+      setStageSelection(null);
+      setCharacterSelection(null);
+      setGenerationResults(null);
+      setHasSummoned(false);
+      setCharacterName('');
+      setCharacterNameTouched(false);
+
+      router.push(`/${locale}/gallery`);
+    } catch (error) {
+      console.error('[gallery-submit]', error);
+      setSubmissionState('error');
+      if (error instanceof Error) {
+        setSubmissionError(error.message);
+      } else {
+        setSubmissionError(
+          isJa
+            ? '保存に失敗しました。通信状況をご確認のうえ、もう一度お試しください。'
+            : 'We could not save your Emokai. Please check your connection and try again.',
+        );
+      }
+    }
+  }, [
+    actionText,
+    appearanceText,
+    characterPrompt,
+    characterSelection,
+    effectiveCharacterName,
+    emotionLevels,
+    generationResults,
+    geoCoords,
+    isJa,
+    locale,
+    localeKey,
+    mapQuery,
+    placeText,
+    reasonText,
+    router,
+    stageLocationReference,
+    stageSelection,
+    streetViewDescription,
+    submissionState,
+  ]);
 
   // ====== 画面パーツ ======
 
@@ -2000,6 +2292,14 @@ export default function EmokaiStepPage({ params }: Props) {
     const sendOffMessage = isJa
       ? `「${effectiveCharacterName}」は旅に出る準備ができました。ギャラリーではいつでも再会できます。`
       : `${effectiveCharacterName} is ready to journey onward. You can revisit them anytime in the gallery.`;
+    const isSubmitting = submissionState === 'saving';
+    const buttonLabel = isJa
+      ? isSubmitting
+        ? '送り出しています…'
+        : '送り出す'
+      : isSubmitting
+        ? 'Sending…'
+        : 'Send off';
 
     return (
       <section className="space-y-4">
@@ -2033,10 +2333,18 @@ export default function EmokaiStepPage({ params }: Props) {
       </div>
       <p className="text-center text-sm text-textSecondary">{isJa ? `「${effectiveCharacterName}」` : effectiveCharacterName}</p>
       <div className="pt-2">
-        <button type="button" className={primaryButtonClass} onClick={handleSendOff}>
-          {isJa ? '送り出す' : 'Send off'}
+        <button
+          type="button"
+          className={primaryButtonClass}
+          onClick={handleSendOff}
+          disabled={isSubmitting}
+        >
+          {buttonLabel}
         </button>
       </div>
+      {submissionError ? (
+        <p className="text-xs text-[#ffb9b9]">{submissionError}</p>
+      ) : null}
       </section>
     );
   };
