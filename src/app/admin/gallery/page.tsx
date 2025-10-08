@@ -5,6 +5,8 @@ import { getServerEnv } from '@/lib/env';
 import type { CreationStatus } from '@/lib/supabase/types';
 import { updateCreationStatus } from './actions';
 
+export const dynamic = 'force-dynamic';
+
 interface ReviewAssetLinks {
   thumbnail: string | null;
   stage: string | null;
