@@ -5,6 +5,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { MutableRefObject, useEffect, useMemo, useState } from "react";
 import { useLocale } from "next-intl";
 import dynamic from "next/dynamic";
+import type { ViewState as MapViewState } from "react-map-gl";
 import type { GalleryCardData } from "@/components/public-gallery-grid";
 
 const Map = dynamic(() => import("react-map-gl"), { ssr: false });
@@ -16,15 +17,6 @@ type GalleryMapProps = {
 };
 
 const MAPBOX_STYLE_DARK = "mapbox://styles/mapbox/dark-v11";
-
-type ViewState = {
-  longitude: number;
-  latitude: number;
-  zoom: number;
-  bearing: number;
-  pitch: number;
-  padding: number | { top: number; bottom: number; left: number; right: number };
-};
 
 export function GalleryMap({ items, cardRefs }: GalleryMapProps) {
   const locale = useLocale();
@@ -55,7 +47,7 @@ export function GalleryMap({ items, cardRefs }: GalleryMapProps) {
     [items]
   );
 
-  const initialView = useMemo((): ViewState => {
+  const initialView = useMemo((): MapViewState => {
     if (markers.length) {
       const anchor = markers[Math.floor(Math.random() * markers.length)];
       return {
@@ -63,8 +55,7 @@ export function GalleryMap({ items, cardRefs }: GalleryMapProps) {
         latitude: anchor.lat,
         zoom: 9,
         bearing: 0,
-        pitch: 0,
-        padding: 0
+        pitch: 0
       };
     }
     return {
@@ -72,12 +63,11 @@ export function GalleryMap({ items, cardRefs }: GalleryMapProps) {
       latitude: 35.681,
       zoom: 3,
       bearing: 0,
-      pitch: 0,
-      padding: 0
+      pitch: 0
     };
   }, [markers]);
 
-  const [viewState, setViewState] = useState<ViewState>(initialView);
+  const [viewState, setViewState] = useState<MapViewState>(initialView);
 
   useEffect(() => {
     setViewState(initialView);
@@ -104,8 +94,7 @@ export function GalleryMap({ items, cardRefs }: GalleryMapProps) {
             latitude: event.viewState.latitude,
             zoom: event.viewState.zoom,
             bearing: event.viewState.bearing ?? prev.bearing,
-            pitch: event.viewState.pitch ?? prev.pitch,
-            padding: prev.padding
+            pitch: event.viewState.pitch ?? prev.pitch
           }))
         }
         mapStyle={MAPBOX_STYLE_DARK}
