@@ -5,6 +5,7 @@ import { z } from 'zod';
 import {
   copyRemoteAssetToBucket,
   uploadBase64Asset,
+  copyAssetBetweenBuckets,
   type GalleryBucketScope,
   type UploadResult,
 } from '@/lib/gallery/storage';
@@ -297,6 +298,23 @@ export async function POST(request: NextRequest) {
         '86400',
       );
       uploadedAssets.push(thumbnailAsset);
+    } else {
+      try {
+        const extension = inferExtension(submission.compositeImage.mimeType);
+        const targetPath = `creations/${creationId}/public/composite.${extension}`;
+        const copied = await copyAssetBetweenBuckets({
+          sourceScope: 'private',
+          sourcePath: compositeAsset.path,
+          targetScope: 'public',
+          targetPath,
+          cacheControl: '86400',
+        });
+        thumbnailAsset = { ...copied, kind: 'thumbnail', scope: 'public' };
+        uploadedAssets.push(thumbnailAsset);
+      } catch (error) {
+        console.warn('[gallery-submission] failed to copy composite to public bucket', error);
+        thumbnailAsset = null;
+      }
     }
 
     let modelGlbAsset: UploadedAsset | null = null;

@@ -1652,11 +1652,6 @@ export default function EmokaiStepPage({ params }: Props) {
         throw new Error('composite-missing');
       }
 
-      const thumbnailPayload =
-        'base64' in compositePayload
-          ? { base64: compositePayload.base64, mimeType: compositePayload.mimeType }
-          : undefined;
-
       const model = generationResults.results.model;
       const modelPayload = model
         ? {
@@ -1706,7 +1701,6 @@ export default function EmokaiStepPage({ params }: Props) {
           'base64' in compositePayload
             ? { base64: compositePayload.base64, mimeType: compositePayload.mimeType }
             : { url: compositePayload.url, mimeType: compositePayload.mimeType },
-        thumbnailImage: thumbnailPayload,
         emotionLevels,
         geo: geoCoords
           ? {
@@ -1721,12 +1715,17 @@ export default function EmokaiStepPage({ params }: Props) {
         submittedBy: generationResults.characterId || undefined,
       };
 
+      const payloadString = JSON.stringify(payload);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[gallery-submit] payload bytes', payloadString.length);
+      }
+
       const response = await fetch('/api/gallery/submissions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: payloadString,
       });
 
       if (!response.ok) {
