@@ -89,7 +89,11 @@ export function GalleryMap({ items, cardRefs }: GalleryMapProps) {
     <div className="relative h-[360px] w-full overflow-hidden rounded-3xl border border-divider">
       <Map
         initialViewState={initialView}
-        viewState={viewState}
+        longitude={viewState.longitude}
+        latitude={viewState.latitude}
+        zoom={viewState.zoom}
+        bearing={viewState.bearing}
+        pitch={viewState.pitch}
         onMove={(event) =>
           setViewState((prev) => ({
             longitude: event.viewState.longitude,
