@@ -322,6 +322,62 @@ async function readCompositeImagePayload(
   return null;
 }
 
+async function compressBase64Image(
+  image: { base64: string; mimeType: string },
+  options: { maxDimension?: number; quality?: number } = {},
+): Promise<{ base64: string; mimeType: string }> {
+  const approxBytes = Math.ceil((image.base64.length * 3) / 4);
+  const maxAllowed = 800 * 1024;
+  if (approxBytes <= maxAllowed) {
+    return image;
+  }
+
+  const maxDimension = options.maxDimension ?? 896;
+  const quality = options.quality ?? 0.82;
+
+  try {
+    const dataUrl = `data:${image.mimeType};base64,${image.base64}`;
+    const htmlImage = await loadImage(dataUrl);
+
+    const largestSide = Math.max(htmlImage.width, htmlImage.height);
+    const scale = largestSide > maxDimension ? maxDimension / largestSide : 1;
+    const width = Math.max(1, Math.round(htmlImage.width * scale));
+    const height = Math.max(1, Math.round(htmlImage.height * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return image;
+    }
+
+    ctx.clearRect(0, 0, width, height);
+    ctx.drawImage(htmlImage, 0, 0, width, height);
+
+    const targetMime = 'image/webp';
+    const nextDataUrl = canvas.toDataURL(targetMime, quality);
+    const nextBase64 = nextDataUrl.includes(',') ? nextDataUrl.split(',')[1] ?? image.base64 : image.base64;
+
+    return { base64: nextBase64, mimeType: targetMime };
+  } catch (error) {
+    console.warn('Image compression failed', error);
+    return image;
+  }
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = (event) => {
+      reject(event instanceof ErrorEvent ? event.error : new Error('Failed to load image'));
+    };
+    img.crossOrigin = 'anonymous';
+    img.src = src;
+  });
+}
+
 const StepLabel = ({ text }: { text?: string }) => {
   if (!text) return null;
   return <p className="text-xs text-textSecondary">{text}</p>;
@@ -1641,13 +1697,26 @@ export default function EmokaiStepPage({ params }: Props) {
     setSubmissionState('saving');
 
     try {
-      const stageImage = await readOptionImagePayload(stageSelection);
-      const characterImage = await readOptionImagePayload(characterSelection);
-      if (!stageImage || !characterImage) {
+      const stageImageRaw = await readOptionImagePayload(stageSelection);
+      const characterImageRaw = await readOptionImagePayload(characterSelection);
+      if (!stageImageRaw || !characterImageRaw) {
         throw new Error('asset-missing');
       }
 
-      const compositePayload = await readCompositeImagePayload(compositeResult);
+      const stageImage =
+        'base64' in stageImageRaw
+          ? await compressBase64Image(stageImageRaw, { maxDimension: 896, quality: 0.8 })
+          : stageImageRaw;
+      const characterImage =
+        'base64' in characterImageRaw
+          ? await compressBase64Image(characterImageRaw, { maxDimension: 896, quality: 0.8 })
+          : characterImageRaw;
+
+      const compositePayloadRaw = await readCompositeImagePayload(compositeResult);
+      const compositePayload =
+        compositePayloadRaw && 'base64' in compositePayloadRaw
+          ? await compressBase64Image(compositePayloadRaw, { maxDimension: 1024, quality: 0.82 })
+          : compositePayloadRaw;
       if (!compositePayload) {
         throw new Error('composite-missing');
       }
@@ -1716,9 +1785,7 @@ export default function EmokaiStepPage({ params }: Props) {
       };
 
       const payloadString = JSON.stringify(payload);
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[gallery-submit] payload bytes', payloadString.length);
-      }
+      console.debug('[gallery-submit] payload bytes', payloadString.length);
 
       const response = await fetch('/api/gallery/submissions', {
         method: 'POST',
