@@ -2,6 +2,8 @@ import PublicGalleryGrid, { type GalleryCardData } from '@/components/public-gal
 import { listCreations } from '@/lib/gallery/repository';
 import { buildPublicAssetUrl } from '@/lib/gallery/storage';
 
+export const dynamic = 'force-dynamic';
+
 export default async function GalleryPage({ params }: { params: { locale: string } }) {
   const locale = params.locale;
   const { items, nextCursor } = await listCreations({ status: 'published', locale, limit: 18 });
