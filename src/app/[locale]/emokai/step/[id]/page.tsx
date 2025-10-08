@@ -1565,18 +1565,7 @@ export default function EmokaiStepPage({ params }: Props) {
       setGenerationLockActive(false);
       setGenerationRunning(false);
     }
-  }, [
-    actionText,
-    characterName,
-    characterPrompt,
-    characterSelection,
-    isJa,
-    liveApisEnabled,
-    locale,
-    localeKey,
-    stageSelection,
-    storyPrompt,
-  ]);
+  }, [actionText, characterName, characterPrompt, characterSelection, isJa, liveApisEnabled, locale, localeKey, stageSelection, placeText, reasonText, selectedEmotions, storyPrompt, appearanceText]);
 
   const handleGenerationRetry = useCallback(() => {
     if (generationRunning) return;
@@ -1641,6 +1630,50 @@ export default function EmokaiStepPage({ params }: Props) {
     }
     return selectedEmotions.map((emotion) => getEmotionLabel(emotion)).join(isJa ? '、' : ', ');
   }, [getEmotionLabel, isJa, selectedEmotions]);
+
+  const storyPrompt = useMemo(() => {
+    const trimmedPlace = placeText.trim() || (isJa ? '場所不明' : 'Unknown place');
+    const trimmedReason = reasonText.trim() || (isJa ? '理由は未記録' : 'Reason not recorded');
+    const trimmedAction = actionText.trim() || (isJa ? 'まだ不明なふるまい' : 'No action specified');
+    const trimmedAppearance =
+      appearanceText.trim() || (isJa ? '姿の手がかりは未記録' : 'Appearance clues missing');
+
+    if (localeKey === 'ja') {
+      return [
+        'あなたは感情の妖怪「エモカイ」の語り部です。以下の情報をもとに、日本語で400〜500文字ほどの物語を作成してください。',
+        `舞台となる場所: ${trimmedPlace}`,
+        `その場所が特別な理由: ${trimmedReason}`,
+        `ユーザーが抱く感情: ${storyEmotionsText}`,
+        `エモカイの名前: ${effectiveCharacterName}`,
+        `エモカイの見た目: ${trimmedAppearance}`,
+        `エモカイのふるまい: ${trimmedAction}`,
+        '',
+        '指示:',
+        `1. 物語の冒頭で場所の情景と空気感を描写し、その場にいる「あなた」の感情を示してください。`,
+        `2. エモカイは必ず「${effectiveCharacterName}」と呼び、別の名前やあだ名を付けないこと。`,
+        `3. ${effectiveCharacterName}の姿・動きが上記の見た目／ふるまいと矛盾しないように描写してください。`,
+        '4. 語り手は二人称「あなた」で、エモカイとの小さな交流を中心に心情の変化を描いてください。',
+        '5. 結末は余韻を残す一文で締めてください。'
+      ].join('\n');
+    }
+
+    return [
+      'You are the storyteller for an Emokai born from emotions. Using the details below, craft a 400–500 character story in English.',
+      `Setting: ${trimmedPlace}`,
+      `Why it matters: ${trimmedReason}`,
+      `Dominant feelings: ${storyEmotionsText}`,
+      `Emokai name: ${effectiveCharacterName}`,
+      `Appearance notes: ${trimmedAppearance}`,
+      `Behaviour: ${trimmedAction}`,
+      '',
+      'Instructions:',
+      '1. Open with a vivid sense of place and the emotions the narrator (“you”) feels standing there.',
+      `2. Always refer to the Emokai as “${effectiveCharacterName}” with no alternate names.`,
+      `3. Keep ${effectiveCharacterName}'s actions and traits aligned with the appearance/behaviour notes above.`,
+      '4. Write from the second-person perspective, focusing on your brief interaction and shifting feelings.',
+      '5. End with a resonant final line that leaves a lingering impression.'
+    ].join('\n');
+  }, [actionText, appearanceText, effectiveCharacterName, isJa, localeKey, placeText, reasonText, storyEmotionsText]);
 
   const storyPrompt = useMemo(() => {
     const trimmedPlace = placeText.trim() || (isJa ? '場所不明' : 'Unknown place');
