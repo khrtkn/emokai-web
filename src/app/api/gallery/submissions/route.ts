@@ -320,24 +320,34 @@ export async function POST(request: NextRequest) {
     let modelGlbAsset: UploadedAsset | null = null;
     let modelUsdzAsset: UploadedAsset | null = null;
 
-    if (submission.model?.glbUrl) {
+    const glbSource = submission.model?.glbUrl
+      ?? (submission.model?.primaryUrl && submission.model.primaryUrl.toLowerCase().includes('.glb')
+        ? submission.model.primaryUrl
+        : null);
+
+    if (glbSource) {
       modelGlbAsset = await copyRemoteAssetForCreation(
         creationId,
         'glb',
         'private',
-        submission.model.glbUrl,
+        glbSource,
         'model/model.glb',
         '31536000',
       );
       uploadedAssets.push(modelGlbAsset);
     }
 
-    if (submission.model?.usdzUrl) {
+    const usdzSource = submission.model?.usdzUrl
+      ?? (submission.model?.primaryUrl && submission.model.primaryUrl.toLowerCase().includes('.usdz')
+        ? submission.model.primaryUrl
+        : null);
+
+    if (usdzSource) {
       modelUsdzAsset = await copyRemoteAssetForCreation(
         creationId,
         'usdz',
         'private',
-        submission.model.usdzUrl,
+        usdzSource,
         'model/model.usdz',
         '31536000',
       );

@@ -390,6 +390,16 @@ const StepLabel = ({ text }: { text?: string }) => {
 const primaryButtonClass =
   'inline-block min-h-[44px] rounded-lg bg-accent px-6 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed';
 
+const urlHasExtension = (value: string | null | undefined, extension: string) => {
+  if (!value) return false;
+  try {
+    const parsed = new URL(value);
+    return parsed.pathname.toLowerCase().endsWith(`.${extension.toLowerCase()}`);
+  } catch {
+    return value.toLowerCase().includes(`.${extension.toLowerCase()}`);
+  }
+};
+
 function formatDate(value: string, locale: Locale) {
   try {
     return new Date(value).toLocaleString(locale === 'ja' ? 'ja-JP' : 'en-US', {
@@ -884,6 +894,12 @@ export default function EmokaiStepPage({ params }: Props) {
     setPlaceText(value);
     saveSessionString(PLACE_STORAGE_KEY, value);
     setStageGenerationError(null);
+    setGeoStatus('idle');
+    setGeoError(null);
+    lastGeocodeQueryRef.current = null;
+    if (!value.trim()) {
+      setGeoCoords(null);
+    }
     setStreetViewDescription(null);
   };
 
@@ -1645,11 +1661,12 @@ export default function EmokaiStepPage({ params }: Props) {
 
   useEffect(() => {
     if (step !== 11) return;
+    if (!characterNameValid) return;
     if (generationRunning) return;
     if (generationResults) return;
     startGenerationJobs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
+  }, [step, characterNameValid]);
 
   const progressStages = useMemo(
     () => [
@@ -1823,9 +1840,8 @@ export default function EmokaiStepPage({ params }: Props) {
       const modelPayload = model
         ? {
             primaryUrl: model.url,
-            glbUrl:
-              model.alternates?.glb ?? (model.url?.toLowerCase().endsWith('.glb') ? model.url : undefined),
-            usdzUrl: model.alternates?.usdz,
+            glbUrl: model.alternates?.glb ?? (urlHasExtension(model.url, 'glb') ? model.url : undefined),
+            usdzUrl: model.alternates?.usdz ?? (urlHasExtension(model.url, 'usdz') ? model.url : undefined),
             previewUrl: model.previewUrl ?? undefined,
             polygons: model.polygons ?? undefined,
             alternates: model.alternates ?? undefined,
