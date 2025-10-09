@@ -180,6 +180,56 @@ function isCoordinateLabel(value: string) {
   return /^[-+]?\d+(\.\d+)?\s*,\s*[-+]?\d+(\.\d+)?$/.test(text);
 }
 
+const COORDINATE_EPSILON = 1e-6;
+
+function parseCoordinateLabel(value: string): { lat: number; lng: number } | null {
+  const text = value.trim();
+  if (!text) return null;
+  const numbers = text.match(/[-+]?\d+(?:\.\d+)?/g);
+  if (!numbers || numbers.length < 2) {
+    return null;
+  }
+
+  let lat = Number(numbers[0]);
+  let lng = Number(numbers[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return null;
+  }
+
+  const lower = text.toLowerCase();
+  const hasNorth = lower.includes('北緯') || lower.includes('north');
+  const hasSouth = lower.includes('南緯') || lower.includes('south');
+  const hasEast = lower.includes('東経') || lower.includes('east');
+  const hasWest = lower.includes('西経') || lower.includes('west');
+
+  if (hasSouth && !hasNorth) {
+    lat = -Math.abs(lat);
+  } else if (hasNorth && !hasSouth) {
+    lat = Math.abs(lat);
+  }
+
+  if (hasWest && !hasEast) {
+    lng = -Math.abs(lng);
+  } else if (hasEast && !hasWest) {
+    lng = Math.abs(lng);
+  }
+
+  return { lat, lng };
+}
+
+function mergeCoordinates(
+  previous: { lat: number; lng: number } | null,
+  next: { lat: number; lng: number },
+) {
+  if (!previous) return next;
+  const latDiff = Math.abs(previous.lat - next.lat);
+  const lngDiff = Math.abs(previous.lng - next.lng);
+  if (latDiff > COORDINATE_EPSILON || lngDiff > COORDINATE_EPSILON) {
+    return next;
+  }
+  return previous;
+}
+
 type StageFlowStatus = 'idle' | 'moderating' | 'uploading' | 'generating' | 'ready' | 'error';
 type CharacterFlowStatus = 'idle' | 'generating' | 'ready' | 'error';
 type JobStatus = 'pending' | 'active' | 'complete' | 'error';
@@ -631,6 +681,7 @@ export default function EmokaiStepPage({ params }: Props) {
   const [characterName, setCharacterName] = useState(initialName);
   const [characterNameTouched, setCharacterNameTouched] = useState(initialName.trim().length > 0);
   const characterNameValid = characterName.trim().length >= MIN_TEXT_LENGTH;
+  const [nameConfirmed, setNameConfirmed] = useState(false);
 
   const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -739,6 +790,18 @@ export default function EmokaiStepPage({ params }: Props) {
       setGenerationRunning(false);
     }
   }, [step]);
+
+  useEffect(() => {
+    if (step !== 11) {
+      setNameConfirmed(false);
+    }
+  }, [step]);
+
+  useEffect(() => {
+    if (generationResults) {
+      setNameConfirmed(true);
+    }
+  }, [generationResults]);
 
   // ====== やわらかトーンの定型文 ======
   const minLengthHint = isJa ? '何か入力してください' : 'Please enter at least one character.';
@@ -894,11 +957,23 @@ export default function EmokaiStepPage({ params }: Props) {
     setPlaceText(value);
     saveSessionString(PLACE_STORAGE_KEY, value);
     setStageGenerationError(null);
-    setGeoStatus('idle');
     setGeoError(null);
-    lastGeocodeQueryRef.current = null;
-    if (!value.trim()) {
+    const trimmed = value.trim();
+    if (!trimmed) {
       setGeoCoords(null);
+      setGeoStatus('idle');
+      lastGeocodeQueryRef.current = null;
+    } else {
+      const parsed = parseCoordinateLabel(trimmed);
+      if (parsed) {
+        setGeoCoords((prev) => mergeCoordinates(prev, parsed));
+        setGeoStatus('success');
+        setGeoError(null);
+        lastGeocodeQueryRef.current = trimmed;
+      } else {
+        setGeoStatus('idle');
+        lastGeocodeQueryRef.current = null;
+      }
     }
     setStreetViewDescription(null);
   };
@@ -941,6 +1016,7 @@ export default function EmokaiStepPage({ params }: Props) {
   const handleCharacterNameChange = (value: string) => {
     setCharacterName(value);
     saveSessionString(NAME_STORAGE_KEY, value);
+    setNameConfirmed(false);
   };
 
   const requestGeolocation = useCallback(() => {
@@ -970,79 +1046,151 @@ export default function EmokaiStepPage({ params }: Props) {
     );
   }, [isJa]);
 
-  const fetchStaticMapReference = useCallback(async (): Promise<ProcessedImage | null> => {
-    if (!liveApisEnabled) return null;
-    const center = geoCoords
-      ? `${geoCoords.lat.toFixed(6)},${geoCoords.lng.toFixed(6)}`
-      : mapQuery || null;
-    if (!center) return null;
-    try {
-      const params = new URLSearchParams({
-        center,
-        maptype: 'satellite',
-        zoom: '16',
-        scale: '2',
-      });
-      const response = await fetch(`/api/maps/static?${params.toString()}`);
-      if (!response.ok) {
-        return null;
-      }
-      const data = (await response.json()) as { base64?: string; mimeType?: string };
-      if (!data?.base64) {
-        return null;
-      }
-      const blob = base64ToBlob(data.base64, data.mimeType ?? 'image/png');
-      const webpUrl = URL.createObjectURL(blob);
-      return {
-        blob,
-        webpUrl,
-        size: blob.size,
-      };
-    } catch (error) {
-      console.error('Failed to fetch static map', error);
-      return null;
-    }
-  }, [geoCoords, mapQuery, liveApisEnabled]);
-
-  const fetchStreetViewReference = useCallback(async (): Promise<{
-    image: ProcessedImage;
-    description?: string;
-  } | null> => {
-    if (!liveApisEnabled) return null;
-    if (!geoCoords) return null;
-    try {
-      const params = new URLSearchParams({
-        lat: geoCoords.lat.toString(),
-        lng: geoCoords.lng.toString(),
-      });
-      const response = await fetch(`/api/maps/streetview?${params.toString()}`);
-      if (!response.ok) {
-        return null;
-      }
-      const data = (await response.json()) as {
-        base64?: string;
-        mimeType?: string;
-        metadata?: { description?: string };
-      };
-      if (!data?.base64) {
-        return null;
-      }
-      const blob = base64ToBlob(data.base64, data.mimeType ?? 'image/jpeg');
-      const webpUrl = URL.createObjectURL(blob);
-      return {
-        image: {
+  const fetchStaticMapReference = useCallback(
+    async (overrideCoords?: { lat: number; lng: number } | null): Promise<ProcessedImage | null> => {
+      if (!liveApisEnabled) return null;
+      const coords = overrideCoords ?? geoCoords;
+      const center = coords
+        ? `${coords.lat.toFixed(6)},${coords.lng.toFixed(6)}`
+        : mapQuery || null;
+      if (!center) return null;
+      try {
+        const params = new URLSearchParams({
+          center,
+          maptype: 'satellite',
+          zoom: '16',
+          scale: '2',
+        });
+        const response = await fetch(`/api/maps/static?${params.toString()}`);
+        if (!response.ok) {
+          return null;
+        }
+        const data = (await response.json()) as { base64?: string; mimeType?: string };
+        if (!data?.base64) {
+          return null;
+        }
+        const blob = base64ToBlob(data.base64, data.mimeType ?? 'image/png');
+        const webpUrl = URL.createObjectURL(blob);
+        return {
           blob,
           webpUrl,
           size: blob.size,
-        },
-        description: data.metadata?.description ?? undefined,
-      };
-    } catch (error) {
-      console.error('Failed to fetch Street View reference', error);
-      setStreetViewDescription(null);
+        };
+      } catch (error) {
+        console.error('Failed to fetch static map', error);
+        return null;
+      }
+    },
+    [geoCoords, mapQuery, liveApisEnabled],
+  );
+
+  const fetchStreetViewReference = useCallback(
+    async (
+      overrideCoords?: { lat: number; lng: number } | null,
+    ): Promise<{ image: ProcessedImage; description?: string } | null> => {
+      if (!liveApisEnabled) return null;
+      const coords = overrideCoords ?? geoCoords;
+      if (!coords) return null;
+      try {
+        const params = new URLSearchParams({
+          lat: coords.lat.toString(),
+          lng: coords.lng.toString(),
+        });
+        const response = await fetch(`/api/maps/streetview?${params.toString()}`);
+        if (!response.ok) {
+          return null;
+        }
+        const data = (await response.json()) as {
+          base64?: string;
+          mimeType?: string;
+          metadata?: { description?: string };
+        };
+        if (!data?.base64) {
+          return null;
+        }
+        const blob = base64ToBlob(data.base64, data.mimeType ?? 'image/jpeg');
+        const webpUrl = URL.createObjectURL(blob);
+        return {
+          image: {
+            blob,
+            webpUrl,
+            size: blob.size,
+          },
+          description: data.metadata?.description ?? undefined,
+        };
+      } catch (error) {
+        console.error('Failed to fetch Street View reference', error);
+        setStreetViewDescription(null);
+        return null;
+      }
+    },
+    [geoCoords, liveApisEnabled],
+  );
+
+  const ensureGeoCoordinates = useCallback(async (): Promise<{ lat: number; lng: number } | null> => {
+    const trimmed = placeText.trim();
+    if (!trimmed) {
+      setGeoCoords(null);
+      setGeoStatus('idle');
+      setGeoError(null);
+      lastGeocodeQueryRef.current = null;
       return null;
     }
-  }, [geoCoords, liveApisEnabled]);
+
+    if (geoCoords) {
+      return geoCoords;
+    }
+
+    const parsed = parseCoordinateLabel(trimmed);
+    if (parsed) {
+      setGeoCoords((prev) => mergeCoordinates(prev, parsed));
+      setGeoStatus('success');
+      setGeoError(null);
+      lastGeocodeQueryRef.current = trimmed;
+      return parsed;
+    }
+
+    try {
+      setGeoStatus('loading');
+      setGeoError(null);
+      const response = await fetch('/api/geocode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: trimmed, locale: localeKey }),
+      });
+      const data = (await response.json()) as {
+        latitude?: number;
+        longitude?: number;
+        error?: string;
+        message?: string;
+      };
+      if (!response.ok) {
+        setGeoStatus('error');
+        setGeoError(
+          data?.error || data?.message || (isJa ? '場所を特定できませんでした。' : 'Could not locate that place.'),
+        );
+        return null;
+      }
+      if (typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+        const resolved = { lat: data.latitude, lng: data.longitude };
+        setGeoCoords((prev) => mergeCoordinates(prev, resolved));
+        setGeoStatus('success');
+        setGeoError(null);
+        lastGeocodeQueryRef.current = trimmed;
+        return resolved;
+      }
+      setGeoStatus('error');
+      setGeoError(
+        data?.error || data?.message || (isJa ? '座標情報が取得できませんでした。' : 'Coordinates missing in response.'),
+      );
+      return null;
+    } catch (error) {
+      console.warn('Failed to geocode place immediately', error);
+      setGeoStatus('error');
+      setGeoError(isJa ? '場所の検索に失敗しました。' : 'Failed to geocode this place.');
+      return null;
+    }
+  }, [geoCoords, isJa, localeKey, placeText]);
 
   const toggleEmotion = (emotion: string) => {
     setEmotionTouched(true);
@@ -1189,7 +1337,10 @@ export default function EmokaiStepPage({ params }: Props) {
     let referenceImage: ProcessedImage | null = null;
     let referenceHint: StageReferenceHint | undefined;
 
-    const staticImage = await fetchStaticMapReference();
+    const ensuredCoords = await ensureGeoCoordinates();
+    const coordsForReference = ensuredCoords ?? geoCoords;
+
+    const staticImage = await fetchStaticMapReference(coordsForReference);
     if (staticImage) {
       referenceImage = staticImage;
       const description = (() => {
@@ -1210,8 +1361,8 @@ export default function EmokaiStepPage({ params }: Props) {
         type: 'satellite',
       };
       setStreetViewDescription(null);
-    } else if (geoCoords) {
-      const result = await fetchStreetViewReference();
+    } else if (coordsForReference) {
+      const result = await fetchStreetViewReference(coordsForReference);
       if (result) {
         referenceImage = result.image;
         referenceHint = {
@@ -1662,11 +1813,12 @@ export default function EmokaiStepPage({ params }: Props) {
   useEffect(() => {
     if (step !== 11) return;
     if (!characterNameValid) return;
+    if (!nameConfirmed) return;
     if (generationRunning) return;
     if (generationResults) return;
     startGenerationJobs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, characterNameValid]);
+  }, [step, characterNameValid, nameConfirmed, generationRunning, generationResults]);
 
   const progressStages = useMemo(
     () => [
@@ -1701,6 +1853,22 @@ export default function EmokaiStepPage({ params }: Props) {
     if (typeof window === 'undefined') return;
     if (!placeTouched) return;
     const trimmed = placeText.trim();
+    if (!trimmed) {
+      setGeoCoords(null);
+      setGeoStatus('idle');
+      lastGeocodeQueryRef.current = null;
+      return;
+    }
+
+    const parsedFromLabel = parseCoordinateLabel(trimmed);
+    if (parsedFromLabel) {
+      setGeoCoords((prev) => mergeCoordinates(prev, parsedFromLabel));
+      setGeoStatus('success');
+      setGeoError(null);
+      lastGeocodeQueryRef.current = trimmed;
+      return;
+    }
+
     if (trimmed.length < 3) return;
     if (trimmed === lastGeocodeQueryRef.current && geoCoords) {
       return;
@@ -1811,6 +1979,9 @@ export default function EmokaiStepPage({ params }: Props) {
     setSubmissionError(null);
     setSubmissionState('saving');
 
+    const resolvedCoords = await ensureGeoCoordinates();
+    const effectiveGeo = resolvedCoords ?? geoCoords;
+
     try {
       const stageImageRaw = await readOptionImagePayload(stageSelection);
       const characterImageRaw = await readOptionImagePayload(characterSelection);
@@ -1885,10 +2056,10 @@ export default function EmokaiStepPage({ params }: Props) {
             ? { base64: compositePayload.base64, mimeType: compositePayload.mimeType }
             : { url: compositePayload.url, mimeType: compositePayload.mimeType },
         emotionLevels,
-        geo: geoCoords
+        geo: effectiveGeo
           ? {
-              latitude: geoCoords.lat,
-              longitude: geoCoords.lng,
+              latitude: effectiveGeo.lat,
+              longitude: effectiveGeo.lng,
               altitude: undefined,
             }
           : undefined,
@@ -1977,6 +2148,7 @@ export default function EmokaiStepPage({ params }: Props) {
     stageSelection,
     streetViewDescription,
     submissionState,
+    ensureGeoCoordinates,
   ]);
 
   // ====== 画面パーツ ======
@@ -2196,22 +2368,51 @@ export default function EmokaiStepPage({ params }: Props) {
         : undefined;
 
     const nameInput = (
-      <RichInput
-        label={isJa ? 'エモカイの名前' : 'Name your Emokai'}
-        placeholder={isJa ? '名前を入力してください。' : 'Give your Emokai a name.'}
-        value={characterName}
-        onChange={(value) => {
-          if (!characterNameTouched) {
-            setCharacterNameTouched(true);
-          }
-          handleCharacterNameChange(value);
-        }}
-        rows={1}
-        maxLength={60}
-        showCounter={false}
-        helperText={isJa ? '観測記録に残る名前になります。' : 'This name will appear in the record.'}
-        error={nameError}
-      />
+      <div className="space-y-3">
+        <RichInput
+          label={isJa ? 'エモカイの名前' : 'Name your Emokai'}
+          placeholder={isJa ? '名前を入力してください。' : 'Give your Emokai a name.'}
+          value={characterName}
+          onChange={(value) => {
+            if (!characterNameTouched) {
+              setCharacterNameTouched(true);
+            }
+            handleCharacterNameChange(value);
+          }}
+          rows={1}
+          maxLength={60}
+          showCounter={false}
+          helperText={isJa ? '観測記録に残る名前になります。' : 'This name will appear in the record.'}
+          error={nameError}
+        />
+        <label className="flex items-start gap-3 text-xs text-textSecondary">
+          <input
+            type="checkbox"
+            className="mt-1 h-4 w-4 rounded border border-divider text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            checked={nameConfirmed}
+            disabled={generationRunning || !!generationResults}
+            onChange={(event) => {
+              if (!characterNameValid) {
+                setCharacterNameTouched(true);
+                return;
+              }
+              setNameConfirmed(event.target.checked);
+            }}
+          />
+          <span>
+            {isJa
+              ? 'この名前で観測を進めることを確認しました'
+              : 'I confirm this is the name to use for generation.'}
+          </span>
+        </label>
+        {!nameConfirmed && !generationRunning && !generationResults ? (
+          <p className="text-xs text-textSecondary">
+            {isJa
+              ? 'チェックを入れると物語や3Dモデルの生成がはじまります。'
+              : 'Turn on the checkbox to begin generating the story and model.'}
+          </p>
+        ) : null}
+      </div>
     );
 
     if (!allReady) {
@@ -2275,10 +2476,16 @@ export default function EmokaiStepPage({ params }: Props) {
       return (
         <section className="space-y-4">
           <p className="text-sm text-textSecondary">
-            {generationError ?? (isJa ? 'エモカイを観測しています…' : 'Observing your Emokai...')}
+            {nameConfirmed || generationRunning || generationResults
+              ? generationError ?? (isJa ? 'エモカイを観測しています…' : 'Observing your Emokai...')
+              : isJa
+                ? '名前が決まったらチェックを入れて観測を始めましょう。'
+                : 'Decide on a name, check the box, and we will start the observation.'}
           </p>
           {nameInput}
-          <ProgressBar stages={progressStages} />
+          {nameConfirmed || generationRunning || generationResults ? (
+            <ProgressBar stages={progressStages} />
+          ) : null}
         </section>
       );
     }

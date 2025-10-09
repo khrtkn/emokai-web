@@ -24,8 +24,6 @@ export function GalleryPublicView({ locale, items, nextCursor }: GalleryPublicVi
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-6 pb-12">
-      {mapItems.length ? <GalleryMap items={mapItems} cardRefs={cardRefs} /> : null}
-
       <section className="space-y-6 text-textPrimary">
         <p className="text-xs uppercase tracking-[0.3em] text-textSecondary">Emokai Catalog</p>
         <h1 className="text-3xl font-semibold">
@@ -42,6 +40,12 @@ export function GalleryPublicView({ locale, items, nextCursor }: GalleryPublicVi
           </Button>
         </Link>
       </section>
+
+      {mapItems.length ? (
+        <div className="mt-2">
+          <GalleryMap items={mapItems} cardRefs={cardRefs} />
+        </div>
+      ) : null}
 
       <PublicGalleryGrid
         locale={locale}
