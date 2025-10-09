@@ -26,6 +26,17 @@ function coerceMetadata(value: CreationRow['metadata']): Record<string, unknown>
   return {};
 }
 
+function coerceNullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export interface NormalizedCreation {
   id: string;
   slug: string;
@@ -74,9 +85,9 @@ export function mapCreationRow(row: CreationRow): NormalizedCreation {
     stagePrompt: row.stage_prompt,
     characterPrompt: row.character_prompt,
     compositeInstruction: row.composite_instruction,
-    latitude: row.latitude,
-    longitude: row.longitude,
-    altitude: row.altitude,
+    latitude: coerceNullableNumber(row.latitude),
+    longitude: coerceNullableNumber(row.longitude),
+    altitude: coerceNullableNumber(row.altitude),
     emotionLevels: {
       joy: Number(row.emotion_joy ?? 0),
       trust: Number(row.emotion_trust ?? 0),
