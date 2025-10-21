@@ -1682,12 +1682,10 @@ export default function EmokaiStepPage({ params }: Props) {
     () => extractModelUrls(generationResults?.results?.model ?? null),
     [generationResults],
   );
-  const canLaunchExperience = useMemo(() => {
-    if (isIOS) {
-      return Boolean(modelUrls.usdz);
-    }
-    return Boolean(modelUrls.glb ?? modelUrls.primary);
-  }, [isIOS, modelUrls.glb, modelUrls.primary, modelUrls.usdz]);
+  const canLaunchExperience = useMemo(
+    () => Boolean(modelUrls.usdz || modelUrls.glb || modelUrls.primary),
+    [modelUrls.glb, modelUrls.primary, modelUrls.usdz],
+  );
 
   const handleOpenExperience = useCallback(() => {
     const mode = isIOS && modelUrls.usdz ? 'ar' : 'fallback';
@@ -2189,7 +2187,7 @@ export default function EmokaiStepPage({ params }: Props) {
     }
 
     const readyMessage = isJa
-      ? '素材がすべて揃いました。次へ進むと呼び出し画面が開きます。'
+      ? '素材がすべて揃いました。つぎへ進むと呼び出し画面が開きます。'
       : 'All assets are ready. Continue to open the AR/3D viewer.';
 
     return (
@@ -2210,18 +2208,10 @@ export default function EmokaiStepPage({ params }: Props) {
           {!canLaunchExperience ? (
             <p className="text-xs text-[#ffb9b9]">
               {isJa
-                ? 'モデルのURLを取得できませんでした。送り出し画面から再試行してください。'
-                : 'We could not locate the model URL. Please continue to the send-off screen to retry.'}
+                ? 'モデルのURLを取得できませんでした。Step10に戻って再実行してください。'
+                : 'We could not locate the model URL. Please return to Step 10 and retry.'}
             </p>
           ) : null}
-          <Button
-            type="button"
-            variant="secondary"
-            className="w-full"
-            onClick={handleProceedToGallery}
-          >
-            {isJa ? '送り出し画面へ進む' : 'Go to send-off'}
-          </Button>
         </div>
       </section>
     );
