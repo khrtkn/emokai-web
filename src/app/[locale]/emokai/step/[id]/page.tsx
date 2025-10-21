@@ -851,6 +851,17 @@ export default function EmokaiStepPage({ params }: Props) {
   }, [generationResults]);
 
   useEffect(() => {
+    if (step !== 14) return;
+    console.log('[step14] readiness snapshot', {
+      generationState,
+      modelUrls,
+      modelAvailable,
+      otherAssetsPending,
+      generationResults,
+    });
+  }, [step, generationState, modelUrls, modelAvailable, otherAssetsPending, generationResults]);
+
+  useEffect(() => {
     if (step !== 1) return;
     setGenerationState(INITIAL_GENERATION_STATE);
     setGenerationError(null);
