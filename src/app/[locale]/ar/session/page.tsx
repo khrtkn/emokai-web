@@ -230,6 +230,17 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
     }
   }, [currentMode, isIOS, launchUrl, launchAttempted]);
 
+  useEffect(() => {
+    if (currentMode !== "ar" || !isIOS) return;
+    const handleVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      if (!launchAttempted) return;
+      router.push(`/${locale}/emokai/step/15`);
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [currentMode, isIOS, launchAttempted, locale, router]);
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-canvas">
       <Header
@@ -253,7 +264,7 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
           <Button
             type="button"
             className="w-full"
-            onClick={() => router.push(`/${locale}/emokai/step/14`)}
+            onClick={() => router.push(`/${locale}/emokai/step/15`)}
           >
             {isJa ? '送り出しの画面へ進む' : 'Continue to send-off'}
           </Button>
@@ -261,7 +272,7 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
             type="button"
             variant="secondary"
             className="w-full"
-            onClick={() => router.push(`/${locale}/ar`)}
+            onClick={() => router.push(`/${locale}/emokai/step/10`)}
           >
             {isJa ? '呼び出し画面に戻る' : 'Back to AR launcher'}
           </Button>

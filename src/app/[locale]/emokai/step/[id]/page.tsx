@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { useRouter } from 'next/navigation';
 
 import { Button, Header, ImageOption, LoadingScreen, ProgressBar, RichInput } from '@/components/ui';
-import { FallbackViewer } from '@/components/fallback-viewer';
 import { moderateText } from '@/lib/moderation';
 import type { StageOption } from '@/lib/stage-generation';
 import { createCharacterOptions, type CharacterOption } from '@/lib/character-generation';
@@ -39,7 +38,7 @@ import { detectDeviceType, getModelTargetFormats } from '@/lib/device';
 
 const MIN_TEXT_LENGTH = 1;
 const TOTAL_STEPS = 15;
-const SIMPLIFIED_FLOW_STEPS = [1, 2, 3, 5, 9, 10, 15] as const;
+const SIMPLIFIED_FLOW_STEPS = [1, 2, 3, 5, 9, 10, 14, 15] as const;
 const DEFAULT_COORD_QUERY = '35.681236,139.767125';
 
 function formatTwoDigits(value: number) {
@@ -764,8 +763,6 @@ export default function EmokaiStepPage({ params }: Props) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const [showCharacterAdjust, setShowCharacterAdjust] = useState(false);
-  const quickLookAnchorRef = useRef<HTMLAnchorElement | null>(null);
-  const [awaitingArReturn, setAwaitingArReturn] = useState(false);
   const fallbackNameRef = useRef<string | null>(initialName.trim() ? initialName.trim() : null);
 
   const storedCharacterSelection = useMemo(() => readCharacterSelection(), []);
@@ -805,11 +802,6 @@ export default function EmokaiStepPage({ params }: Props) {
   );
 
   const [creations, setCreations] = useState<CreationPayload[]>(() => listCreations());
-  const initialSummonState = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    return window.sessionStorage.getItem(AR_SUMMON_STORAGE_KEY) === 'true';
-  }, []);
-  const [hasSummoned, setHasSummoned] = useState(initialSummonState);
   const [submissionState, setSubmissionState] = useState<'idle' | 'saving' | 'success' | 'error'>(
     'idle',
   );
@@ -868,17 +860,6 @@ export default function EmokaiStepPage({ params }: Props) {
     releaseGenerationLock();
   }, [step]);
 
-  useEffect(() => {
-    if (!awaitingArReturn) return;
-    const handleVisibility = () => {
-      if (document.visibilityState !== 'visible') return;
-      setAwaitingArReturn(false);
-      router.push(`/${locale}/emokai/step/15`);
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [awaitingArReturn, locale, router]);
-
   // ====== やわらかトーンの定型文 ======
   const minLengthHint = isJa ? '何か入力してください' : 'Please enter at least one character.';
   const selectOneHint = isJa ? '少なくとも1つえらんでください' : 'Please select at least one.';
@@ -906,10 +887,9 @@ export default function EmokaiStepPage({ params }: Props) {
       6: 5,
       7: 9,
       8: 9,
-      11: 10,
-      12: 10,
-      13: 10,
-      14: 10,
+      11: 14,
+      12: 14,
+      13: 14,
     };
     const fallback = redirectMap[step] ?? 1;
     router.replace(`/${locale}/emokai/step/${fallback}`);
@@ -1180,7 +1160,6 @@ export default function EmokaiStepPage({ params }: Props) {
       window.sessionStorage.removeItem(GENERATION_RESULTS_KEY);
       window.sessionStorage.removeItem(AR_SUMMON_STORAGE_KEY);
     }
-    setHasSummoned(false);
     fallbackNameRef.current = null;
   }, []);
 
@@ -1368,7 +1347,11 @@ export default function EmokaiStepPage({ params }: Props) {
     }
     setShowCharacterAdjust(false);
     const finalName = ensureCharacterName();
-    void startGenerationJobs(finalName);
+    const started = await startGenerationJobs(finalName);
+    if (!started) {
+      return;
+    }
+    router.push(`/${locale}/emokai/step/14`);
   };
 
   const handleCharacterApplyAdjust = async () => {
@@ -1712,26 +1695,19 @@ export default function EmokaiStepPage({ params }: Props) {
     () => extractModelUrls(generationResults?.results?.model ?? null),
     [generationResults],
   );
-  const fallbackModelUrl = modelUrls.glb ?? modelUrls.primary ?? null;
-  const hasUsdzModel = Boolean(modelUrls.usdz);
+  const canLaunchExperience = useMemo(() => {
+    if (isIOS) {
+      return Boolean(modelUrls.usdz);
+    }
+    return Boolean(modelUrls.glb ?? modelUrls.primary);
+  }, [isIOS, modelUrls.glb, modelUrls.primary, modelUrls.usdz]);
 
-  const handleLaunchQuickLook = useCallback(() => {
-    if (!modelUrls.usdz) return;
-    if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem(AR_SUMMON_STORAGE_KEY, 'true');
-    }
-    setHasSummoned(true);
-    setAwaitingArReturn(true);
-    if (quickLookAnchorRef.current) {
-      quickLookAnchorRef.current.href = modelUrls.usdz;
-      quickLookAnchorRef.current.click();
-    } else {
-      window.location.href = modelUrls.usdz;
-    }
-  }, [modelUrls.usdz]);
+  const handleOpenExperience = useCallback(() => {
+    const mode = isIOS && modelUrls.usdz ? 'ar' : 'fallback';
+    router.push(`/${locale}/ar/session?mode=${mode}`);
+  }, [isIOS, locale, modelUrls.usdz, router]);
 
   const handleProceedToGallery = useCallback(() => {
-    setHasSummoned(true);
     router.push(`/${locale}/emokai/step/15`);
   }, [locale, router]);
 
@@ -2000,7 +1976,6 @@ export default function EmokaiStepPage({ params }: Props) {
       setStageSelection(null);
       setCharacterSelection(null);
       setGenerationResults(null);
-      setHasSummoned(false);
       setCharacterName('');
       fallbackNameRef.current = null;
 
@@ -2156,11 +2131,6 @@ export default function EmokaiStepPage({ params }: Props) {
             </div>
           </div>
         ) : null}
-        {(generationRunning || generationResults || generationError) && (
-          <div className="pt-4">
-            {renderSummonPanel()}
-          </div>
-        )}
       </section>
     );
   };
@@ -2173,12 +2143,26 @@ export default function EmokaiStepPage({ params }: Props) {
           ? 'エモカイを観測しています…'
           : 'Preparing your Emokai…';
       return (
-        <section className="space-y-4 rounded-3xl border border-divider bg-[rgba(237,241,241,0.04)] p-4">
-          <h2 className="text-base font-semibold text-textPrimary">
-            {isJa ? '観測中' : 'Preparing'}
-          </h2>
-          <p className="text-sm text-textSecondary">{message}</p>
+        <section className="space-y-6 rounded-3xl border border-divider bg-[rgba(237,241,241,0.04)] p-6 text-center">
+          <div className="flex flex-col items-center space-y-3">
+            <Image
+              src="/loading/creation-loop.gif"
+              alt={isJa ? '観測中のアニメーション' : 'Loading animation'}
+              width={160}
+              height={160}
+              unoptimized
+            />
+            <h2 className="text-base font-semibold text-textPrimary">
+              {isJa ? '観測中' : 'Observing'}
+            </h2>
+            <p className="text-sm text-textSecondary">{message}</p>
+          </div>
           <ProgressBar stages={progressStages} />
+          <p className="text-xs text-textSecondary">
+            {isJa
+              ? '素材が整うと「次へ」ボタンが有効になります。'
+              : 'Once everything is ready, the Next button will light up.'}
+          </p>
         </section>
       );
     }
@@ -2236,76 +2220,40 @@ export default function EmokaiStepPage({ params }: Props) {
       );
     }
 
-    const statusMessage = isIOS
-      ? hasSummoned
-        ? isJa
-          ? 'Quick Look から戻りました。送り出しに進みましょう。'
-          : 'Welcome back from AR. Continue to send-off.'
-        : isJa
-          ? '「呼び出す」を押すとQuick Lookが開きます。閉じると自動で次へ進みます。'
-          : 'Tap “Launch AR” to open Quick Look. Closing it will take you forward.'
-      : isJa
-        ? 'お使いの端末では3Dビューアで確認できます。'
-        : 'Preview the model in the 3D viewer on this device.';
-
-    const arButtonLabel = !hasUsdzModel
-      ? isJa
-        ? 'USDZを準備中…'
-        : 'Preparing USDZ…'
-      : awaitingArReturn
-        ? isJa
-          ? '起動しています…'
-          : 'Launching…'
-        : isJa
-          ? 'ARを起動する'
-          : 'Launch AR';
+    const readyMessage = isJa
+      ? '素材がすべて揃いました。次へ進むと呼び出し画面が開きます。'
+      : 'All assets are ready. Continue to open the AR/3D viewer.';
 
     return (
-      <section className="space-y-4">
+      <section className="space-y-4 rounded-3xl border border-divider bg-[rgba(237,241,241,0.04)] p-6">
         <h2 className="text-base font-semibold text-textPrimary">
-          {isJa ? 'この世界に呼び出す' : 'Bring into this world'}
+          {isJa ? '準備完了' : 'Ready to launch'}
         </h2>
-        <p className="text-sm text-textSecondary">{statusMessage}</p>
-        {isIOS ? (
-          <div className="space-y-2">
-            <Button
-              type="button"
-              onClick={handleLaunchQuickLook}
-              disabled={!hasUsdzModel || awaitingArReturn}
-            >
-              {arButtonLabel}
-            </Button>
-            {!hasUsdzModel ? (
-              <p className="text-xs text-textSecondary">
-                {isJa
-                  ? 'USDZ ファイルを生成しています。数秒お待ちください。'
-                  : 'The USDZ file is still generating. Please try again shortly.'}
-              </p>
-            ) : null}
-            <a
-              ref={quickLookAnchorRef}
-              rel="ar"
-              href={modelUrls.usdz ?? undefined}
-              className="hidden"
-              aria-hidden="true"
-            >
-              Quick Look
-            </a>
-          </div>
-        ) : null}
-        {!isIOS && fallbackModelUrl ? (
-          <div className="space-y-3 rounded-2xl border border-divider bg-[rgba(237,241,241,0.04)] p-4">
-            <FallbackViewer
-              modelUrl={fallbackModelUrl}
-              loadingLabel={isJa ? '読み込み中…' : 'Loading…'}
-              errorLabel={isJa ? '3Dビューアを表示できませんでした。' : 'Unable to load the viewer.'}
-            />
-          </div>
-        ) : null}
-        <div className="pt-2">
-          <button type="button" className={primaryButtonClass} onClick={handleProceedToGallery}>
-            {isJa ? '送り出し画面へ進む' : 'Continue to send-off'}
-          </button>
+        <p className="text-sm text-textSecondary">{readyMessage}</p>
+        <div className="space-y-2">
+          <Button
+            type="button"
+            className="w-full"
+            onClick={handleOpenExperience}
+            disabled={!canLaunchExperience}
+          >
+            {isJa ? 'つぎへ' : 'Next'}
+          </Button>
+          {!canLaunchExperience ? (
+            <p className="text-xs text-[#ffb9b9]">
+              {isJa
+                ? 'モデルのURLを取得できませんでした。送り出し画面から再試行してください。'
+                : 'We could not locate the model URL. Please continue to the send-off screen to retry.'}
+            </p>
+          ) : null}
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full"
+            onClick={handleProceedToGallery}
+          >
+            {isJa ? '送り出し画面へ進む' : 'Go to send-off'}
+          </Button>
         </div>
       </section>
     );
@@ -2733,6 +2681,18 @@ export default function EmokaiStepPage({ params }: Props) {
         );
       case 10:
         return renderCharacterStep();
+      case 14:
+        return (
+          <section className="space-y-4">
+            <StepLabel text={stepLabelText} />
+            <p className="text-sm text-textSecondary">
+              {isJa
+                ? 'エモカイの姿が整うまで、このままお待ちください。'
+                : 'Hold tight while your Emokai finishes materialising.'}
+            </p>
+            {renderSummonPanel()}
+          </section>
+        );
       case 15:
         return renderGalleryStep();
       default:
