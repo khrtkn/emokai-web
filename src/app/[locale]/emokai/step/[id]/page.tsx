@@ -39,7 +39,7 @@ import { detectDeviceType, getModelTargetFormats } from '@/lib/device';
 
 const MIN_TEXT_LENGTH = 1;
 const TOTAL_STEPS = 15;
-const SIMPLIFIED_FLOW_STEPS = [1, 2, 3, 5, 9, 10, 14, 15] as const;
+const SIMPLIFIED_FLOW_STEPS = [1, 2, 3, 5, 9, 10, 15] as const;
 const DEFAULT_COORD_QUERY = '35.681236,139.767125';
 
 function formatTwoDigits(value: number) {
@@ -833,6 +833,32 @@ export default function EmokaiStepPage({ params }: Props) {
   }, [characterName]);
 
   useEffect(() => {
+    if (!generationResults) return;
+    setGenerationState((prev) => {
+      const next: GenerationState = { ...prev };
+      let changed = false;
+
+      if (generationResults.results.model && prev.model !== 'complete') {
+        next.model = 'complete';
+        changed = true;
+      }
+
+      if (generationResults.results.composite && prev.composite !== 'complete') {
+        next.composite = 'complete';
+        changed = true;
+      }
+
+      if (generationResults.results.story && prev.story !== 'complete') {
+        next.story = 'complete';
+        changed = true;
+      }
+
+      if (!changed) return prev;
+      return next;
+    });
+  }, [generationResults]);
+
+  useEffect(() => {
     if (step !== 1) return;
     setGenerationState(INITIAL_GENERATION_STATE);
     setGenerationError(null);
@@ -880,9 +906,10 @@ export default function EmokaiStepPage({ params }: Props) {
       6: 5,
       7: 9,
       8: 9,
-      11: 14,
-      12: 14,
-      13: 14,
+      11: 10,
+      12: 10,
+      13: 10,
+      14: 10,
     };
     const fallback = redirectMap[step] ?? 1;
     router.replace(`/${locale}/emokai/step/${fallback}`);
@@ -1341,11 +1368,7 @@ export default function EmokaiStepPage({ params }: Props) {
     }
     setShowCharacterAdjust(false);
     const finalName = ensureCharacterName();
-    const started = await startGenerationJobs(finalName);
-    if (!started) {
-      return;
-    }
-    router.push(`/${locale}/emokai/step/14`);
+    void startGenerationJobs(finalName);
   };
 
   const handleCharacterApplyAdjust = async () => {
@@ -2133,11 +2156,16 @@ export default function EmokaiStepPage({ params }: Props) {
             </div>
           </div>
         ) : null}
+        {(generationRunning || generationResults || generationError) && (
+          <div className="pt-4">
+            {renderSummonPanel()}
+          </div>
+        )}
       </section>
     );
   };
 
-  const renderSummonStep = () => {
+  const renderSummonPanel = () => {
     if (!allReady) {
       const message = generationError
         ? generationError
@@ -2145,8 +2173,7 @@ export default function EmokaiStepPage({ params }: Props) {
           ? 'エモカイを観測しています…'
           : 'Preparing your Emokai…';
       return (
-        <section className="space-y-4">
-          <StepLabel text={stepLabelText} />
+        <section className="space-y-4 rounded-3xl border border-divider bg-[rgba(237,241,241,0.04)] p-4">
           <h2 className="text-base font-semibold text-textPrimary">
             {isJa ? '観測中' : 'Preparing'}
           </h2>
@@ -2164,8 +2191,7 @@ export default function EmokaiStepPage({ params }: Props) {
       ];
 
       return (
-        <section className="space-y-4">
-          <StepLabel text={stepLabelText} />
+        <section className="space-y-4 rounded-3xl border border-divider bg-[rgba(237,241,241,0.04)] p-4">
           <h2 className="text-base font-semibold text-textPrimary">
             {isJa ? 'もう少しだけ調整が必要です' : 'Almost ready'}
           </h2>
@@ -2236,7 +2262,6 @@ export default function EmokaiStepPage({ params }: Props) {
 
     return (
       <section className="space-y-4">
-        <StepLabel text={stepLabelText} />
         <h2 className="text-base font-semibold text-textPrimary">
           {isJa ? 'この世界に呼び出す' : 'Bring into this world'}
         </h2>
@@ -2708,8 +2733,6 @@ export default function EmokaiStepPage({ params }: Props) {
         );
       case 10:
         return renderCharacterStep();
-      case 14:
-        return renderSummonStep();
       case 15:
         return renderGalleryStep();
       default:
