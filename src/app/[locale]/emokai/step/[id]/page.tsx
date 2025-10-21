@@ -1668,8 +1668,6 @@ export default function EmokaiStepPage({ params }: Props) {
   const compositeReady =
     generationState.composite === 'complete' && !!generationResults?.results?.composite;
   const storyReady = generationState.story === 'complete' && !!generationResults?.results?.story;
-  const modelReady = generationState.model === 'complete' && !!generationResults?.results?.model;
-
   const modelFailed = generationState.model === 'error';
   const compositeFailed = generationState.composite === 'error';
   const storyFailed = generationState.story === 'error';
@@ -1681,11 +1679,10 @@ export default function EmokaiStepPage({ params }: Props) {
     () => extractModelUrls(generationResults?.results?.model ?? null),
     [generationResults],
   );
-  const canLaunchExperience = useMemo(
+  const modelAvailable = useMemo(
     () => Boolean(modelUrls.usdz || modelUrls.glb || modelUrls.primary),
     [modelUrls.glb, modelUrls.primary, modelUrls.usdz],
   );
-  const launchReady = modelReady && canLaunchExperience;
   const otherAssetsPending = !compositeReady || !storyReady;
 
   const handleOpenExperience = useCallback(() => {
@@ -2122,7 +2119,7 @@ export default function EmokaiStepPage({ params }: Props) {
   };
 
   const renderSummonPanel = () => {
-    if (!launchReady) {
+    if (!modelAvailable) {
       const message = generationError
         ? generationError
         : generationState.model === 'active'
@@ -2210,11 +2207,11 @@ export default function EmokaiStepPage({ params }: Props) {
             type="button"
             className="w-full"
             onClick={handleOpenExperience}
-            disabled={!canLaunchExperience}
+            disabled={!modelAvailable}
           >
             {isJa ? 'つぎへ' : 'Next'}
           </Button>
-          {!canLaunchExperience ? (
+          {!modelAvailable ? (
             <p className="text-xs text-[#ffb9b9]">
               {isJa
                 ? 'モデルのURLを取得できませんでした。Step10に戻って再実行してください。'
