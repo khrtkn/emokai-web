@@ -824,42 +824,31 @@ export default function EmokaiStepPage({ params }: Props) {
     });
   }, [characterName]);
 
-  useEffect(() => {
-    if (!generationResults) return;
-    setGenerationState((prev) => {
-      const next: GenerationState = { ...prev };
-      let changed = false;
+useEffect(() => {
+  if (!generationResults) return;
+  setGenerationState((prev) => {
+    const next: GenerationState = { ...prev };
+    let changed = false;
 
-      if (generationResults.results.model && prev.model !== 'complete') {
-        next.model = 'complete';
-        changed = true;
-      }
+    if (generationResults.results.model && prev.model !== 'complete') {
+      next.model = 'complete';
+      changed = true;
+    }
 
-      if (generationResults.results.composite && prev.composite !== 'complete') {
-        next.composite = 'complete';
-        changed = true;
-      }
+    if (generationResults.results.composite && prev.composite !== 'complete') {
+      next.composite = 'complete';
+      changed = true;
+    }
 
-      if (generationResults.results.story && prev.story !== 'complete') {
-        next.story = 'complete';
-        changed = true;
-      }
+    if (generationResults.results.story && prev.story !== 'complete') {
+      next.story = 'complete';
+      changed = true;
+    }
 
-      if (!changed) return prev;
-      return next;
-    });
-  }, [generationResults]);
-
-  useEffect(() => {
-    if (step !== 14) return;
-    console.log('[step14] readiness snapshot', {
-      generationState,
-      modelUrls,
-      modelAvailable,
-      otherAssetsPending,
-      generationResults,
-    });
-  }, [step, generationState, modelUrls, modelAvailable, otherAssetsPending, generationResults]);
+    if (!changed) return prev;
+    return next;
+  });
+}, [generationResults]);
 
   useEffect(() => {
     if (step !== 1) return;
@@ -1676,14 +1665,6 @@ export default function EmokaiStepPage({ params }: Props) {
     void startGenerationJobs(candidateName);
   }, [ensureCharacterName, generationRunning, startGenerationJobs]);
 
-  const compositeReady =
-    generationState.composite === 'complete' && !!generationResults?.results?.composite;
-  const storyReady = generationState.story === 'complete' && !!generationResults?.results?.story;
-  const modelFailed = generationState.model === 'error';
-  const compositeFailed = generationState.composite === 'error';
-  const storyFailed = generationState.story === 'error';
-  const hasGenerationFailure = modelFailed || compositeFailed || storyFailed;
-
   const deviceType = useMemo(() => detectDeviceType(), []);
   const isIOS = deviceType === 'ios';
   const modelUrls = useMemo(
@@ -1694,7 +1675,26 @@ export default function EmokaiStepPage({ params }: Props) {
     () => Boolean(modelUrls.usdz || modelUrls.glb || modelUrls.primary),
     [modelUrls.glb, modelUrls.primary, modelUrls.usdz],
   );
+
+  const compositeReady =
+    generationState.composite === 'complete' && !!generationResults?.results?.composite;
+  const storyReady = generationState.story === 'complete' && !!generationResults?.results?.story;
+  const modelFailed = generationState.model === 'error';
+  const compositeFailed = generationState.composite === 'error';
+  const storyFailed = generationState.story === 'error';
+  const hasGenerationFailure = modelFailed || compositeFailed || storyFailed;
   const otherAssetsPending = !compositeReady || !storyReady;
+
+  useEffect(() => {
+    if (step !== 14) return;
+    console.log('[step14] readiness snapshot', {
+      generationState,
+      modelUrls,
+      modelAvailable,
+      otherAssetsPending,
+      generationResults,
+    });
+  }, [step, generationState, modelUrls, modelAvailable, otherAssetsPending, generationResults]);
 
   const handleOpenExperience = useCallback(() => {
     const mode = isIOS && modelUrls.usdz ? 'ar' : 'fallback';
