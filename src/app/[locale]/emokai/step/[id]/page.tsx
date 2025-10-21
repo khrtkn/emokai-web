@@ -1669,7 +1669,6 @@ export default function EmokaiStepPage({ params }: Props) {
     generationState.composite === 'complete' && !!generationResults?.results?.composite;
   const storyReady = generationState.story === 'complete' && !!generationResults?.results?.story;
   const modelReady = generationState.model === 'complete' && !!generationResults?.results?.model;
-  const allReady = compositeReady && storyReady && modelReady;
 
   const modelFailed = generationState.model === 'error';
   const compositeFailed = generationState.composite === 'error';
@@ -1686,6 +1685,8 @@ export default function EmokaiStepPage({ params }: Props) {
     () => Boolean(modelUrls.usdz || modelUrls.glb || modelUrls.primary),
     [modelUrls.glb, modelUrls.primary, modelUrls.usdz],
   );
+  const launchReady = modelReady && canLaunchExperience;
+  const otherAssetsPending = !compositeReady || !storyReady;
 
   const handleOpenExperience = useCallback(() => {
     const mode = isIOS && modelUrls.usdz ? 'ar' : 'fallback';
@@ -2121,12 +2122,16 @@ export default function EmokaiStepPage({ params }: Props) {
   };
 
   const renderSummonPanel = () => {
-    if (!allReady) {
+    if (!launchReady) {
       const message = generationError
         ? generationError
-        : isJa
-          ? 'エモカイを観測しています…'
-          : 'Preparing your Emokai…';
+        : generationState.model === 'active'
+          ? isJa
+            ? 'AR 用のモデルを準備しています…'
+            : 'Preparing the AR model…'
+          : isJa
+            ? '素材を整理しています…'
+            : 'Finalising the materials…';
       return (
         <section className="space-y-6 rounded-3xl border border-divider bg-[rgba(237,241,241,0.04)] p-6 text-center">
           <div className="flex flex-col items-center space-y-3">
@@ -2144,8 +2149,8 @@ export default function EmokaiStepPage({ params }: Props) {
           </div>
           <p className="text-xs text-textSecondary">
             {isJa
-              ? '素材が整うと「つぎへ」ボタンが有効になります。'
-              : 'Once everything is ready, the Next button will light up.'}
+              ? '準備が整いしだい、「つぎへ」ボタンが有効になります。'
+              : 'As soon as the model is ready, the Next button will become available.'}
           </p>
         </section>
       );
@@ -2186,9 +2191,13 @@ export default function EmokaiStepPage({ params }: Props) {
       );
     }
 
-    const readyMessage = isJa
-      ? '素材がすべて揃いました。つぎへ進むと呼び出し画面が開きます。'
-      : 'All assets are ready. Continue to open the AR/3D viewer.';
+    const readyMessage = otherAssetsPending
+      ? isJa
+        ? 'AR モデルは準備できました。他の素材は裏で仕上げています。'
+        : 'The AR model is ready. Remaining assets will finish in the background.'
+      : isJa
+        ? '素材がすべて揃いました。つぎへ進むと呼び出し画面が開きます。'
+        : 'All assets are ready. Continue to open the AR/3D viewer.';
 
     return (
       <section className="space-y-4 rounded-3xl border border-divider bg-[rgba(237,241,241,0.04)] p-6">
