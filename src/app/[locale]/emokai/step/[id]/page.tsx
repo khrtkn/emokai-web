@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { Button, Header, ImageOption, LoadingScreen, ProgressBar, RichInput } from '@/components/ui';
+import { Button, Header, ImageOption, LoadingScreen, RichInput } from '@/components/ui';
 import { moderateText } from '@/lib/moderation';
 import type { StageOption } from '@/lib/stage-generation';
 import { createCharacterOptions, type CharacterOption } from '@/lib/character-generation';
@@ -1665,19 +1665,6 @@ export default function EmokaiStepPage({ params }: Props) {
     void startGenerationJobs(candidateName);
   }, [ensureCharacterName, generationRunning, startGenerationJobs]);
 
-  const progressStages = useMemo(
-    () => [
-      { id: 'model', label: isJa ? 'すがた' : 'Model', status: generationState.model },
-      {
-        id: 'composite',
-        label: isJa ? '景色と重ねる' : 'Composite',
-        status: generationState.composite,
-      },
-      { id: 'story', label: isJa ? '物語' : 'Story', status: generationState.story },
-    ],
-    [generationState, isJa],
-  );
-
   const compositeReady =
     generationState.composite === 'complete' && !!generationResults?.results?.composite;
   const storyReady = generationState.story === 'complete' && !!generationResults?.results?.story;
@@ -2157,10 +2144,9 @@ export default function EmokaiStepPage({ params }: Props) {
             </h2>
             <p className="text-sm text-textSecondary">{message}</p>
           </div>
-          <ProgressBar stages={progressStages} />
           <p className="text-xs text-textSecondary">
             {isJa
-              ? '素材が整うと「次へ」ボタンが有効になります。'
+              ? '素材が整うと「つぎへ」ボタンが有効になります。'
               : 'Once everything is ready, the Next button will light up.'}
           </p>
         </section>
@@ -2168,36 +2154,17 @@ export default function EmokaiStepPage({ params }: Props) {
     }
 
     if (hasGenerationFailure) {
-      const failureList = [
-        { id: 'model', label: isJa ? '3Dモデル' : '3D model', failed: modelFailed },
-        { id: 'composite', label: isJa ? '合成画像' : 'Composite image', failed: compositeFailed },
-        { id: 'story', label: isJa ? '物語' : 'Story', failed: storyFailed },
-      ];
-
       return (
-        <section className="space-y-4 rounded-3xl border border-divider bg-[rgba(237,241,241,0.04)] p-4">
+        <section className="space-y-4 rounded-3xl border border-divider bg-[rgba(237,241,241,0.04)] p-4 text-center">
           <h2 className="text-base font-semibold text-textPrimary">
-            {isJa ? 'もう少しだけ調整が必要です' : 'Almost ready'}
+            {isJa ? 'もう一度ためしてみましょう' : 'Let’s try again'}
           </h2>
           <p className="text-sm text-textSecondary">
             {generationError ??
               (isJa
-                ? '一部の素材が揃いませんでした。もう一度ためすか、のちほど再試行してください。'
-                : 'Some pieces did not finish. Retry now or try again later.')}
+                ? '素材が揃いませんでした。時間を置いてから再実行してください。'
+                : 'We couldn’t finish preparing everything. Please retry now or come back later.')}
           </p>
-          <ul className="space-y-2 text-xs text-textSecondary">
-            {failureList.map(({ id, label, failed }) => (
-              <li
-                key={id}
-                className="flex items-center justify-between rounded-2xl border border-divider px-3 py-2"
-              >
-                <span>{label}</span>
-                <span className={failed ? 'text-[#ffb9b9]' : 'text-emerald-300'}>
-                  {failed ? (isJa ? '失敗' : 'Failed') : isJa ? '完了' : 'Ready'}
-                </span>
-              </li>
-            ))}
-          </ul>
           <div className="space-y-2">
             <Button type="button" onClick={handleGenerationRetry} disabled={generationRunning}>
               {generationRunning
@@ -2205,16 +2172,17 @@ export default function EmokaiStepPage({ params }: Props) {
                   ? 'もう一度ためしています…'
                   : 'Retrying...'
                 : isJa
-                  ? 'もう一度ためす'
+                  ? '再生成する'
                   : 'Try again'}
             </Button>
-            <button
+            <Button
               type="button"
-              className="w-full rounded-lg border border-divider px-4 py-2 text-sm text-textSecondary transition hover:border-accent"
+              variant="secondary"
+              className="w-full"
               onClick={handleProceedToGallery}
             >
-              {isJa ? 'このまま進む' : 'Continue anyway'}
-            </button>
+              {isJa ? '送り出し画面へ進む' : 'Go to send-off'}
+            </Button>
           </div>
         </section>
       );
