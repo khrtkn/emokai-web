@@ -42,6 +42,25 @@ const TOTAL_STEPS = 15;
 const SIMPLIFIED_FLOW_STEPS = [1, 2, 3, 5, 9, 10, 14, 15] as const;
 const DEFAULT_COORD_QUERY = '35.681236,139.767125';
 
+function formatTwoDigits(value: number) {
+  return value.toString().padStart(2, '0');
+}
+
+function buildTimestampLabel(localeKey: string) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = formatTwoDigits(now.getMonth() + 1);
+  const day = formatTwoDigits(now.getDate());
+  const hours = formatTwoDigits(now.getHours());
+  const minutes = formatTwoDigits(now.getMinutes());
+
+  if (localeKey === 'ja') {
+    return `${year}年${month}月${day}日 ${hours}:${minutes}`;
+  }
+
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
+}
+
 type EmotionGroup = {
   id: string;
   label: { en: string; ja: string };
@@ -724,8 +743,6 @@ export default function EmokaiStepPage({ params }: Props) {
 
   const initialName = useMemo(() => loadSessionString(NAME_STORAGE_KEY), []);
   const [characterName, setCharacterName] = useState(initialName);
-  const [characterNameTouched, setCharacterNameTouched] = useState(initialName.trim().length > 0);
-  const characterNameValid = characterName.trim().length >= MIN_TEXT_LENGTH;
 
   const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -749,6 +766,7 @@ export default function EmokaiStepPage({ params }: Props) {
   const [showCharacterAdjust, setShowCharacterAdjust] = useState(false);
   const quickLookAnchorRef = useRef<HTMLAnchorElement | null>(null);
   const [awaitingArReturn, setAwaitingArReturn] = useState(false);
+  const fallbackNameRef = useRef<string | null>(initialName.trim() ? initialName.trim() : null);
 
   const storedCharacterSelection = useMemo(() => readCharacterSelection(), []);
   const storedCharacterOptions = useMemo(() => readCharacterOptions(), []);
@@ -977,8 +995,37 @@ export default function EmokaiStepPage({ params }: Props) {
 
   const handleCharacterNameChange = (value: string) => {
     setCharacterName(value);
+    fallbackNameRef.current = value.trim() || null;
     saveSessionString(NAME_STORAGE_KEY, value);
   };
+
+  const getFallbackName = useCallback(() => {
+    if (fallbackNameRef.current) {
+      return fallbackNameRef.current;
+    }
+    const generated = buildTimestampLabel(localeKey);
+    fallbackNameRef.current = generated;
+    return generated;
+  }, [localeKey]);
+
+  const ensureCharacterName = useCallback(() => {
+    const trimmed = characterName.trim();
+    if (trimmed) {
+      fallbackNameRef.current = trimmed;
+      return trimmed;
+    }
+
+    const stored = generationResults?.name?.trim();
+    if (stored) {
+      fallbackNameRef.current = stored;
+      return stored;
+    }
+
+    const generated = getFallbackName();
+    setCharacterName(generated);
+    saveSessionString(NAME_STORAGE_KEY, generated);
+    return generated;
+  }, [characterName, generationResults, getFallbackName]);
 
   const requestGeolocation = useCallback(() => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -1107,6 +1154,7 @@ export default function EmokaiStepPage({ params }: Props) {
       window.sessionStorage.removeItem(AR_SUMMON_STORAGE_KEY);
     }
     setHasSummoned(false);
+    fallbackNameRef.current = null;
   }, []);
 
   const processBackgroundImage = useCallback(
@@ -1291,12 +1339,9 @@ export default function EmokaiStepPage({ params }: Props) {
       );
       return;
     }
-    if (!characterNameValid) {
-      setCharacterNameTouched(true);
-      return;
-    }
     setShowCharacterAdjust(false);
-    const started = await startGenerationJobs();
+    const finalName = ensureCharacterName();
+    const started = await startGenerationJobs(finalName);
     if (!started) {
       return;
     }
@@ -1312,11 +1357,17 @@ export default function EmokaiStepPage({ params }: Props) {
 
   const effectiveCharacterName = useMemo(() => {
     const trimmed = characterName.trim();
-    if (trimmed) return trimmed;
+    if (trimmed) {
+      fallbackNameRef.current = trimmed;
+      return trimmed;
+    }
     const stored = generationResults?.name?.trim();
-    if (stored) return stored;
-    return isJa ? '無名のエモカイ' : 'Unnamed Emokai';
-  }, [characterName, generationResults, isJa]);
+    if (stored) {
+      fallbackNameRef.current = stored;
+      return stored;
+    }
+    return getFallbackName();
+  }, [characterName, generationResults, getFallbackName]);
 
   const storyEmotionsText = useMemo(() => {
     if (!selectedEmotions.length) {
@@ -1367,7 +1418,7 @@ export default function EmokaiStepPage({ params }: Props) {
     ].join('\n');
   }, [actionText, appearanceText, effectiveCharacterName, isJa, localeKey, placeText, reasonText, storyEmotionsText]);
 
-  const startGenerationJobs = useCallback(async (): Promise<boolean> => {
+  const startGenerationJobs = useCallback(async (finalName: string): Promise<boolean> => {
     if (generationRunning) {
       return true;
     }
@@ -1396,12 +1447,13 @@ export default function EmokaiStepPage({ params }: Props) {
     const initialPayload: StoredGenerationPayload = {
       characterId: characterSelection.id,
       description: characterPrompt,
-      name: characterName,
+      name: finalName,
       results: {},
       completedAt: null,
     };
     setGenerationResults(initialPayload);
     persistGenerationPayload(initialPayload);
+    fallbackNameRef.current = finalName;
 
     const runJobs = async () => {
       const release = () => {
@@ -1469,7 +1521,7 @@ export default function EmokaiStepPage({ params }: Props) {
           const nextPayload: StoredGenerationPayload = {
             characterId: base.characterId || characterSelection.id,
             description: characterPrompt,
-            name: base.name ?? characterName,
+            name: base.name ?? finalName,
             results: nextResults,
             completedAt: base.completedAt,
           };
@@ -1587,7 +1639,6 @@ export default function EmokaiStepPage({ params }: Props) {
     return true;
   }, [
     actionText,
-    characterName,
     characterPrompt,
     characterSelection,
     generationRunning,
@@ -1604,8 +1655,9 @@ export default function EmokaiStepPage({ params }: Props) {
     setGenerationError(null);
     setGenerationState(INITIAL_GENERATION_STATE);
     setGenerationResults(null);
-    void startGenerationJobs();
-  }, [generationRunning, startGenerationJobs]);
+    const candidateName = ensureCharacterName();
+    void startGenerationJobs(candidateName);
+  }, [ensureCharacterName, generationRunning, startGenerationJobs]);
 
   const progressStages = useMemo(
     () => [
@@ -1927,7 +1979,7 @@ export default function EmokaiStepPage({ params }: Props) {
       setGenerationResults(null);
       setHasSummoned(false);
       setCharacterName('');
-      setCharacterNameTouched(false);
+      fallbackNameRef.current = null;
 
       router.push(`/${locale}/gallery`);
     } catch (error) {
@@ -2011,29 +2063,22 @@ export default function EmokaiStepPage({ params }: Props) {
           label={isJa ? 'エモカイの名前' : 'Name your Emokai'}
           placeholder={isJa ? '名前を入力してください。' : 'Give your Emokai a name.'}
           value={characterName}
-          onChange={(value) => {
-            if (!characterNameTouched) {
-              setCharacterNameTouched(true);
-            }
-            handleCharacterNameChange(value);
-          }}
+          onChange={handleCharacterNameChange}
           rows={1}
           maxLength={60}
           showCounter={false}
-          helperText={isJa ? 'ギャラリーに表示される名前です。' : 'This name will appear in the gallery.'}
-          error={
-            characterNameTouched && !characterNameValid
-              ? isJa
-                ? '名前を入力してください。'
-                : 'Please enter a name.'
-              : undefined
+          helperText={
+            isJa
+              ? '未入力のまま進むと、現在時刻が名前として登録されます。'
+              : 'Leave blank to auto-fill the current date & time as the name.'
           }
+          error={undefined}
         />
         <div className="flex gap-3 pt-2">
           <Button
             type="button"
             onClick={handleCharacterNext}
-            disabled={!characterSelection || !characterNameValid || generationRunning}
+            disabled={!characterSelection || generationRunning}
           >
             {generationRunning
               ? isJa
