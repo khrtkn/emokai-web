@@ -31,7 +31,7 @@ export function checkARCapability(): ARSupport {
 export function getModelTargetFormats(): ModelTargetFormat[] {
   const device = detectDeviceType();
   if (device === "ios") {
-    return ["USDZ"];
+    return ["USDZ", "GLB"];
   }
   return ["GLB"];
 }

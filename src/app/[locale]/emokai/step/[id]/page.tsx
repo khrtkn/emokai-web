@@ -40,6 +40,7 @@ const MIN_TEXT_LENGTH = 1;
 const TOTAL_STEPS = 15;
 const SIMPLIFIED_FLOW_STEPS = [1, 2, 3, 5, 9, 10, 14, 15] as const;
 const DEFAULT_COORD_QUERY = '35.681236,139.767125';
+const MODEL_URL_STORAGE_KEY = 'emokai_last_model_url';
 
 function formatTwoDigits(value: number) {
   return value.toString().padStart(2, '0');
@@ -802,6 +803,10 @@ export default function EmokaiStepPage({ params }: Props) {
   );
 
   const [creations, setCreations] = useState<CreationPayload[]>(() => listCreations());
+  const [storedModelUrl, setStoredModelUrl] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return window.sessionStorage.getItem(MODEL_URL_STORAGE_KEY);
+  });
   const [submissionState, setSubmissionState] = useState<'idle' | 'saving' | 'success' | 'error'>(
     'idle',
   );
@@ -812,6 +817,7 @@ export default function EmokaiStepPage({ params }: Props) {
       setCreations(listCreations());
     }
   }, [step]);
+
 
   useEffect(() => {
     setGenerationResults((prev) => {
@@ -1159,8 +1165,10 @@ useEffect(() => {
       window.sessionStorage.removeItem(CHARACTER_OPTIONS_KEY);
       window.sessionStorage.removeItem(GENERATION_RESULTS_KEY);
       window.sessionStorage.removeItem(AR_SUMMON_STORAGE_KEY);
+      window.sessionStorage.removeItem(MODEL_URL_STORAGE_KEY);
     }
     fallbackNameRef.current = null;
+    setStoredModelUrl(null);
   }, []);
 
   const processBackgroundImage = useCallback(
@@ -1565,17 +1573,25 @@ useEffect(() => {
           mimeType: characterImageRaw.mimeType,
         };
 
-        const modelPromise = generateModel({
-          characterId: characterSelection.id,
-          description: characterPrompt,
-          characterImage: characterInput,
-          targetFormats: getModelTargetFormats(),
-        })
-          .then((model) => {
-            setGenerationState((prev) => ({ ...prev, model: 'complete' }));
-            mergeResults({ model });
-            return model;
-          })
+    const modelPromise = generateModel({
+      characterId: characterSelection.id,
+      description: characterPrompt,
+      characterImage: characterInput,
+      targetFormats: getModelTargetFormats(),
+    })
+      .then((model) => {
+        if (typeof window !== 'undefined') {
+          const launchUrl =
+            model.alternates?.usdz || model.alternates?.glb || model.url || null;
+          if (launchUrl) {
+            window.sessionStorage.setItem(MODEL_URL_STORAGE_KEY, launchUrl);
+            setStoredModelUrl(launchUrl);
+          }
+        }
+        setGenerationState((prev) => ({ ...prev, model: 'complete' }));
+        mergeResults({ model });
+        return model;
+      })
           .catch((error) => {
             console.error(error);
             setGenerationState((prev) => ({ ...prev, model: 'error' }));
@@ -1672,9 +1688,17 @@ useEffect(() => {
     [generationResults],
   );
   const modelAvailable = useMemo(
-    () => Boolean(modelUrls.usdz || modelUrls.glb || modelUrls.primary),
-    [modelUrls.glb, modelUrls.primary, modelUrls.usdz],
+    () => Boolean(modelUrls.usdz || modelUrls.glb || modelUrls.primary || storedModelUrl),
+    [modelUrls.glb, modelUrls.primary, modelUrls.usdz, storedModelUrl],
   );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const current = window.sessionStorage.getItem(MODEL_URL_STORAGE_KEY);
+    if (current !== storedModelUrl) {
+      setStoredModelUrl(current);
+    }
+  }, [generationResults, modelUrls.glb, modelUrls.primary, modelUrls.usdz, step, storedModelUrl]);
 
   const compositeReady =
     generationState.composite === 'complete' && !!generationResults?.results?.composite;
@@ -1692,14 +1716,17 @@ useEffect(() => {
       modelUrls,
       modelAvailable,
       otherAssetsPending,
+      storedModelUrl,
       generationResults,
     });
-  }, [step, generationState, modelUrls, modelAvailable, otherAssetsPending, generationResults]);
+  }, [step, generationState, modelUrls, modelAvailable, otherAssetsPending, storedModelUrl, generationResults]);
 
   const handleOpenExperience = useCallback(() => {
+    const effectiveUrl = modelUrls.usdz || modelUrls.glb || modelUrls.primary || storedModelUrl;
     const mode = isIOS && modelUrls.usdz ? 'ar' : 'fallback';
+    if (!effectiveUrl) return;
     router.push(`/${locale}/ar/session?mode=${mode}`);
-  }, [isIOS, locale, modelUrls.usdz, router]);
+  }, [isIOS, locale, modelUrls.glb, modelUrls.primary, modelUrls.usdz, router, storedModelUrl]);
 
   const handleProceedToGallery = useCallback(() => {
     router.push(`/${locale}/emokai/step/15`);
@@ -1964,6 +1991,7 @@ useEffect(() => {
         window.sessionStorage.removeItem(CHARACTER_SELECTION_KEY);
         window.sessionStorage.removeItem(CHARACTER_OPTIONS_KEY);
         window.sessionStorage.removeItem(GENERATION_RESULTS_KEY);
+        window.sessionStorage.removeItem(MODEL_URL_STORAGE_KEY);
       }
 
       clearCharacterOptions();
@@ -1972,6 +2000,7 @@ useEffect(() => {
       setGenerationResults(null);
       setCharacterName('');
       fallbackNameRef.current = null;
+      setStoredModelUrl(null);
 
       router.push(`/${locale}/gallery`);
     } catch (error) {
