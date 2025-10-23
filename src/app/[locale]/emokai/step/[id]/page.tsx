@@ -1,8 +1,20 @@
 'use client';
 
 import Image from 'next/image';
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent } from 'react';
+import dynamic from 'next/dynamic';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ChangeEvent,
+  type MouseEvent,
+} from 'react';
 import { useRouter } from 'next/navigation';
+
+import 'mapbox-gl/dist/mapbox-gl.css';
 
 import { Button, Header, ImageOption, LoadingScreen, RichInput } from '@/components/ui';
 import { moderateText } from '@/lib/moderation';
@@ -24,6 +36,12 @@ import {
   STAGE_SELECTION_KEY,
   CHARACTER_NAME_KEY,
   AR_SUMMON_KEY,
+  PLACE_STORAGE_KEY,
+  REASON_STORAGE_KEY,
+  ACTION_STORAGE_KEY,
+  APPEARANCE_STORAGE_KEY,
+  EMOTIONS_STORAGE_KEY,
+  GEO_COORDS_STORAGE_KEY,
 } from '@/lib/storage-keys';
 import {
   acquireGenerationLock,
@@ -31,7 +49,7 @@ import {
   releaseGenerationLock,
 } from '@/lib/session-lock';
 import type { Locale } from '@/lib/i18n/messages';
-import { listCreations, type CreationPayload } from '@/lib/persistence';
+import { listCreations, saveCreation, type CreationPayload } from '@/lib/persistence';
 import { cacheImage, getCachedImage } from '@/lib/image-cache';
 import { isLiveApisEnabled } from '@/lib/env/client';
 import { detectDeviceType, getModelTargetFormats } from '@/lib/device';
@@ -43,6 +61,15 @@ const DEFAULT_COORD_QUERY = '35.681236,139.767125';
 const MODEL_URL_STORAGE_KEY = 'emokai_last_model_url';
 const GENERATION_UPDATE_EVENT = 'emokai:generation-update';
 const MODEL_URL_UPDATE_EVENT = 'emokai:model-url-update';
+const MAPBOX_STYLE_DARK = 'mapbox://styles/mapbox/dark-v11';
+
+const MapboxMap = dynamic(() => import('react-map-gl').then((mod) => mod.default), {
+  ssr: false,
+});
+
+const MapboxMarker = dynamic(() => import('react-map-gl').then((mod) => mod.Marker), {
+  ssr: false,
+});
 
 function broadcastClientEvent(name: string) {
   if (typeof window === 'undefined') return;
@@ -294,6 +321,14 @@ type EmotionLevelMap = {
   anticipation: number;
 };
 
+type CreationMarker = {
+  id: string;
+  lat: number;
+  lng: number;
+  creation: CreationPayload;
+  thumbnail: string | null;
+};
+
 function createCompositeInstructionText(actionText: string, isJa: boolean): string {
   const trimmed = actionText.trim();
   const lines: (string | undefined)[] = isJa
@@ -311,6 +346,23 @@ function createCompositeInstructionText(actionText: string, isJa: boolean): stri
       ];
 
   return lines.filter(Boolean).join('\n');
+}
+
+function extractCompositeUrl(composite?: CompositeResult | null): string | null {
+  if (!composite) return null;
+  const { url, imageBase64, mimeType } = composite;
+
+  if (typeof url === 'string' && url.length > 0) {
+    if (url.startsWith('data:') || url.startsWith('blob:') || /^https?:/i.test(url)) {
+      return url;
+    }
+  }
+
+  if (imageBase64 && mimeType) {
+    return `data:${mimeType};base64,${imageBase64}`;
+  }
+
+  return null;
 }
 
 async function convertUrlToBase64(url: string): Promise<{ base64: string; mimeType: string } | null> {
@@ -702,11 +754,6 @@ const saveSessionArray = (key: string, value: string[]) => {
   window.sessionStorage.setItem(key, JSON.stringify(value));
 };
 
-const PLACE_STORAGE_KEY = 'emokai_place';
-const REASON_STORAGE_KEY = 'emokai_reason';
-const EMOTIONS_STORAGE_KEY = 'emokai_emotions';
-const ACTION_STORAGE_KEY = 'emokai_action';
-const APPEARANCE_STORAGE_KEY = 'emokai_appearance';
 const NAME_STORAGE_KEY = CHARACTER_NAME_KEY;
 const AR_SUMMON_STORAGE_KEY = AR_SUMMON_KEY;
 
@@ -752,8 +799,26 @@ export default function EmokaiStepPage({ params }: Props) {
   const initialName = useMemo(() => loadSessionString(NAME_STORAGE_KEY), []);
   const [characterName, setCharacterName] = useState(initialName);
 
-  const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const initialGeoCoords = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const raw = window.sessionStorage.getItem(GEO_COORDS_STORAGE_KEY);
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw) as { lat?: number; lng?: number };
+      if (typeof parsed?.lat === 'number' && typeof parsed?.lng === 'number') {
+        return { lat: parsed.lat, lng: parsed.lng };
+      }
+    } catch (error) {
+      console.warn('Failed to parse stored geo coords', error);
+      window.sessionStorage.removeItem(GEO_COORDS_STORAGE_KEY);
+    }
+    return null;
+  }, []);
+
+  const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(
+    initialGeoCoords ? 'success' : 'idle',
+  );
+  const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(initialGeoCoords);
   const [geoError, setGeoError] = useState<string | null>(null);
   const geocodeTimeoutRef = useRef<number | null>(null);
   const lastGeocodeQueryRef = useRef<string | null>(null);
@@ -811,14 +876,57 @@ export default function EmokaiStepPage({ params }: Props) {
   );
 
   const [creations, setCreations] = useState<CreationPayload[]>(() => listCreations());
+  const [activeCreation, setActiveCreation] = useState<CreationPayload | null>(null);
   const [storedModelUrl, setStoredModelUrl] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     return window.sessionStorage.getItem(MODEL_URL_STORAGE_KEY);
   });
-  const [submissionState, setSubmissionState] = useState<'idle' | 'saving' | 'success' | 'error'>(
-    'idle',
+
+  const getCreationCompositePreview = useCallback(
+    (creation: CreationPayload): string | null => {
+      const stored = creation.results as StoredGenerationPayload | null;
+      const composite = stored?.results?.composite as CompositeResult | undefined;
+      return extractCompositeUrl(composite);
+    },
+    [],
   );
-  const [submissionError, setSubmissionError] = useState<string | null>(null);
+
+  const creationMarkers = useMemo<CreationMarker[]>(
+    () =>
+      creations
+        .map((creation) => {
+          const coords = creation.coordinates;
+          if (!coords || typeof coords.lat !== 'number' || typeof coords.lng !== 'number') {
+            return null;
+          }
+          return {
+            id: creation.id,
+            lat: coords.lat,
+            lng: coords.lng,
+            creation,
+            thumbnail: getCreationCompositePreview(creation),
+          } satisfies CreationMarker;
+        })
+        .filter(Boolean) as CreationMarker[],
+    [creations, getCreationCompositePreview],
+  );
+
+  const mapInitialViewState = useMemo(
+    () => {
+      if (creationMarkers.length) {
+        const anchor = creationMarkers[0];
+        return {
+          longitude: anchor.lng,
+          latitude: anchor.lat,
+          zoom: 10,
+          bearing: 0,
+          pitch: 0,
+        };
+      }
+      return { longitude: 139.767, latitude: 35.681, zoom: 4.5, bearing: 0, pitch: 0 };
+    },
+    [creationMarkers],
+  );
 
   useEffect(() => {
     if (typeof window === 'undefined') return () => {};
@@ -886,6 +994,20 @@ export default function EmokaiStepPage({ params }: Props) {
       window.removeEventListener(MODEL_URL_UPDATE_EVENT, syncModelUrl);
     };
   }, [step]);
+
+  useEffect(() => {
+    if (step !== 15) {
+      setActiveCreation(null);
+    }
+  }, [step]);
+
+  useEffect(() => {
+    if (!activeCreation) return;
+    const exists = creations.some((creation) => creation.id === activeCreation.id);
+    if (!exists) {
+      setActiveCreation(null);
+    }
+  }, [activeCreation, creations]);
 
 
   useEffect(() => {
@@ -1216,6 +1338,15 @@ useEffect(() => {
     requestGeolocation();
   }, [geoCoords, geoStatus, requestGeolocation, step]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (geoCoords) {
+      window.sessionStorage.setItem(GEO_COORDS_STORAGE_KEY, JSON.stringify(geoCoords));
+    } else {
+      window.sessionStorage.removeItem(GEO_COORDS_STORAGE_KEY);
+    }
+  }, [geoCoords]);
+
   const toggleEmotion = (emotion: string) => {
     setEmotionTouched(true);
     setSelectedEmotions((prev) => {
@@ -1251,6 +1382,7 @@ useEffect(() => {
       window.sessionStorage.removeItem(GENERATION_RESULTS_KEY);
       window.sessionStorage.removeItem(AR_SUMMON_STORAGE_KEY);
       window.sessionStorage.removeItem(MODEL_URL_STORAGE_KEY);
+      window.sessionStorage.removeItem(GEO_COORDS_STORAGE_KEY);
       broadcastClientEvent(GENERATION_UPDATE_EVENT);
       broadcastClientEvent(MODEL_URL_UPDATE_EVENT);
     }
@@ -1865,8 +1997,14 @@ useEffect(() => {
   }, [fallbackModelUrl, locale, quickLookUrl, router]);
 
   const handleProceedToGallery = useCallback(() => {
+    const result = saveCreation();
+    if (!result.success) {
+      console.warn('[creations] failed to persist', result.error);
+    } else {
+      setCreations(listCreations());
+    }
     router.push(`/${locale}/emokai/step/15`);
-  }, [locale, router]);
+  }, [locale, router, setCreations]);
 
   const mapEmbedUrl = useMemo(() => {
     const query = mapQuery ?? DEFAULT_COORD_QUERY;
@@ -1980,201 +2118,6 @@ useEffect(() => {
     return levels;
   }, [selectedEmotions]);
 
-  const handleSendOff = useCallback(async () => {
-    if (submissionState === 'saving') return;
-
-    if (!stageSelection || !characterSelection || !generationResults) {
-      setSubmissionState('error');
-      setSubmissionError(
-        isJa ? '送信に必要な情報が不足しています。' : 'Some required data is missing for submission.',
-      );
-      return;
-    }
-
-    const compositeResult = generationResults.results.composite;
-    if (!compositeResult) {
-      setSubmissionState('error');
-      setSubmissionError(
-        isJa ? '合成画像の準備が完了していません。' : 'Composite image is not available yet.',
-      );
-      return;
-    }
-
-    setSubmissionError(null);
-    setSubmissionState('saving');
-
-    const resolvedCoords = await ensureGeoCoordinates();
-    const effectiveGeo = resolvedCoords ?? geoCoords;
-
-    try {
-      const stageImageRaw = await readOptionImagePayload(stageSelection);
-      const characterImageRaw = await readOptionImagePayload(characterSelection);
-      if (!stageImageRaw || !characterImageRaw) {
-        throw new Error('asset-missing');
-      }
-
-      const stageImage =
-        'base64' in stageImageRaw
-          ? await compressBase64Image(stageImageRaw, { maxDimension: 896, quality: 0.8 })
-          : stageImageRaw;
-      const characterImage =
-        'base64' in characterImageRaw
-          ? await compressBase64Image(characterImageRaw, { maxDimension: 896, quality: 0.8 })
-          : characterImageRaw;
-
-      const compositePayloadRaw = await readCompositeImagePayload(compositeResult);
-      const compositePayload =
-        compositePayloadRaw && 'base64' in compositePayloadRaw
-          ? await compressBase64Image(compositePayloadRaw, { maxDimension: 1024, quality: 0.82 })
-          : compositePayloadRaw;
-      if (!compositePayload) {
-        throw new Error('composite-missing');
-      }
-
-      const model = generationResults.results.model;
-      const modelPayload = model
-        ? {
-            primaryUrl: model.url,
-            glbUrl: model.alternates?.glb ?? (urlHasExtension(model.url, 'glb') ? model.url : undefined),
-            usdzUrl: model.alternates?.usdz ?? (urlHasExtension(model.url, 'usdz') ? model.url : undefined),
-            previewUrl: model.previewUrl ?? undefined,
-            polygons: model.polygons ?? undefined,
-            alternates: model.alternates ?? undefined,
-          }
-        : undefined;
-
-      const metadata: Record<string, unknown> = {};
-      if (generationResults.results.model?.meta) {
-        metadata.modelMeta = generationResults.results.model.meta;
-      }
-      if (generationResults.results.story?.id) {
-        metadata.storyId = generationResults.results.story.id;
-      }
-      if (generationResults.characterId) {
-        metadata.characterId = generationResults.characterId;
-      }
-
-      const references = {
-        stageOptionId: stageSelection.id,
-        characterOptionId: characterSelection.id,
-        mapQuery: mapQuery ?? undefined,
-        stageLocationReference: stageLocationReference ?? undefined,
-      };
-
-      const payload = {
-        locale: localeKey,
-        characterName: effectiveCharacterName,
-        story: generationResults.results.story?.content ?? undefined,
-        placeDescription: placeText || undefined,
-        reasonDescription: reasonText || undefined,
-        actionDescription: actionText || undefined,
-        appearanceDescription: appearanceText || undefined,
-        stagePrompt: stageSelection.prompt,
-        characterPrompt,
-        compositeInstruction: createCompositeInstructionText(actionText, isJa),
-        stageImage,
-        characterImage,
-        compositeImage:
-          'base64' in compositePayload
-            ? { base64: compositePayload.base64, mimeType: compositePayload.mimeType }
-            : { url: compositePayload.url, mimeType: compositePayload.mimeType },
-        emotionLevels,
-        geo: effectiveGeo
-          ? {
-              latitude: effectiveGeo.lat,
-              longitude: effectiveGeo.lng,
-              altitude: undefined,
-            }
-          : undefined,
-        metadata: Object.keys(metadata).length ? metadata : undefined,
-        references,
-        model: modelPayload,
-        submittedBy: generationResults.characterId || undefined,
-      };
-
-      const payloadString = JSON.stringify(payload);
-      console.debug('[gallery-submit] payload bytes', payloadString.length);
-
-      const response = await fetch('/api/gallery/submissions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: payloadString,
-      });
-
-      if (!response.ok) {
-        let message = isJa
-          ? '保存に失敗しました。通信状況をご確認のうえ、もう一度お試しください。'
-          : 'We could not save your Emokai. Please check your connection and try again.';
-        try {
-          const body = await response.json();
-          if (typeof body?.error === 'string') {
-            message = body.error;
-          }
-        } catch (error) {
-          console.warn('Failed to parse submission error response', error);
-        }
-        throw new Error(message);
-      }
-
-      setSubmissionState('success');
-
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.removeItem(AR_SUMMON_STORAGE_KEY);
-        window.sessionStorage.removeItem(NAME_STORAGE_KEY);
-        window.sessionStorage.removeItem(STAGE_SELECTION_KEY);
-        window.sessionStorage.removeItem(CHARACTER_SELECTION_KEY);
-        window.sessionStorage.removeItem(CHARACTER_OPTIONS_KEY);
-        window.sessionStorage.removeItem(GENERATION_RESULTS_KEY);
-        window.sessionStorage.removeItem(MODEL_URL_STORAGE_KEY);
-        broadcastClientEvent(GENERATION_UPDATE_EVENT);
-        broadcastClientEvent(MODEL_URL_UPDATE_EVENT);
-      }
-
-      clearCharacterOptions();
-      setStageSelection(null);
-      setCharacterSelection(null);
-      setGenerationResults(null);
-      setCharacterName('');
-      fallbackNameRef.current = null;
-      setStoredModelUrl(null);
-
-      router.push(`/${locale}/gallery`);
-    } catch (error) {
-      console.error('[gallery-submit]', error);
-      setSubmissionState('error');
-      if (error instanceof Error) {
-        setSubmissionError(error.message);
-      } else {
-        setSubmissionError(
-          isJa
-            ? '保存に失敗しました。通信状況をご確認のうえ、もう一度お試しください。'
-            : 'We could not save your Emokai. Please check your connection and try again.',
-        );
-      }
-    }
-  }, [
-    actionText,
-    appearanceText,
-    characterPrompt,
-    characterSelection,
-    effectiveCharacterName,
-    emotionLevels,
-    generationResults,
-    geoCoords,
-    isJa,
-    locale,
-    localeKey,
-    mapQuery,
-    placeText,
-    reasonText,
-    router,
-    stageLocationReference,
-    stageSelection,
-    submissionState,
-    ensureGeoCoordinates,
-  ]);
 
   // ====== 画面パーツ ======
 
@@ -2423,63 +2366,89 @@ useEffect(() => {
   };
 
   const renderGalleryStep = () => {
-    const sendOffMessage = isJa
-      ? `「${effectiveCharacterName}」は旅に出る準備ができました。ギャラリーではいつでも再会できます。`
-      : `${effectiveCharacterName} is ready to journey onward. You can revisit them anytime in the gallery.`;
-    const isSubmitting = submissionState === 'saving';
-    const buttonLabel = isJa
-      ? isSubmitting
-        ? '送り出しています…'
-        : '送り出す'
-      : isSubmitting
-        ? 'Sending…'
-        : 'Send off';
+    const mapToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+    const hasMarkers = creationMarkers.length > 0;
+
+    const newObservationButton = (
+      <button
+        type="button"
+        onClick={() => router.push(`/${locale}/emokai/step/1`)}
+        className="fixed bottom-6 right-1/2 z-40 flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full bg-accent text-3xl font-semibold text-canvas shadow-lg transition hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:right-8 sm:translate-x-0"
+      >
+        <span className="sr-only">{isJa ? '新しいエモカイを観測する' : 'Observe a new Emokai'}</span>
+        <span aria-hidden>＋</span>
+      </button>
+    );
+
+    const mapContent = mapToken && hasMarkers ? (
+      <MapboxMap
+        mapboxAccessToken={mapToken}
+        mapStyle={MAPBOX_STYLE_DARK}
+        initialViewState={mapInitialViewState}
+        attributionControl={false}
+        style={{ width: '100%', height: '100%' }}
+      >
+        {creationMarkers.map((marker) => (
+          <MapboxMarker key={marker.id} latitude={marker.lat} longitude={marker.lng} anchor="bottom">
+            <button
+              type="button"
+              onClick={() => setActiveCreation(marker.creation)}
+              className="h-16 w-16 -translate-y-2 rounded-full border-2 border-white shadow-lg transition hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              {marker.thumbnail ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={marker.thumbnail}
+                  alt={marker.creation.placeName ?? (isJa ? '観測地点' : 'Observed location')}
+                  className="h-full w-full rounded-full object-cover"
+                />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center rounded-full bg-[rgba(237,241,241,0.18)] text-xs text-white/80">
+                  {isJa ? 'エモカイ' : 'Emokai'}
+                </span>
+              )}
+            </button>
+          </MapboxMarker>
+        ))}
+      </MapboxMap>
+    ) : (
+      <div className="flex h-full w-full items-center justify-center px-6 text-sm text-textSecondary">
+        {mapToken
+          ? isJa
+            ? '位置情報付きのエモカイはまだありません。新しい観測を追加してみてください。'
+            : 'No mapped Emokai yet. Observe a new one to add it here.'
+          : isJa
+            ? 'NEXT_PUBLIC_MAPBOX_TOKEN が設定されていません。設定後に地図が表示されます。'
+            : 'NEXT_PUBLIC_MAPBOX_TOKEN is not configured. Add it to enable the map.'}
+      </div>
+    );
 
     return (
-      <section className="space-y-4">
-        <h2 className="text-base font-semibold text-textPrimary">
-          {isJa ? 'エモカイを世界へ送り出す' : 'Send your Emokai off'}
-        </h2>
-        <p className="text-sm text-textSecondary">{sendOffMessage}</p>
-      <div className="aspect-square w-full overflow-hidden rounded-2xl border border-divider bg-[rgba(237,241,241,0.08)]">
-        {(() => {
-          const composite = generationResults?.results.composite;
-          if (!composite) return null;
-          const url =
-            (composite.url &&
-            (composite.url.startsWith('data:') ||
-              composite.url.startsWith('blob:') ||
-              /^https?:/i.test(composite.url))
-              ? composite.url
-              : null) ??
-            (composite.imageBase64 && composite.mimeType
-              ? `data:${composite.mimeType};base64,${composite.imageBase64}`
-              : null);
-          if (!url) return null;
-          return (
-            <img
-              src={url}
-              alt={isJa ? 'エモカイのすがた' : 'Emokai composite'}
-              className="h-full w-full object-cover"
-            />
-          );
-        })()}
-      </div>
-      <p className="text-center text-sm text-textSecondary">{isJa ? `「${effectiveCharacterName}」` : effectiveCharacterName}</p>
-      <div className="pt-2">
-        <button
-          type="button"
-          className={primaryButtonClass}
-          onClick={handleSendOff}
-          disabled={isSubmitting}
-        >
-          {buttonLabel}
-        </button>
-      </div>
-      {submissionError ? (
-        <p className="text-xs text-[#ffb9b9]">{submissionError}</p>
-      ) : null}
-      </section>
+      <>
+        <section className="flex min-h-[480px] flex-1 flex-col">
+          <div className="space-y-2 pb-4">
+            <h2 className="text-base font-semibold text-textPrimary">
+              {isJa ? '観測されたエモカイたち' : 'Observed Emokai'}
+            </h2>
+            <p className="text-sm text-textSecondary">
+              {isJa
+                ? '地図上のマーカーをタップすると、観測したエモカイの詳細が表示されます。'
+                : 'Tap a marker on the map to see the details of an observed Emokai.'}
+            </p>
+          </div>
+          <div className="relative flex-1 overflow-hidden rounded-3xl border border-divider bg-[rgba(237,241,241,0.06)]">
+            {mapContent}
+          </div>
+        </section>
+        {!activeCreation ? newObservationButton : null}
+        {activeCreation ? (
+          <CreationOverlay
+            creation={activeCreation}
+            onClose={() => setActiveCreation(null)}
+            locale={localeKey}
+          />
+        ) : null}
+      </>
     );
   };
 
@@ -2882,5 +2851,159 @@ useEffect(() => {
       />
       <div className="flex-1 space-y-6 overflow-y-auto px-4 py-6 sm:px-6">{content}</div>
     </main>
+  );
+}
+
+type CreationOverlayProps = {
+  creation: CreationPayload;
+  onClose: () => void;
+  locale: string;
+};
+
+function CreationOverlay({ creation, onClose, locale }: CreationOverlayProps) {
+  const isJa = locale === 'ja';
+  const results = creation.results as StoredGenerationPayload | null;
+  const composite = results?.results?.composite as CompositeResult | undefined;
+  const compositeUrl = extractCompositeUrl(composite);
+  const story = results?.results?.story?.content ?? null;
+  const characterName = results?.name ?? (isJa ? 'エモカイ' : 'Emokai');
+
+  const placeLabel = creation.placeName ?? (isJa ? '観測地点未記録' : 'Location unavailable');
+  const reasonLabel = creation.reasonText && creation.reasonText.trim().length > 0 ? creation.reasonText.trim() : null;
+  const actionLabel = creation.actionText && creation.actionText.trim().length > 0 ? creation.actionText.trim() : null;
+  const appearanceLabel = creation.appearanceText && creation.appearanceText.trim().length > 0 ? creation.appearanceText.trim() : null;
+  const emotionLabels = (creation.emotions ?? []).map((emotion) =>
+    isJa ? EMOTION_LABELS_JA[emotion] ?? emotion : emotion,
+  );
+  const coordinateLabel = creation.coordinates
+    ? formatCoordinates(creation.coordinates.lat, creation.coordinates.lng, isJa)
+    : null;
+
+  const formattedDate = (() => {
+    try {
+      return new Date(creation.createdAt).toLocaleString(
+        locale === 'ja' ? 'ja-JP' : 'en-US',
+        { dateStyle: 'medium', timeStyle: 'short' },
+      );
+    } catch {
+      return creation.createdAt;
+    }
+  })();
+
+  const handleBackdropClick = () => {
+    onClose();
+  };
+
+  const handlePanelClick = (event: MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(5,8,9,0.78)] px-4 py-10 sm:items-center"
+      onClick={handleBackdropClick}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={isJa ? `${placeLabel} の詳細` : `Details for ${placeLabel}`}
+        className="relative z-10 w-full max-w-md space-y-4 rounded-3xl border border-divider bg-[rgba(10,14,14,0.95)] p-6 text-sm text-textSecondary shadow-2xl"
+        onClick={handlePanelClick}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-textSecondary/60">
+              {formattedDate}
+            </p>
+            <h3 className="text-lg font-semibold text-textPrimary">{characterName}</h3>
+            <p className="text-sm text-textSecondary">{placeLabel}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-transparent px-2 py-1 text-lg text-textSecondary transition hover:text-textPrimary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            aria-label={isJa ? '閉じる' : 'Close'}
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-divider bg-[rgba(237,241,241,0.08)]">
+          {compositeUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={compositeUrl} alt={characterName} className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-xs text-textSecondary">
+              {isJa ? '画像が見つかりませんでした。' : 'Composite image not available.'}
+            </div>
+          )}
+        </div>
+
+        <dl className="space-y-3 text-sm">
+          {reasonLabel ? (
+            <div>
+              <dt className="text-xs font-semibold uppercase tracking-[0.3em] text-textSecondary/60">
+                {isJa ? 'この場所が大切な理由' : 'Why this place matters'}
+              </dt>
+              <dd className="text-textPrimary">{reasonLabel}</dd>
+            </div>
+          ) : null}
+
+          {actionLabel ? (
+            <div>
+              <dt className="text-xs font-semibold uppercase tracking-[0.3em] text-textSecondary/60">
+                {isJa ? 'エモカイのふるまい' : 'Emokai behaviour'}
+              </dt>
+              <dd className="text-textPrimary">{actionLabel}</dd>
+            </div>
+          ) : null}
+
+          {appearanceLabel ? (
+            <div>
+              <dt className="text-xs font-semibold uppercase tracking-[0.3em] text-textSecondary/60">
+                {isJa ? '見た目の手がかり' : 'Appearance cues'}
+              </dt>
+              <dd className="text-textPrimary">{appearanceLabel}</dd>
+            </div>
+          ) : null}
+
+          {emotionLabels.length ? (
+            <div>
+              <dt className="text-xs font-semibold uppercase tracking-[0.3em] text-textSecondary/60">
+                {isJa ? '感じた感情' : 'Emotions'}
+              </dt>
+              <dd className="mt-1 flex flex-wrap gap-2">
+                {emotionLabels.map((emotion) => (
+                  <span
+                    key={emotion}
+                    className="rounded-full bg-[rgba(237,241,241,0.12)] px-3 py-1 text-xs text-textPrimary"
+                  >
+                    {emotion}
+                  </span>
+                ))}
+              </dd>
+            </div>
+          ) : null}
+
+          {coordinateLabel ? (
+            <div>
+              <dt className="text-xs font-semibold uppercase tracking-[0.3em] text-textSecondary/60">
+                {isJa ? '座標' : 'Coordinates'}
+              </dt>
+              <dd className="text-textPrimary">{coordinateLabel}</dd>
+            </div>
+          ) : null}
+        </dl>
+
+        {story ? (
+          <div className="space-y-2 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-textSecondary/60">
+              {isJa ? '物語' : 'Story'}
+            </p>
+            <p className="whitespace-pre-wrap text-textPrimary">{story}</p>
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }

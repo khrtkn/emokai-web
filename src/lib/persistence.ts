@@ -1,16 +1,33 @@
 import { createShareUrl } from "@/lib/share";
 import { incrementDailyLimit } from "@/lib/rate-limit";
 import { scheduleRetention } from "@/lib/lifecycle";
-import { GENERATION_RESULTS_KEY, STAGE_SELECTION_KEY, CHARACTER_SELECTION_KEY } from "@/lib/storage-keys";
+import {
+  GENERATION_RESULTS_KEY,
+  STAGE_SELECTION_KEY,
+  CHARACTER_SELECTION_KEY,
+  PLACE_STORAGE_KEY,
+  REASON_STORAGE_KEY,
+  ACTION_STORAGE_KEY,
+  APPEARANCE_STORAGE_KEY,
+  EMOTIONS_STORAGE_KEY,
+  GEO_COORDS_STORAGE_KEY
+} from "@/lib/storage-keys";
 import { getCachedImage } from "@/lib/image-cache";
 import type { CompositeResult } from "@/lib/generation-jobs";
 
 export type CreationPayload = {
+  id: string;
   stageSelection: unknown;
   characterSelection: unknown;
   results: unknown;
   language: string;
   createdAt: string;
+  placeName?: string | null;
+  reasonText?: string | null;
+  actionText?: string | null;
+  appearanceText?: string | null;
+  emotions?: string[];
+  coordinates?: { lat: number; lng: number } | null;
 };
 
 export const CREATIONS_KEY = "persisted-creations";
@@ -46,6 +63,39 @@ export function listCreations(): CreationPayload[] {
     const bDate = new Date(b.createdAt).getTime();
     return bDate - aDate;
   });
+}
+
+function parseStringArray(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((value): value is string => typeof value === "string");
+    }
+  } catch (error) {
+    console.warn("Failed to parse stored string array", error);
+  }
+  return [];
+}
+
+function parseCoordinates(raw: string | null): { lat: number; lng: number } | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { lat?: number; lng?: number } | null;
+    if (parsed && typeof parsed.lat === "number" && typeof parsed.lng === "number") {
+      return { lat: parsed.lat, lng: parsed.lng };
+    }
+  } catch (error) {
+    console.warn("Failed to parse stored coordinates", error);
+  }
+  return null;
+}
+
+function createCreationId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `creation-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export function saveCreation(): SaveResult {
@@ -110,12 +160,30 @@ export function saveCreation(): SaveResult {
     }
   };
 
+  const rawPlace = sessionStorage.getItem(PLACE_STORAGE_KEY);
+  const placeName = rawPlace && rawPlace.trim().length ? rawPlace.trim() : null;
+  const rawReason = sessionStorage.getItem(REASON_STORAGE_KEY);
+  const reasonText = rawReason && rawReason.trim().length ? rawReason.trim() : null;
+  const rawAction = sessionStorage.getItem(ACTION_STORAGE_KEY);
+  const actionText = rawAction && rawAction.trim().length ? rawAction.trim() : null;
+  const rawAppearance = sessionStorage.getItem(APPEARANCE_STORAGE_KEY);
+  const appearanceText = rawAppearance && rawAppearance.trim().length ? rawAppearance.trim() : null;
+  const emotions = parseStringArray(sessionStorage.getItem(EMOTIONS_STORAGE_KEY));
+  const coordinates = parseCoordinates(sessionStorage.getItem(GEO_COORDS_STORAGE_KEY));
+
   const creation: CreationPayload = {
+    id: createCreationId(),
     stageSelection: stageSelectionNormalized,
     characterSelection: characterSelectionNormalized,
     results: resultsData,
     language: navigator.language,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    placeName,
+    reasonText,
+    actionText,
+    appearanceText,
+    emotions: emotions.length ? emotions : undefined,
+    coordinates
   };
 
   const list = getPersistedList();
