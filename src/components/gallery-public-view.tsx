@@ -65,9 +65,9 @@ export function GalleryPublicView({ locale, items }: GalleryPublicViewProps) {
         <Image
           src="/Logo.png"
           alt="Emokai"
-          width={132}
-          height={100}
-          className="h-[100px] w-auto"
+          width={124}
+          height={60}
+          className="h-[60px] w-auto"
           priority
         />
       </div>
