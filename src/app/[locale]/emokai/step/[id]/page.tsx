@@ -999,7 +999,16 @@ useEffect(() => {
         ? '以下の情報をもとに、独創的な感情の妖怪『エモカイ』の外見イメージをつくってください。'
         : 'Using the following details, create visual ideas for the 妖怪 pf emotion.',
     );
-    lines.push(localeKey === 'ja' ? `場所: ${placeText}` : `Place: ${placeText}`);
+    const placeHint = placeText.trim();
+    lines.push(
+      localeKey === 'ja'
+        ? placeHint
+          ? `環境のヒント: ${placeHint} という場所の空気感や特徴を感じさせてください。ただし地名や文字を直接描写したり、看板やテキストを入れたりしないでください。`
+          : '環境のヒント: 場所の空気感を想像して背景設定に活かしてください。'
+        : placeHint
+            ? `Environment hint: evoke the atmosphere of ${placeHint}, but do not print the place name or any written text/signage in the image.`
+            : 'Environment hint: infer a fitting setting and atmosphere, without adding any written text or signage.'
+    );
     lines.push(
       localeKey === 'ja' ? `この場所が大切な理由: ${reasonText}` : `Why it matters: ${reasonText}`,
     );
@@ -1011,8 +1020,8 @@ useEffect(() => {
     );
     lines.push(
       localeKey === 'ja'
-        ? '上記の内容を3Dモデルレンダリング風の画像プロンプトへ変換し、キャラクターを正面から描写してください。背景は完全な白 (純白) とし、余計な要素を配置しないでください。スタジオの柔らかい照明で、被写体が均一に照らされるようにしてください。'
-        : 'Convert the above into an image prompt for a 3D model render of the character from the front. Use a pure white background with no other elements, and light it with soft studio lighting for even illumination.',
+        ? '上記の内容を3Dモデルレンダリング風の画像プロンプトへ変換し、キャラクターを正面から描写してください。背景は完全な白 (純白) とし、余計な要素や文字を入れないでください。スタジオの柔らかい照明で、被写体が均一に照らされるようにしてください。'
+        : 'Convert the above into an image prompt for a 3D model render of the character from the front. Use a pure white background with no additional elements or text, and light it with soft studio lighting for even illumination.',
     );
     return lines.join('\n');
   }, [localeKey, placeText, reasonText, actionText, appearanceText]);
@@ -1137,11 +1146,11 @@ useEffect(() => {
 
   const ensureGeoCoordinates = useCallback(async (): Promise<{ lat: number; lng: number } | null> => {
     const trimmed = placeText.trim();
+
     if (!trimmed) {
-      setGeoCoords(null);
-      setGeoStatus('idle');
-      setGeoError(null);
-      lastGeocodeQueryRef.current = null;
+      if (geoCoords) {
+        return geoCoords;
+      }
       return null;
     }
 
@@ -1199,6 +1208,13 @@ useEffect(() => {
       return null;
     }
   }, [geoCoords, isJa, localeKey, placeText]);
+
+  useEffect(() => {
+    if (step !== 3) return;
+    if (geoStatus === 'loading' || geoStatus === 'success') return;
+    if (geoCoords) return;
+    requestGeolocation();
+  }, [geoCoords, geoStatus, requestGeolocation, step]);
 
   const toggleEmotion = (emotion: string) => {
     setEmotionTouched(true);
@@ -2607,6 +2623,7 @@ useEffect(() => {
               : isJa
                 ? '位置情報がまだ取得できていません'
                 : 'Location not available yet';
+        const canProceedPlaceStep = placeValid || Boolean(geoCoords);
 
         return (
           <section className="flex h-full flex-col space-y-4">
@@ -2652,7 +2669,7 @@ useEffect(() => {
                     maxLength={300}
                   />
                 </div>
-                {placeTouched && !placeValid ? (
+                {placeTouched && !placeValid && !geoCoords ? (
                   <p className="text-xs text-[#ffb9b9]">{minLengthHint}</p>
                 ) : null}
               </div>
@@ -2695,7 +2712,7 @@ useEffect(() => {
               <Button
                 type="button"
                 onClick={() => router.push(`/${locale}/emokai/step/5`)}
-                disabled={!placeValid}
+                disabled={!canProceedPlaceStep}
               >
                 {isJa ? 'つづける' : 'Continue'}
               </Button>
