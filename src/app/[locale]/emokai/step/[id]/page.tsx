@@ -1723,11 +1723,26 @@ useEffect(() => {
         window.sessionStorage.setItem(MODEL_URL_STORAGE_KEY, nextUrl);
         setStoredModelUrl(nextUrl);
       }
-    } else if (storedModelUrl) {
+      return;
+    }
+
+    const modelSettled = generationState.model === 'complete' || generationState.model === 'error';
+    if (!modelSettled) {
+      return;
+    }
+
+    if (storedModelUrl) {
       window.sessionStorage.removeItem(MODEL_URL_STORAGE_KEY);
       setStoredModelUrl(null);
     }
-  }, [step, quickLookUrl, fallbackModelUrl, modelUrls.primary, storedModelUrl]);
+  }, [
+    step,
+    quickLookUrl,
+    fallbackModelUrl,
+    modelUrls.primary,
+    storedModelUrl,
+    generationState.model,
+  ]);
 
   const compositeReady =
     generationState.composite === 'complete' && !!generationResults?.results?.composite;
