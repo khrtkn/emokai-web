@@ -41,6 +41,13 @@ const TOTAL_STEPS = 15;
 const SIMPLIFIED_FLOW_STEPS = [1, 2, 3, 5, 9, 10, 14, 15] as const;
 const DEFAULT_COORD_QUERY = '35.681236,139.767125';
 const MODEL_URL_STORAGE_KEY = 'emokai_last_model_url';
+const GENERATION_UPDATE_EVENT = 'emokai:generation-update';
+const MODEL_URL_UPDATE_EVENT = 'emokai:model-url-update';
+
+function broadcastClientEvent(name: string) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(name));
+}
 
 function formatTwoDigits(value: number) {
   return value.toString().padStart(2, '0');
@@ -653,6 +660,7 @@ function readGenerationPayload(): StoredGenerationPayload | null {
 function persistGenerationPayload(payload: StoredGenerationPayload) {
   if (typeof window === 'undefined') return;
   window.sessionStorage.setItem(GENERATION_RESULTS_KEY, JSON.stringify(payload));
+  broadcastClientEvent(GENERATION_UPDATE_EVENT);
 }
 
 type GenerationState = {
@@ -813,13 +821,70 @@ export default function EmokaiStepPage({ params }: Props) {
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window === 'undefined') return () => {};
+
+    const syncModelUrl = () => {
       setStoredModelUrl(window.sessionStorage.getItem(MODEL_URL_STORAGE_KEY));
+    };
+
+    const syncGenerationPayload = () => {
+      const payload = readGenerationPayload();
+      setGenerationResults(payload);
+
+      if (!payload) {
+        return;
+      }
+
+      const hasAnyResult = Boolean(
+        payload.results?.model || payload.results?.composite || payload.results?.story,
+      );
+
+      if (!hasAnyResult) {
+        setGenerationState((prev) => {
+          const next: GenerationState = { ...prev };
+          let changed = false;
+
+          if (prev.model !== 'complete' && prev.model !== 'error' && prev.model !== 'active') {
+            next.model = 'active';
+            changed = true;
+          }
+          if (
+            prev.composite !== 'complete' &&
+            prev.composite !== 'error' &&
+            prev.composite !== 'active'
+          ) {
+            next.composite = 'active';
+            changed = true;
+          }
+          if (prev.story !== 'complete' && prev.story !== 'error' && prev.story !== 'active') {
+            next.story = 'active';
+            changed = true;
+          }
+
+          return changed ? next : prev;
+        });
+        setGenerationRunning(true);
+      } else if (payload.completedAt) {
+        setGenerationRunning(false);
+      }
+    };
+
+    window.addEventListener(GENERATION_UPDATE_EVENT, syncGenerationPayload);
+    window.addEventListener(MODEL_URL_UPDATE_EVENT, syncModelUrl);
+
+    syncModelUrl();
+    if (step >= 14) {
+      syncGenerationPayload();
     }
 
     if (step === 15) {
       setCreations(listCreations());
     }
+
+    return () => {
+      window.removeEventListener(GENERATION_UPDATE_EVENT, syncGenerationPayload);
+      window.removeEventListener(MODEL_URL_UPDATE_EVENT, syncModelUrl);
+    };
   }, [step]);
 
 
@@ -1170,6 +1235,8 @@ useEffect(() => {
       window.sessionStorage.removeItem(GENERATION_RESULTS_KEY);
       window.sessionStorage.removeItem(AR_SUMMON_STORAGE_KEY);
       window.sessionStorage.removeItem(MODEL_URL_STORAGE_KEY);
+      broadcastClientEvent(GENERATION_UPDATE_EVENT);
+      broadcastClientEvent(MODEL_URL_UPDATE_EVENT);
     }
     fallbackNameRef.current = null;
     setStoredModelUrl(null);
@@ -1590,6 +1657,7 @@ useEffect(() => {
           if (launchUrl) {
             window.sessionStorage.setItem(MODEL_URL_STORAGE_KEY, launchUrl);
             setStoredModelUrl(launchUrl);
+            broadcastClientEvent(MODEL_URL_UPDATE_EVENT);
           }
         }
         setGenerationState((prev) => ({ ...prev, model: 'complete' }));
@@ -1722,6 +1790,7 @@ useEffect(() => {
       if (storedModelUrl !== nextUrl) {
         window.sessionStorage.setItem(MODEL_URL_STORAGE_KEY, nextUrl);
         setStoredModelUrl(nextUrl);
+        broadcastClientEvent(MODEL_URL_UPDATE_EVENT);
       }
       return;
     }
@@ -1734,6 +1803,7 @@ useEffect(() => {
     if (storedModelUrl) {
       window.sessionStorage.removeItem(MODEL_URL_STORAGE_KEY);
       setStoredModelUrl(null);
+      broadcastClientEvent(MODEL_URL_UPDATE_EVENT);
     }
   }, [
     step,
@@ -2039,6 +2109,8 @@ useEffect(() => {
         window.sessionStorage.removeItem(CHARACTER_OPTIONS_KEY);
         window.sessionStorage.removeItem(GENERATION_RESULTS_KEY);
         window.sessionStorage.removeItem(MODEL_URL_STORAGE_KEY);
+        broadcastClientEvent(GENERATION_UPDATE_EVENT);
+        broadcastClientEvent(MODEL_URL_UPDATE_EVENT);
       }
 
       clearCharacterOptions();
