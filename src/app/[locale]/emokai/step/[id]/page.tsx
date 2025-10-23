@@ -813,6 +813,10 @@ export default function EmokaiStepPage({ params }: Props) {
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setStoredModelUrl(window.sessionStorage.getItem(MODEL_URL_STORAGE_KEY));
+    }
+
     if (step === 15) {
       setCreations(listCreations());
     }
@@ -1687,10 +1691,27 @@ useEffect(() => {
     () => extractModelUrls(generationResults?.results?.model ?? null),
     [generationResults],
   );
-  const modelAvailable = useMemo(
-    () => Boolean(modelUrls.usdz || modelUrls.glb || modelUrls.primary || storedModelUrl),
-    [modelUrls.glb, modelUrls.primary, modelUrls.usdz, storedModelUrl],
-  );
+
+  const quickLookUrl = useMemo(() => {
+    if (modelUrls.usdz) return modelUrls.usdz;
+    if (storedModelUrl && storedModelUrl.toLowerCase().endsWith('.usdz')) {
+      return storedModelUrl;
+    }
+    return null;
+  }, [modelUrls.usdz, storedModelUrl]);
+
+  const fallbackModelUrl = useMemo(() => {
+    if (modelUrls.glb) return modelUrls.glb;
+    if (modelUrls.primary && !modelUrls.primary.toLowerCase().endsWith('.usdz')) {
+      return modelUrls.primary;
+    }
+    if (storedModelUrl && !storedModelUrl.toLowerCase().endsWith('.usdz')) {
+      return storedModelUrl;
+    }
+    return null;
+  }, [modelUrls.glb, modelUrls.primary, storedModelUrl]);
+
+  const modelAvailable = Boolean(quickLookUrl || fallbackModelUrl);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1722,11 +1743,14 @@ useEffect(() => {
   }, [step, generationState, modelUrls, modelAvailable, otherAssetsPending, storedModelUrl, generationResults]);
 
   const handleOpenExperience = useCallback(() => {
-    const effectiveUrl = modelUrls.usdz || modelUrls.glb || modelUrls.primary || storedModelUrl;
-    const mode = isIOS && modelUrls.usdz ? 'ar' : 'fallback';
-    if (!effectiveUrl) return;
+    const launchUrl = quickLookUrl ?? fallbackModelUrl;
+    if (!launchUrl) return;
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(MODEL_URL_STORAGE_KEY, launchUrl);
+    }
+    const mode = quickLookUrl ? 'ar' : 'fallback';
     router.push(`/${locale}/ar/session?mode=${mode}`);
-  }, [isIOS, locale, modelUrls.glb, modelUrls.primary, modelUrls.usdz, router, storedModelUrl]);
+  }, [fallbackModelUrl, locale, quickLookUrl, router]);
 
   const handleProceedToGallery = useCallback(() => {
     router.push(`/${locale}/emokai/step/15`);
@@ -2228,13 +2252,21 @@ useEffect(() => {
       );
     }
 
-    const readyMessage = otherAssetsPending
-      ? isJa
-        ? 'AR モデルは準備できました。他の素材は裏で仕上げています。'
-        : 'The AR model is ready. Remaining assets will finish in the background.'
-      : isJa
-        ? '素材がすべて揃いました。つぎへ進むと呼び出し画面が開きます。'
-        : 'All assets are ready. Continue to open the AR/3D viewer.';
+    const readyMessage = quickLookUrl
+      ? otherAssetsPending
+        ? isJa
+          ? 'AR モデルは準備できました。他の素材は裏で仕上げています。'
+          : 'The AR model is ready. Remaining assets will finish in the background.'
+        : isJa
+          ? '素材がすべて揃いました。つぎへ進むと呼び出し画面が開きます。'
+          : 'All assets are ready. Continue to open the AR/3D viewer.'
+      : otherAssetsPending
+        ? isJa
+          ? '3D ビューア用のモデルを準備しています。まもなく表示できます。'
+          : 'Preparing the 3D viewer model. It will be ready shortly.'
+        : isJa
+          ? 'AR モデルは取得できませんでしたが、3Dビューアで確認できます。'
+          : 'AR is unavailable, but you can preview it in the 3D viewer.';
 
     return (
       <section className="space-y-4 rounded-3xl border border-divider bg-[rgba(237,241,241,0.04)] p-6">

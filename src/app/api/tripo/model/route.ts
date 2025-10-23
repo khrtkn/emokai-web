@@ -87,6 +87,13 @@ export async function POST(req: NextRequest) {
             if (requestedFormats[0] === "USDZ") {
               preferredUrl = convertedUrl;
             }
+            try {
+              if (typeof globalThis.sessionStorage !== "undefined") {
+                globalThis.sessionStorage.setItem("emokai_last_model_url", convertedUrl);
+              }
+            } catch (_) {
+              // ignore storage failures (server-side)
+            }
           } else {
             console.warn("[tripo-model] conversion did not return USDZ", { conversionTaskId, conversionOutput });
           }
