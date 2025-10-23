@@ -1714,12 +1714,20 @@ useEffect(() => {
   const modelAvailable = Boolean(quickLookUrl || fallbackModelUrl);
 
   useEffect(() => {
+    if (step !== 14) return;
     if (typeof window === 'undefined') return;
-    const current = window.sessionStorage.getItem(MODEL_URL_STORAGE_KEY);
-    if (current !== storedModelUrl) {
-      setStoredModelUrl(current);
+
+    const nextUrl = quickLookUrl ?? fallbackModelUrl ?? modelUrls.primary ?? null;
+    if (nextUrl) {
+      if (storedModelUrl !== nextUrl) {
+        window.sessionStorage.setItem(MODEL_URL_STORAGE_KEY, nextUrl);
+        setStoredModelUrl(nextUrl);
+      }
+    } else if (storedModelUrl) {
+      window.sessionStorage.removeItem(MODEL_URL_STORAGE_KEY);
+      setStoredModelUrl(null);
     }
-  }, [generationResults, modelUrls.glb, modelUrls.primary, modelUrls.usdz, step, storedModelUrl]);
+  }, [step, quickLookUrl, fallbackModelUrl, modelUrls.primary, storedModelUrl]);
 
   const compositeReady =
     generationState.composite === 'complete' && !!generationResults?.results?.composite;
