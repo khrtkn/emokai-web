@@ -1426,8 +1426,8 @@ useEffect(() => {
     }
     setShowCharacterAdjust(false);
     const finalName = ensureCharacterName();
-    const started = await startGenerationJobs(finalName);
-    if (!started) {
+    const completed = await startGenerationJobs(finalName);
+    if (!completed) {
       return;
     }
     router.push(`/${locale}/emokai/step/14`);
@@ -1540,7 +1540,7 @@ useEffect(() => {
     persistGenerationPayload(initialPayload);
     fallbackNameRef.current = finalName;
 
-    const runJobs = async () => {
+    const runJobs = async (): Promise<boolean> => {
       const release = () => {
         releaseGenerationLock();
         setGenerationLockActive(false);
@@ -1629,7 +1629,7 @@ useEffect(() => {
               ? '必要な素材を読み込めませんでした。写真をもう一度選び直してください。'
               : 'We could not load the required images. Please reselect your photos and try again.',
           );
-          return;
+          return false;
         }
 
         const stageInput = {
@@ -1714,7 +1714,9 @@ useEffect(() => {
             return next;
           });
           trackEvent('generation_complete', { step: 'jobs_step11', locale });
+          return true;
         }
+        return false;
       } catch (error) {
         console.error(error);
         setGenerationError(
@@ -1723,14 +1725,15 @@ useEffect(() => {
             (isJa ? 'うまくいきませんでした。もう一度ためしてください。' : 'Something went wrong.'),
         );
         trackError('jobs_step11', error);
+        return false;
       } finally {
         release();
       }
+      return false;
     };
 
-    void runJobs();
-
-    return true;
+    const success = await runJobs();
+    return success;
   }, [
     actionText,
     characterPrompt,
@@ -2172,13 +2175,25 @@ useEffect(() => {
       );
     }
 
+    const generationMessage = isJa
+      ? 'ARモデル、合成画像、物語を順番に仕上げています。しばらくお待ちください。'
+      : 'Preparing the AR model, composite image, and story. Please hold on a moment.';
+
     return (
-      <section className="space-y-4">
-        <StepLabel text={stepLabelText} />
-        <h2 className="text-base font-semibold text-textPrimary">
-          {isJa ? '出会ったエモカイ' : 'Meet your Emokai'}
-        </h2>
-        <div className="grid gap-4">
+      <>
+        <LoadingScreen
+          visible={generationRunning}
+          variant="creation"
+          title={isJa ? '観測データを整理しています…' : 'Preparing your Emokai…'}
+          message={generationMessage}
+          mode="overlay"
+        />
+        <section className="space-y-4">
+          <StepLabel text={stepLabelText} />
+          <h2 className="text-base font-semibold text-textPrimary">
+            {isJa ? '出会ったエモカイ' : 'Meet your Emokai'}
+          </h2>
+          <div className="grid gap-4">
           {characterOptions.map((option) => (
             <ImageOption
               key={option.id}
@@ -2274,6 +2289,7 @@ useEffect(() => {
           </div>
         ) : null}
       </section>
+      </>
     );
   };
 
