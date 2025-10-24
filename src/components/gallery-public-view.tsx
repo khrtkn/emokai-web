@@ -61,15 +61,17 @@ export function GalleryPublicView({ locale, items }: GalleryPublicViewProps) {
 
   return (
     <div className="relative flex h-full min-h-full w-full flex-col min-h-0">
-      <div className="pointer-events-none absolute left-1/2 top-6 z-40 -translate-x-1/2">
-        <Image
-          src="/Logo.png"
-          alt="Emokai"
-          width={124}
-          height={60}
-          className="h-[60px] w-auto"
-          priority
-        />
+      <div className="absolute left-1/2 top-6 z-40 -translate-x-1/2">
+        <Link href={`/${locale}/emokai/step/1`} className="block">
+          <Image
+            src="/Logo.png"
+            alt="Emokai"
+            width={124}
+            height={60}
+            className="h-[60px] w-auto"
+            priority
+          />
+        </Link>
       </div>
       <div className="flex flex-1 min-h-0">
         {mapToken ? (
@@ -117,10 +119,11 @@ export function GalleryPublicView({ locale, items }: GalleryPublicViewProps) {
       ) : null}
 
       <Link
-        href={`/${locale}/emokai/step/1`}
-        className="fixed bottom-6 left-1/2 z-40 flex min-h-[48px] -translate-x-1/2 items-center rounded-2xl bg-accent px-6 text-sm font-semibold text-black shadow-lg transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        href={`/${locale}/emokai/step/2`}
+        className="fixed bottom-6 left-1/2 z-40 flex min-h-[48px] -translate-x-1/2 items-center gap-2 rounded-2xl bg-accent px-6 text-sm font-semibold text-black shadow-lg transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
-        {locale === "ja" ? 'エモカイを観測する' : 'Observe Your Emokai'}
+        <span aria-hidden className="text-lg leading-none">&gt;</span>
+        <span>{locale === "ja" ? '観測をはじめる' : 'Start observation'}</span>
       </Link>
     </div>
   );

@@ -2260,7 +2260,7 @@ useEffect(() => {
           mode="overlay"
         />
         <section className={`${panelClass} space-y-8 pb-4`}>
-          <h2 className="text-base font-semibold text-textPrimary">
+          <h2 className="text-base font-semibold text-textPrimary mb-4">
             {isJa ? '出会ったエモカイ' : 'Meet your Emokai'}
           </h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -2383,7 +2383,7 @@ useEffect(() => {
               alt={isJa ? '観測中のアニメーション' : 'Loading animation'}
               className="h-32 w-32 object-contain"
             />
-            <h2 className="text-base font-semibold text-textPrimary">
+            <h2 className="text-base font-semibold text-textPrimary mb-4">
               {isJa ? '観測中' : 'Observing'}
             </h2>
             <p className="text-sm text-textSecondary">{message}</p>
@@ -2400,7 +2400,7 @@ useEffect(() => {
     if (hasGenerationFailure) {
       return (
         <section className={`${panelClass} space-y-4 p-5 text-center`}>
-          <h2 className="text-base font-semibold text-textPrimary">
+          <h2 className="text-base font-semibold text-textPrimary mb-4">
             {isJa ? 'もう一度ためしてみましょう' : 'Let’s try again'}
           </h2>
           <p className="text-sm text-textSecondary">
@@ -2450,7 +2450,7 @@ useEffect(() => {
 
     return (
       <section className={`${panelClass} space-y-4 p-6`}>
-        <h2 className="text-base font-semibold text-textPrimary">
+        <h2 className="text-base font-semibold text-textPrimary mb-4">
           {isJa ? '準備完了' : 'Ready to launch'}
         </h2>
         <p className="text-sm text-textSecondary">{readyMessage}</p>
@@ -2489,8 +2489,8 @@ useEffect(() => {
         : 'Send off';
 
     return (
-      <section className={`${panelClass} space-y-4`}>
-        <h2 className="text-base font-semibold text-textPrimary">
+      <section className={`${panelClass} space-y-6`}>
+        <h2 className="text-base font-semibold text-textPrimary mb-4">
           {isJa ? 'エモカイを世界へ送り出す' : 'Send your Emokai off'}
         </h2>
         <p className="text-sm text-textSecondary">{sendOffMessage}</p>
@@ -2533,11 +2533,8 @@ useEffect(() => {
     switch (step) {
       case 1:
         return (
-          <section className={`${panelClass} space-y-4`}>
-            <h2 className="text-base font-semibold text-textPrimary">
-              {isJa ? 'エモカイについて' : 'About Emokai'}
-            </h2>
-            <div className="space-y-3 text-[13px] leading-6 text-textSecondary">
+          <section className={`${panelClass} space-y-6`}>
+            <div className="space-y-4 text-[13px] leading-6 text-textSecondary">
               {isJa
                 ? [
                     '近年、世界各地で感情から生まれた妖怪「エモカイ」の発見が報告されている。エモカイは、人間の情動活動が外的環境に作用し、その場に一時的な情動的構造体として形成される現象と考えられている。',
@@ -2551,7 +2548,7 @@ useEffect(() => {
                     'Although the exact conditions remain unclear, strong feelings, memory-rich locations, and surrounding social or meteorological factors seem to play a role. Some institutes classify them as “Emotionally Generated Entities” and document their emergence patterns.',
                     'And a few of them originate from you.',
                     'This app helps you trace those emotional echoes and observe the Emokai that drifts somewhere in the world, born from your own feelings.',
-                  ].map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+                ].map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
             </div>
             <div className="flex flex-col gap-3 pt-6">
               <button
@@ -2563,7 +2560,7 @@ useEffect(() => {
               </button>
               <Link
                 href={`/${locale}/gallery`}
-            className="inline-flex min-h-[48px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="inline-flex min-h-[48px] items-center justify-center rounded-2xl border border-divider px-6 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 {isJa ? '観測ギャラリーを見る' : 'View gallery'}
               </Link>
@@ -2572,8 +2569,8 @@ useEffect(() => {
         );
       case 2:
         return (
-          <section className={`${panelClass} space-y-4`}>
-            <h2 className="text-base font-semibold text-textPrimary">
+          <section className={`${panelClass} space-y-6`}>
+            <h2 className="text-base font-semibold text-textPrimary mb-4">
               {isJa ? '場所の写真を用意する' : 'Capture the place'}
             </h2>
             <p className="text-sm text-textSecondary">
@@ -2677,7 +2674,7 @@ useEffect(() => {
         return (
           <section className={`${panelClass} flex h-full flex-col space-y-4`}>
             <div className="space-y-3">
-              <h2 className="text-base font-semibold text-textPrimary">
+              <h2 className="text-base font-semibold text-textPrimary mb-4">
                 {isJa ? '強い感情がある場所' : 'A place tied to strong feelings'}
               </h2>
               <p className="text-sm text-textSecondary">
@@ -2770,8 +2767,8 @@ useEffect(() => {
       }
       case 5:
         return (
-          <section className={`${panelClass} space-y-4`}>
-            <h2 className="text-base font-semibold text-textPrimary">
+          <section className={`${panelClass} space-y-6`}>
+            <h2 className="text-base font-semibold text-textPrimary mb-4">
               {isJa ? 'この場所で感じる気持ち' : 'Feelings in this place'}
             </h2>
             <p className="text-sm text-textSecondary">
@@ -2858,8 +2855,8 @@ useEffect(() => {
           );
         }
         return (
-          <section className={`${panelClass} space-y-3`}>
-            <h2 className="text-base font-semibold text-textPrimary">
+          <section className={`${panelClass} space-y-5`}>
+            <h2 className="text-base font-semibold text-textPrimary mb-4">
               {isJa ? 'エモカイのすがた' : "The Emokai's form"}
             </h2>
             <p className="text-sm text-textSecondary">
@@ -2898,7 +2895,7 @@ useEffect(() => {
         return renderCharacterStep();
       case 14:
         return (
-          <section className={`${panelClass} space-y-4`}>
+          <section className={`${panelClass} space-y-6`}>
             <p className="text-sm text-textSecondary">
               {isJa
                 ? 'エモカイの姿が整うまで、このままお待ちください。'
