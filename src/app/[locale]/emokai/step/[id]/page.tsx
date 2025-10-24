@@ -540,8 +540,7 @@ const StepLabel = ({ text }: { text?: string }) => {
 const primaryButtonClass =
   'inline-block min-h-[44px] rounded-lg bg-accent px-6 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed';
 
-const panelClass =
-  'rounded-3xl border border-white/12 bg-[rgba(12,18,20,0.78)] backdrop-blur-sm shadow-[0_32px_90px_rgba(0,0,0,0.55)]';
+const panelClass = 'rounded-3xl backdrop-blur-sm shadow-[0_24px_70px_rgba(0,0,0,0.45)]';
 
 const urlHasExtension = (value: string | null | undefined, extension: string) => {
   if (!value) return false;

@@ -19,8 +19,7 @@ import { trackEvent } from "@/lib/analytics";
 
 const PAGE_SIZE = 8;
 
-const panelClass =
-  'rounded-3xl border border-white/12 bg-[rgba(12,18,20,0.78)] backdrop-blur-sm shadow-[0_32px_90px_rgba(0,0,0,0.55)]';
+const panelClass = 'rounded-3xl backdrop-blur-sm shadow-[0_24px_70px_rgba(0,0,0,0.45)]';
 
 function deriveCompositeUrl(creation: CreationPayload) {
   const composite = (creation.results as any)?.composite;

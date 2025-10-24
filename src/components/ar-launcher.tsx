@@ -14,7 +14,7 @@ import { logDebug, logError, logWarn } from "@/lib/logger";
 const CAMERA_PERMISSION_KEY = "camera-permission";
 
 const panelClass =
-  'rounded-3xl border border-white/12 bg-[rgba(12,18,20,0.78)] backdrop-blur-sm shadow-[0_32px_90px_rgba(0,0,0,0.55)] px-5 py-6 sm:px-6';
+  'rounded-3xl backdrop-blur-sm shadow-[0_24px_70px_rgba(0,0,0,0.45)] px-5 py-6 sm:px-6';
 
 type PermissionState = "idle" | "granted" | "denied";
 
