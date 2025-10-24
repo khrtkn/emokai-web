@@ -60,7 +60,7 @@ export function GalleryPublicView({ locale, items }: GalleryPublicViewProps) {
     : "NEXT_PUBLIC_MAPBOX_TOKEN is not configured. Add it to enable the map.";
 
   return (
-    <div className="relative flex h-full min-h-full w-full flex-col">
+    <div className="relative flex h-full min-h-full w-full flex-col min-h-0">
       <div className="pointer-events-none absolute left-1/2 top-6 z-40 -translate-x-1/2">
         <Image
           src="/Logo.png"
@@ -71,7 +71,7 @@ export function GalleryPublicView({ locale, items }: GalleryPublicViewProps) {
           priority
         />
       </div>
-      <div className="flex flex-1">
+      <div className="flex flex-1 min-h-0">
         {mapToken ? (
           <Map
             mapboxAccessToken={mapToken}
