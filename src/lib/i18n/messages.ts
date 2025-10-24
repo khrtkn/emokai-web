@@ -144,7 +144,7 @@ export const messages = {
         viewerPlaceholder: "3Dビューアを準備中です…",
         viewerMissing: "3Dモデルのデータが見つかりませんでした",
         viewerFailed: "3Dモデルの読み込みに失敗しました",
-        openQuickLook: "Quick Lookを開く"
+        openQuickLook: "エモカイをここに呼び出す"
       }
     },
     gallery: {
@@ -300,7 +300,7 @@ export const messages = {
         viewerPlaceholder: "Preparing 3D viewer…",
         viewerMissing: "3D model data is missing",
         viewerFailed: "Failed to load the 3D model",
-        openQuickLook: "Open in Quick Look"
+        openQuickLook: "Bring your Emokai here"
       }
     },
     gallery: {

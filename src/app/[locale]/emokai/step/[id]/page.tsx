@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import {
   useCallback,
   useEffect,
@@ -2557,7 +2558,7 @@ useEffect(() => {
                     'This app helps you trace those emotional echoes and observe the Emokai that drifts somewhere in the world, born from your own feelings.',
                   ].map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
             </div>
-            <div className="pt-4">
+            <div className="flex flex-col gap-3 pt-4">
               <button
                 type="button"
                 className={primaryButtonClass}
@@ -2565,6 +2566,12 @@ useEffect(() => {
               >
                 {isJa ? '観測をはじめる' : 'Start observation'}
               </button>
+              <Link
+                href={`/${locale}/gallery`}
+                className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                {isJa ? '観測ギャラリーを見る' : 'View gallery'}
+              </Link>
             </div>
           </section>
         );

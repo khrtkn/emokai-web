@@ -131,8 +131,8 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
           {launchUrl ? (
             <p className="text-xs text-textSecondary/70">
               {isJa
-                ? '準備が整いました。下のボタンからQuick Lookを起動できます。'
-                : 'Ready when you are. Use the button below to launch Quick Look.'}
+                ? '準備が整いました。下のボタンからエモカイを呼び出せます。'
+                : 'All set. Use the button below to bring your Emokai here.'}
             </p>
           ) : null}
         </div>
@@ -268,8 +268,8 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
               {launchUrl
                 ? t("session.openQuickLook")
                 : isJa
-                  ? 'Quick Lookを準備しています…'
-                  : 'Preparing Quick Look…'}
+                  ? 'エモカイを呼び出す準備をしています…'
+                  : 'Preparing your Emokai…'}
             </Button>
           ) : (
             <Button
