@@ -26,11 +26,11 @@ export function ImageOption({ id, image, label, selected, onSelect, disabled, si
       type="button"
       onClick={handleClick}
       disabled={disabled}
-      className={`group relative flex w-full flex-col overflow-hidden rounded-xl border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-        selected ? "border-transparent ring-2 ring-accent" : "border-divider hover:border-accent"
+      className={`group relative flex w-full flex-col rounded-3xl border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+        selected ? "border-white/80 shadow-[0_0_0_2px_rgba(0,216,164,0.65)]" : "border-divider hover:border-accent"
       } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
     >
-      <div className={`aspect-square w-full overflow-hidden bg-[rgba(237,241,241,0.05)] ${containerHeight}`}>
+      <div className={`aspect-square w-full overflow-hidden rounded-3xl bg-[rgba(237,241,241,0.05)] ${containerHeight}`}>
         {image}
       </div>
       {label ? (
