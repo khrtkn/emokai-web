@@ -67,7 +67,7 @@ function formatTwoDigits(value: number) {
   return value.toString().padStart(2, '0');
 }
 
-function buildTimestampLabel(localeKey: string) {
+function buildDefaultName() {
   const now = new Date();
   const year = now.getFullYear();
   const month = formatTwoDigits(now.getMonth() + 1);
@@ -75,11 +75,7 @@ function buildTimestampLabel(localeKey: string) {
   const hours = formatTwoDigits(now.getHours());
   const minutes = formatTwoDigits(now.getMinutes());
 
-  if (localeKey === 'ja') {
-    return `${year}年${month}月${day}日 ${hours}:${minutes}`;
-  }
-
-  return `${year}-${month}-${day} ${hours}:${minutes}`;
+  return `Emokai-${year}${month}${day}${hours}${minutes}`;
 }
 
 type EmotionGroup = {
@@ -817,6 +813,7 @@ export default function EmokaiStepPage({ params }: Props) {
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const [showCharacterAdjust, setShowCharacterAdjust] = useState(false);
   const fallbackNameRef = useRef<string | null>(initialName.trim() ? initialName.trim() : null);
+  const defaultNameExample = useMemo(() => buildDefaultName(), []);
 
   const storedCharacterSelection = useMemo(() => readCharacterSelection(), []);
   const storedCharacterOptions = useMemo(() => readCharacterOptions(), []);
@@ -1134,10 +1131,10 @@ useEffect(() => {
     if (fallbackNameRef.current) {
       return fallbackNameRef.current;
     }
-    const generated = buildTimestampLabel(localeKey);
+    const generated = buildDefaultName();
     fallbackNameRef.current = generated;
     return generated;
-  }, [localeKey]);
+  }, []);
 
   const ensureCharacterName = useCallback(() => {
     const trimmed = characterName.trim();
@@ -1157,6 +1154,13 @@ useEffect(() => {
     saveSessionString(NAME_STORAGE_KEY, generated);
     return generated;
   }, [characterName, generationResults, getFallbackName]);
+
+  useEffect(() => {
+    if (initialName.trim()) return;
+    setCharacterName(defaultNameExample);
+    fallbackNameRef.current = defaultNameExample;
+    saveSessionString(NAME_STORAGE_KEY, defaultNameExample);
+  }, [defaultNameExample, initialName]);
 
   const requestGeolocation = useCallback(() => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -2285,7 +2289,7 @@ useEffect(() => {
         ) : null}
         <RichInput
           label={isJa ? 'エモカイの名前' : 'Name your Emokai'}
-          placeholder={isJa ? '名前を入力してください。' : 'Give your Emokai a name.'}
+          placeholder={isJa ? `例: ${defaultNameExample}` : `e.g. ${defaultNameExample}`}
           value={characterName}
           onChange={handleCharacterNameChange}
           rows={1}
@@ -2293,8 +2297,8 @@ useEffect(() => {
           showCounter={false}
           helperText={
             isJa
-              ? '未入力のまま進むと、現在時刻が名前として登録されます。'
-              : 'Leave blank to auto-fill the current date & time as the name.'
+              ? `未入力のまま進むと、自動で「${defaultNameExample}」という名前になります。`
+              : `Leave it blank and we'll name it "${defaultNameExample}" automatically.`
           }
           error={undefined}
         />

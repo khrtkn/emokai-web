@@ -37,6 +37,8 @@ export type SaveResult = {
   shareUrl?: string;
   expiresAt?: string;
   error?: string;
+  prunedCount?: number;
+  compacted?: boolean;
 };
 
 export function getPersistedList(): CreationPayload[] {
@@ -52,9 +54,66 @@ export function getPersistedList(): CreationPayload[] {
   }
 }
 
+function isQuotaError(error: unknown): error is DOMException {
+  if (!(error instanceof DOMException)) return false;
+  return (
+    error.name === "QuotaExceededError" ||
+    error.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+    error.code === 22 ||
+    error.code === 1014
+  );
+}
+
 function setPersistedList(list: CreationPayload[]) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(CREATIONS_KEY, JSON.stringify(list));
+  const payload = JSON.stringify(list);
+  try {
+    localStorage.setItem(CREATIONS_KEY, payload);
+  } catch (error) {
+    if (isQuotaError(error)) {
+      throw error;
+    }
+    throw error;
+  }
+}
+
+function cloneCreation(payload: CreationPayload): CreationPayload {
+  if (typeof structuredClone === "function") {
+    return structuredClone(payload);
+  }
+  return JSON.parse(JSON.stringify(payload)) as CreationPayload;
+}
+
+function minifyCreationForStorage(payload: CreationPayload): CreationPayload {
+  const clone = cloneCreation(payload);
+
+  const stageOption = (clone.stageSelection as Record<string, any> | null)?.selectedOption;
+  if (stageOption && typeof stageOption.previewUrl === "string" && stageOption.previewUrl.startsWith("data:")) {
+    stageOption.previewUrl = "";
+  }
+
+  const characterOption = (clone.characterSelection as Record<string, any> | null)?.selectedOption;
+  if (characterOption && typeof characterOption.previewUrl === "string" && characterOption.previewUrl.startsWith("data:")) {
+    characterOption.previewUrl = "";
+  }
+
+  const resultsRoot = (clone.results as Record<string, any>) ?? {};
+  const compositeCandidates = [resultsRoot?.results?.composite, resultsRoot?.composite].filter(Boolean);
+
+  compositeCandidates.forEach((composite: Record<string, any>) => {
+    if (typeof composite !== "object" || !composite) return;
+    if (typeof composite.imageBase64 === "string") {
+      delete composite.imageBase64;
+    }
+    if (typeof composite.url === "string" && composite.url.startsWith("data:")) {
+      if (typeof composite.cacheKey === "string" && composite.cacheKey.length > 0) {
+        composite.inlineUrl = composite.url;
+      }
+      composite.url = "";
+    }
+  });
+
+  return clone;
 }
 
 export function listCreations(): CreationPayload[] {
@@ -186,9 +245,41 @@ export function saveCreation(): SaveResult {
     coordinates
   };
 
-  const list = getPersistedList();
-  list.push(creation);
-  setPersistedList(list);
+  const existing = getPersistedList();
+  const combined: CreationPayload[] = [...existing, creation];
+
+  let attempt: CreationPayload[] = [...combined];
+  let pruned = 0;
+  let minimized = false;
+
+  // Attempt to persist, pruning the oldest creations if we exceed quota.
+  for (;;) {
+    try {
+      setPersistedList(attempt);
+      break;
+    } catch (error) {
+      if (!isQuotaError(error)) {
+        console.error("Failed to persist creations", error);
+        return { success: false, error: "Storage unavailable" };
+      }
+
+      if (attempt.length > 1) {
+        attempt = attempt.slice(1);
+        pruned += 1;
+        continue;
+      }
+
+      if (!minimized) {
+        attempt = [minifyCreationForStorage(attempt[0])];
+        minimized = true;
+        continue;
+      }
+
+      console.warn("Storage quota exceeded while saving creations");
+      return { success: false, error: "Storage limit reached" };
+    }
+  }
+
   incrementDailyLimit();
   scheduleRetention(CREATIONS_KEY);
 
@@ -197,6 +288,8 @@ export function saveCreation(): SaveResult {
   return {
     success: true,
     shareUrl: share.url,
-    expiresAt: share.expiresAt
+    expiresAt: share.expiresAt,
+    prunedCount: pruned || undefined,
+    compacted: minimized || undefined
   };
 }

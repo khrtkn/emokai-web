@@ -129,24 +129,11 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
         <div className="rounded-3xl border border-divider bg-[rgba(255,255,255,0.05)] p-6 text-sm text-textSecondary space-y-3">
           <p>{t("session.arPlaceholder", { device: t(`device.${device}`) })}</p>
           {launchUrl ? (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  if (quickLookAnchorRef.current) {
-                    quickLookAnchorRef.current.click();
-                  } else {
-                    window.location.href = launchUrl;
-                  }
-                }}
-                className="rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-black"
-              >
-                {t("session.openQuickLook")}
-              </button>
-              <a ref={quickLookAnchorRef} rel="ar" href={launchUrl} className="hidden" aria-hidden="true">
-                Quick Look
-              </a>
-            </>
+            <p className="text-xs text-textSecondary/70">
+              {isJa
+                ? '準備が整いました。下のボタンからQuick Lookを起動できます。'
+                : 'Ready when you are. Use the button below to launch Quick Look.'}
+            </p>
           ) : null}
         </div>
       );
@@ -175,7 +162,17 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
         errorLabel={t("session.viewerFailed")}
       />
     );
-  }, [currentMode, device, launchUrl, modelUrl, t, viewerError, viewerLoading]);
+  }, [currentMode, device, isJa, launchUrl, modelUrl, t, viewerError, viewerLoading]);
+
+  const handleQuickLook = useCallback(() => {
+    if (!launchUrl) return;
+    setLaunchAttempted(true);
+    if (quickLookAnchorRef.current) {
+      quickLookAnchorRef.current.click();
+    } else {
+      window.location.href = launchUrl;
+    }
+  }, [launchUrl]);
 
   const bannerMessage = viewerError
     ? viewerError
@@ -261,23 +258,47 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
         <InstructionBanner tone={viewerError ? "error" : "default"}>{bannerMessage}</InstructionBanner>
         {viewerContent}
         <div className="space-y-3 pt-2">
+          {currentMode === "ar" ? (
+            <Button
+              type="button"
+              className="w-full"
+              onClick={handleQuickLook}
+              disabled={!launchUrl}
+            >
+              {launchUrl
+                ? t("session.openQuickLook")
+                : isJa
+                  ? 'Quick Lookを準備しています…'
+                  : 'Preparing Quick Look…'}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              className="w-full"
+              onClick={() => router.replace(`/${locale}/ar/session?mode=ar`)}
+            >
+              {isJa ? 'ARモードに戻る' : 'Return to AR mode'}
+            </Button>
+          )}
           <Button
             type="button"
+            variant="secondary"
             className="w-full"
             onClick={() => router.push(`/${locale}/emokai/step/15`)}
           >
             {isJa ? '送り出しの画面へ進む' : 'Continue to send-off'}
           </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            className="w-full"
-            onClick={() => router.push(`/${locale}/emokai/step/10`)}
-          >
-            {isJa ? '呼び出し画面に戻る' : 'Back to AR launcher'}
-          </Button>
         </div>
       </div>
+      <a
+        ref={quickLookAnchorRef}
+        rel="ar"
+        href={launchUrl ?? undefined}
+        className="hidden"
+        aria-hidden="true"
+      >
+        Quick Look
+      </a>
     </main>
   );
 }
