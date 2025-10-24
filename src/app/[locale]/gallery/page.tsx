@@ -23,7 +23,7 @@ export default async function GalleryPage({ params }: { params: { locale: string
 
   return (
     <ScreenBackground className="h-screen">
-      <main className="relative h-screen w-full px-6 py-8 sm:px-8">
+      <main className="relative flex h-screen w-full">
         <GalleryPublicView locale={locale} items={cards} />
       </main>
     </ScreenBackground>
