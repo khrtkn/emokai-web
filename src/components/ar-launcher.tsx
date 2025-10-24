@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -13,8 +12,7 @@ import { logDebug, logError, logWarn } from "@/lib/logger";
 
 const CAMERA_PERMISSION_KEY = "camera-permission";
 
-const panelClass =
-  'rounded-3xl backdrop-blur-sm shadow-[0_24px_70px_rgba(0,0,0,0.45)] px-5 py-6 sm:px-6';
+const panelClass = 'rounded-3xl px-5 py-6 sm:px-6';
 
 type PermissionState = "idle" | "granted" | "denied";
 
@@ -231,20 +229,7 @@ export function ARLauncher() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <Header
-        title="EMOKAI"
-        hideTitle
-        leading={
-          <Image
-            src="/Logo.png"
-            alt="Emokai"
-            width={132}
-            height={100}
-            className="h-full w-auto"
-            priority
-          />
-        }
-      />
+      <Header title="EMOKAI" hideTitle />
       <div className="mt-6 flex-1 space-y-6">
         <InstructionBanner tone={error ? "error" : "default"}>{statusMessage}</InstructionBanner>
         <div className={`${panelClass} space-y-6`}>

@@ -43,7 +43,7 @@ export function LoadingScreen({
 
   const content = (
     <div className="flex w-full max-w-sm flex-col items-center gap-4 p-6 text-center">
-      <img src={asset.src} alt={asset.alt} className="h-32 w-32 object-contain" loading="lazy" />
+      <img src={asset.src} alt={asset.alt} className="h-28 w-28 object-contain" loading="lazy" />
       <div className="space-y-2">
         <p id={titleId} className="text-sm font-semibold text-textPrimary">
           {title}
@@ -61,7 +61,7 @@ export function LoadingScreen({
   if (mode === 'page') {
     return (
       <section
-        className="flex min-h-[60vh] w-full flex-col items-center justify-center px-4 text-center"
+        className="flex min-h-screen w-full flex-col items-center justify-center bg-[#080c0e] px-6 text-center"
         role="status"
         aria-labelledby={titleId}
         aria-describedby={message ? descriptionId : undefined}
@@ -73,7 +73,7 @@ export function LoadingScreen({
 
   return (
     <div
-      className="fixed inset-0 z-[1200] flex items-center justify-center bg-[rgba(8,12,12,0.78)] backdrop-blur"
+      className="fixed inset-0 z-[1200] flex items-center justify-center bg-[#080c0e]"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}

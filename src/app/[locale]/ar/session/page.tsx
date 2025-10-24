@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { notFound, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -242,20 +241,7 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
   return (
     <ScreenBackground>
       <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 py-6 sm:px-6">
-        <Header
-          title="EMOKAI"
-          hideTitle
-        leading={
-          <Image
-            src="/Logo.png"
-            alt="Emokai"
-            width={132}
-            height={100}
-            className="h-full w-auto"
-            priority
-          />
-        }
-      />
+        <Header title="EMOKAI" hideTitle />
         <div className="flex-1 space-y-6">
           <InstructionBanner tone={viewerError ? "error" : "default"}>{bannerMessage}</InstructionBanner>
           {viewerContent}

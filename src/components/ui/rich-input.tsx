@@ -30,7 +30,7 @@ export const RichInput = forwardRef<HTMLTextAreaElement, RichInputProps>(functio
       {label ? <label className="block text-sm font-medium text-textPrimary">{label}</label> : null}
       <div
         className={`rounded-3xl border px-4 ${containerPadding} ${
-          error ? "border-[#ff7c7c]" : "border-divider bg-[rgba(237,241,241,0.04)]"
+          error ? "border-[#ff7c7c]" : "border-divider bg-transparent"
         }`}
       >
         <textarea

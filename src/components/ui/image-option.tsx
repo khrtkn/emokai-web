@@ -9,13 +9,17 @@ export type ImageOptionProps = {
   selected?: boolean;
   onSelect?: (id: string) => void;
   disabled?: boolean;
+  size?: 'default' | 'compact';
 };
 
-export function ImageOption({ id, image, label, selected, onSelect, disabled }: ImageOptionProps) {
+export function ImageOption({ id, image, label, selected, onSelect, disabled, size = 'default' }: ImageOptionProps) {
   const handleClick = () => {
     if (disabled || !onSelect) return;
     onSelect(id);
   };
+
+  const containerHeight = size === 'compact' ? 'h-32' : 'h-40';
+  const labelPadding = size === 'compact' ? 'p-2.5 text-xs' : 'p-3 text-sm';
 
   return (
     <button
@@ -26,11 +30,11 @@ export function ImageOption({ id, image, label, selected, onSelect, disabled }: 
         selected ? "border-transparent ring-2 ring-accent" : "border-divider hover:border-accent"
       } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
     >
-      <div className="aspect-square w-full overflow-hidden bg-[rgba(237,241,241,0.05)]">
+      <div className={`aspect-square w-full overflow-hidden bg-[rgba(237,241,241,0.05)] ${containerHeight}`}>
         {image}
       </div>
       {label ? (
-        <span className="p-3 text-left text-sm text-textSecondary group-hover:text-textPrimary">
+        <span className={`${labelPadding} text-left text-textSecondary group-hover:text-textPrimary`}>
           {label}
         </span>
       ) : null}

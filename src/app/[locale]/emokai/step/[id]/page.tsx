@@ -532,15 +532,10 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-const StepLabel = ({ text }: { text?: string }) => {
-  if (!text) return null;
-  return <p className="text-xs text-textSecondary">{text}</p>;
-};
-
 const primaryButtonClass =
-  'inline-block min-h-[44px] rounded-lg bg-accent px-6 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed';
+  'inline-block min-h-[64px] rounded-lg bg-accent px-6 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed';
 
-const panelClass = 'rounded-3xl backdrop-blur-sm shadow-[0_24px_70px_rgba(0,0,0,0.45)]';
+const panelClass = 'rounded-3xl';
 
 const urlHasExtension = (value: string | null | undefined, extension: string) => {
   if (!value) return false;
@@ -2265,12 +2260,11 @@ useEffect(() => {
           message={generationMessage}
           mode="overlay"
         />
-        <section className={`${panelClass} space-y-4`}>
-          <StepLabel text={stepLabelText} />
+        <section className={`${panelClass} space-y-6 pb-4`}>
           <h2 className="text-base font-semibold text-textPrimary">
             {isJa ? '出会ったエモカイ' : 'Meet your Emokai'}
           </h2>
-          <div className="grid gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {characterOptions.map((option) => (
             <ImageOption
               key={option.id}
@@ -2278,6 +2272,7 @@ useEffect(() => {
               selected={characterSelection?.id === option.id}
               onSelect={handleCharacterSelect}
               label={isJa ? 'これにする' : 'Choose this'}
+              size="compact"
               image={
                 <img
                   src={option.previewUrl}
@@ -2306,7 +2301,7 @@ useEffect(() => {
           }
           error={undefined}
         />
-        <div className="flex gap-3 pt-2">
+        <div className="flex gap-3 pt-6">
           <Button
             type="button"
             onClick={handleCharacterNext}
@@ -2322,14 +2317,14 @@ useEffect(() => {
           </Button>
           <button
             type="button"
-            className="rounded-lg border border-divider px-4 py-2 text-sm text-textSecondary transition hover:border-accent"
+            className="flex min-h-[64px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent"
             onClick={() => setShowCharacterAdjust((prev) => !prev)}
           >
             {isJa ? '調整する' : 'Adjust'}
           </button>
         </div>
         {showCharacterAdjust ? (
-          <div className="space-y-3 rounded-2xl border border-divider bg-[rgba(237,241,241,0.04)] p-4">
+          <div className="space-y-3 rounded-2xl border border-divider bg-transparent p-4">
             <p className="text-xs text-textSecondary">
               {isJa
                 ? '気になるところがあれば書き直して、あらためて呼び出せます。'
@@ -2357,7 +2352,7 @@ useEffect(() => {
               </Button>
               <button
                 type="button"
-                className="rounded-lg border border-divider px-4 py-2 text-sm text-textSecondary transition hover:border-accent"
+                className="flex min-h-[64px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent"
                 onClick={() => setShowCharacterAdjust(false)}
               >
                 {isJa ? '閉じる' : 'Close'}
@@ -2502,7 +2497,7 @@ useEffect(() => {
           {isJa ? 'エモカイを世界へ送り出す' : 'Send your Emokai off'}
         </h2>
         <p className="text-sm text-textSecondary">{sendOffMessage}</p>
-        <div className="aspect-square w-full overflow-hidden rounded-2xl border border-divider bg-[rgba(237,241,241,0.08)]">
+        <div className="aspect-square w-full overflow-hidden rounded-2xl border border-divider bg-transparent">
           {(() => {
             const composite = generationResults?.results.composite;
             if (!composite) return null;
@@ -2545,7 +2540,7 @@ useEffect(() => {
             <h2 className="text-base font-semibold text-textPrimary">
               {isJa ? 'エモカイについて' : 'About Emokai'}
             </h2>
-            <div className="space-y-3 text-sm leading-6 text-textSecondary">
+            <div className="space-y-3 text-[13px] leading-6 text-textSecondary">
               {isJa
                 ? [
                     '近年、世界各地で感情から生まれた妖怪「エモカイ」の発見が報告されている。エモカイは、人間の情動活動が外的環境に作用し、その場に一時的な情動的構造体として形成される現象と考えられている。',
@@ -2561,7 +2556,7 @@ useEffect(() => {
                     'This app helps you trace those emotional echoes and observe the Emokai that drifts somewhere in the world, born from your own feelings.',
                   ].map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
             </div>
-            <div className="flex flex-col gap-3 pt-4">
+            <div className="flex flex-col gap-3 pt-6">
               <button
                 type="button"
                 className={primaryButtonClass}
@@ -2571,7 +2566,7 @@ useEffect(() => {
               </button>
               <Link
                 href={`/${locale}/gallery`}
-                className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="inline-flex min-h-[64px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 {isJa ? '観測ギャラリーを見る' : 'View gallery'}
               </Link>
@@ -2581,7 +2576,6 @@ useEffect(() => {
       case 2:
         return (
           <section className={`${panelClass} space-y-4`}>
-            <StepLabel text={stepLabelText} />
             <h2 className="text-base font-semibold text-textPrimary">
               {isJa ? '場所の写真を用意する' : 'Capture the place'}
             </h2>
@@ -2602,7 +2596,7 @@ useEffect(() => {
               </Button>
               <button
                 type="button"
-                className="rounded-lg border border-divider px-4 py-2 text-sm text-textSecondary transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex min-h-[64px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={handleSelectFromLibrary}
                 disabled={backgroundUploading}
               >
@@ -2625,7 +2619,7 @@ useEffect(() => {
               onChange={handleBackgroundFileChange}
             />
             {backgroundError ? <p className="text-xs text-[#ffb9b9]">{backgroundError}</p> : null}
-            <div className="rounded-3xl border border-divider bg-[rgba(237,241,241,0.05)] p-3">
+            <div className="rounded-3xl border border-divider bg-transparent p-3">
               {stageSelection ? (
                 <div className="space-y-3">
                   <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black/10">
@@ -2686,7 +2680,6 @@ useEffect(() => {
         return (
           <section className={`${panelClass} flex h-full flex-col space-y-4`}>
             <div className="space-y-3">
-              <StepLabel text={stepLabelText} />
               <h2 className="text-base font-semibold text-textPrimary">
                 {isJa ? '強い感情がある場所' : 'A place tied to strong feelings'}
               </h2>
@@ -2716,7 +2709,7 @@ useEffect(() => {
                   </span>
                   <input
                     type="text"
-                    className="w-full rounded-full border border-divider bg-[rgba(237,241,241,0.06)] pl-11 pr-4 py-3 text-sm text-textPrimary placeholder:text-textSecondary/70 outline-none transition focus:border-accent"
+                    className="w-full rounded-full border border-divider bg-transparent pl-11 pr-4 py-3 text-sm text-textPrimary placeholder:text-textSecondary/70 outline-none transition focus:border-accent"
                     placeholder={
                       isJa
                         ? '場所や住所を入力すると地図が移動します。'
@@ -2733,7 +2726,7 @@ useEffect(() => {
               </div>
             </div>
             <div className="flex h-[320px] flex-col">
-              <div className="relative flex-1 overflow-hidden rounded-3xl border border-divider bg-[rgba(237,241,241,0.08)]">
+              <div className="relative flex-1 overflow-hidden rounded-3xl border border-divider bg-transparent">
                 {mapEmbedUrl ? (
                   <iframe
                     src={mapEmbedUrl}
@@ -2758,7 +2751,7 @@ useEffect(() => {
                 <span>{locationLabel}</span>
                 <button
                   type="button"
-                  className="rounded-lg border border-divider px-3 py-1 text-xs text-textSecondary transition hover:border-accent"
+                  className="flex min-h-[64px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent"
                   onClick={requestGeolocation}
                   disabled={geoStatus === 'loading'}
                 >
@@ -2781,7 +2774,6 @@ useEffect(() => {
       case 5:
         return (
           <section className={`${panelClass} space-y-4`}>
-            <StepLabel text={stepLabelText} />
             <h2 className="text-base font-semibold text-textPrimary">
               {isJa ? 'この場所で感じる気持ち' : 'Feelings in this place'}
             </h2>
@@ -2865,7 +2857,6 @@ useEffect(() => {
         }
         return (
           <section className={`${panelClass} space-y-3`}>
-            <StepLabel text={stepLabelText} />
             <h2 className="text-base font-semibold text-textPrimary">
               {isJa ? 'エモカイのすがた' : "The Emokai's form"}
             </h2>
@@ -2906,7 +2897,6 @@ useEffect(() => {
       case 14:
         return (
           <section className={`${panelClass} space-y-4`}>
-            <StepLabel text={stepLabelText} />
             <p className="text-sm text-textSecondary">
               {isJa
                 ? 'エモカイの姿が整うまで、このままお待ちください。'
@@ -2925,20 +2915,7 @@ useEffect(() => {
   return (
     <ScreenBackground>
       <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 py-6 sm:px-6">
-      <Header
-        title="EMOKAI"
-        hideTitle
-        leading={
-          <Image
-            src="/Logo.png"
-            alt="Emokai"
-            width={132}
-            height={100}
-            className="h-full w-auto"
-            priority
-          />
-        }
-      />
+        <Header title="EMOKAI" hideTitle />
         <div className="flex-1 space-y-6 overflow-y-auto">{content}</div>
       </main>
     </ScreenBackground>

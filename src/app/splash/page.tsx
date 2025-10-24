@@ -18,20 +18,6 @@ function buildLocaleOptions(recommended: string): string[] {
   return Array.from(options);
 }
 
-function getHelperCopy(locale: string, isPrimary: boolean, isRecommended: boolean) {
-  if (locale === 'ja') {
-    if (isPrimary) {
-      return isRecommended ? '推奨設定により日本語を選択しました' : '言語は設定からいつでも変更できます';
-    }
-    return '日本語に切り替える';
-  }
-
-  if (isPrimary) {
-    return isRecommended ? 'Suggested for your device settings' : 'You can change the language anytime';
-  }
-  return 'Switch to English';
-}
-
 function SplashContent({ recommendedLocale }: { recommendedLocale: string }) {
   const locales = buildLocaleOptions(recommendedLocale);
   const primaryLocale = locales[0];
@@ -39,7 +25,7 @@ function SplashContent({ recommendedLocale }: { recommendedLocale: string }) {
     <main className="relative overflow-hidden bg-canvas">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,216,164,0.35),_transparent_55%),_linear-gradient(160deg,_rgba(13,19,23,0.92)_0%,_rgba(8,12,14,0.98)_65%)]" />
       <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-between gap-10 px-6 py-12">
-        <header className="flex w-full flex-col items-center gap-4 text-center">
+        <div className="flex w-full flex-col items-center">
           <Image
             src="/Logo.png"
             alt="SOFU Emokai"
@@ -48,29 +34,22 @@ function SplashContent({ recommendedLocale }: { recommendedLocale: string }) {
             className="h-[60px] w-auto"
             priority
           />
-          <p className="text-sm text-textSecondary">
-            {primaryLocale === 'ja'
-              ? '感情から生まれる妖怪“エモカイ”を観測し、ARで呼び出す体験をはじめましょう。'
-              : 'Observe the Emokai born from your emotions and bring them into AR.'}
-          </p>
-        </header>
+        </div>
 
         <div className="flex w-full flex-col items-stretch gap-3">
           {locales.map((locale, index) => {
             const isPrimary = index === 0;
             const isJapanese = locale === 'ja';
             const label = isJapanese ? '日本語で体験する' : 'Explore in English';
-            const helper = getHelperCopy(locale, isPrimary, recommendedLocale === locale);
             return (
               <Link
                 key={locale}
                 href={`/${locale}`}
-                className={`flex flex-col rounded-2xl border border-divider/40 bg-[rgba(12,18,20,0.75)] p-4 text-left transition hover:border-accent`}
+                className={`flex items-center justify-center rounded-2xl bg-[rgba(12,18,20,0.8)] px-6 py-5 text-center text-sm font-semibold text-textPrimary transition hover:border-accent hover:bg-[rgba(16,24,26,0.85)] ${
+                  isPrimary ? 'border border-white/12 shadow-[0_18px_50px_rgba(0,0,0,0.45)]' : 'border border-transparent'
+                }`}
               >
-                <span className={`text-sm font-semibold text-textPrimary ${isPrimary ? '' : 'text-textPrimary/80'}`}>
-                  {label}
-                </span>
-                <span className="mt-1 text-xs text-textSecondary/70">{helper}</span>
+                {label}
               </Link>
             );
           })}
