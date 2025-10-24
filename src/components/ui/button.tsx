@@ -25,7 +25,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     <button
       ref={ref}
       className={clsx(
-        "inline-flex min-h-[64px] items-center justify-center rounded-lg px-4 py-3 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex min-h-[48px] items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50",
         variant === "primary"
           ? "bg-accent text-black hover:opacity-90"
           : "border border-divider bg-transparent text-textSecondary hover:border-accent",

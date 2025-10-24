@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import {
   useCallback,
@@ -13,7 +12,7 @@ import {
 } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { Button, Header, ImageOption, LoadingScreen, RichInput, ScreenBackground } from '@/components/ui';
+import { Button, ImageOption, LoadingScreen, RichInput, ScreenBackground } from '@/components/ui';
 import { moderateText } from '@/lib/moderation';
 import type { StageOption } from '@/lib/stage-generation';
 import { createCharacterOptions, type CharacterOption } from '@/lib/character-generation';
@@ -533,7 +532,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 const primaryButtonClass =
-  'inline-block min-h-[64px] rounded-lg bg-accent px-6 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed';
+  'inline-block min-h-[48px] rounded-lg bg-accent px-6 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed';
 
 const panelClass = 'rounded-3xl';
 
@@ -2301,7 +2300,7 @@ useEffect(() => {
           }
           error={undefined}
         />
-        <div className="flex gap-3 pt-6">
+          <div className="flex gap-3 pt-6">
           <Button
             type="button"
             onClick={handleCharacterNext}
@@ -2317,7 +2316,7 @@ useEffect(() => {
           </Button>
           <button
             type="button"
-            className="flex min-h-[64px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent"
+            className="flex min-h-[48px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent"
             onClick={() => setShowCharacterAdjust((prev) => !prev)}
           >
             {isJa ? '調整する' : 'Adjust'}
@@ -2352,7 +2351,7 @@ useEffect(() => {
               </Button>
               <button
                 type="button"
-                className="flex min-h-[64px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent"
+                className="flex min-h-[48px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent"
                 onClick={() => setShowCharacterAdjust(false)}
               >
                 {isJa ? '閉じる' : 'Close'}
@@ -2379,12 +2378,10 @@ useEffect(() => {
       return (
         <section className={`${panelClass} space-y-6 text-center`}>
           <div className="flex flex-col items-center space-y-3">
-            <Image
+            <img
               src="/loading/creation-loop.gif"
               alt={isJa ? '観測中のアニメーション' : 'Loading animation'}
-              width={160}
-              height={160}
-              unoptimized
+              className="h-32 w-32 object-contain"
             />
             <h2 className="text-base font-semibold text-textPrimary">
               {isJa ? '観測中' : 'Observing'}
@@ -2566,7 +2563,7 @@ useEffect(() => {
               </button>
               <Link
                 href={`/${locale}/gallery`}
-                className="inline-flex min-h-[64px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="inline-flex min-h-[48px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 {isJa ? '観測ギャラリーを見る' : 'View gallery'}
               </Link>
@@ -2596,7 +2593,7 @@ useEffect(() => {
               </Button>
               <button
                 type="button"
-                className="flex min-h-[64px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex min-h-[48px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={handleSelectFromLibrary}
                 disabled={backgroundUploading}
               >
@@ -2751,7 +2748,7 @@ useEffect(() => {
                 <span>{locationLabel}</span>
                 <button
                   type="button"
-                  className="flex min-h-[64px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent"
+                  className="flex min-h-[48px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent"
                   onClick={requestGeolocation}
                   disabled={geoStatus === 'loading'}
                 >
@@ -2846,13 +2843,18 @@ useEffect(() => {
       case 9:
         if (characterStatus === 'generating') {
           return (
-            <LoadingScreen
-              visible
-              variant="character"
-              title={characterLoadingTitle}
-              message={characterLoadingMessage}
-              mode="page"
-            />
+            <>
+              <LoadingScreen
+                visible
+                variant="character"
+                title={characterLoadingTitle}
+                message={characterLoadingMessage}
+                mode="overlay"
+              />
+              <section className={`${panelClass} flex min-h-[320px] items-center justify-center`}>
+                <p className="text-sm text-textSecondary">{characterLoadingMessage}</p>
+              </section>
+            </>
           );
         }
         return (
@@ -2915,7 +2917,6 @@ useEffect(() => {
   return (
     <ScreenBackground>
       <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 py-6 sm:px-6">
-        <Header title="EMOKAI" hideTitle />
         <div className="flex-1 space-y-6 overflow-y-auto">{content}</div>
       </main>
     </ScreenBackground>

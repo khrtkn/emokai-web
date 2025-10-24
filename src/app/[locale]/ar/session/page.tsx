@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { notFound, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 
-import { Button, Header, InstructionBanner, ScreenBackground } from "@/components/ui";
+import { Button, InstructionBanner, ScreenBackground } from "@/components/ui";
 import { detectDeviceType } from "@/lib/device";
 import { AR_SUMMON_KEY, GENERATION_RESULTS_KEY } from "@/lib/storage-keys";
 import { FallbackViewer } from "@/components/fallback-viewer";
@@ -241,7 +241,6 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
   return (
     <ScreenBackground>
       <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 py-6 sm:px-6">
-        <Header title="EMOKAI" hideTitle />
         <div className="flex-1 space-y-6">
           <InstructionBanner tone={viewerError ? "error" : "default"}>{bannerMessage}</InstructionBanner>
           {viewerContent}
