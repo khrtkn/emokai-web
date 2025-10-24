@@ -13,7 +13,7 @@ import {
 } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { Button, Header, ImageOption, LoadingScreen, RichInput } from '@/components/ui';
+import { Button, Header, ImageOption, LoadingScreen, RichInput, ScreenBackground } from '@/components/ui';
 import { moderateText } from '@/lib/moderation';
 import type { StageOption } from '@/lib/stage-generation';
 import { createCharacterOptions, type CharacterOption } from '@/lib/character-generation';
@@ -50,6 +50,7 @@ import { saveCreation } from '@/lib/persistence';
 import { cacheImage, getCachedImage } from '@/lib/image-cache';
 import { isLiveApisEnabled } from '@/lib/env/client';
 import { detectDeviceType, getModelTargetFormats } from '@/lib/device';
+import { logDebug, logError, logWarn } from '@/lib/logger';
 
 const MIN_TEXT_LENGTH = 1;
 const TOTAL_STEPS = 15;
@@ -357,7 +358,7 @@ async function convertUrlToBase64(url: string): Promise<{ base64: string; mimeTy
     const base64 = btoa(binary);
     return { base64, mimeType: blob.type || 'application/octet-stream' };
   } catch (error) {
-    console.warn('Failed to convert URL to base64', error);
+    logWarn('Failed to convert URL to base64', error);
     return null;
   }
 }
@@ -510,7 +511,7 @@ async function compressBase64Image(
 
     return { base64: nextBase64, mimeType: targetMime };
   } catch (error) {
-    console.warn('Image compression failed', error);
+    logWarn('Image compression failed', error);
     return image;
   }
 }
@@ -538,6 +539,9 @@ const StepLabel = ({ text }: { text?: string }) => {
 
 const primaryButtonClass =
   'inline-block min-h-[44px] rounded-lg bg-accent px-6 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed';
+
+const panelClass =
+  'rounded-3xl border border-white/12 bg-[rgba(12,18,20,0.78)] backdrop-blur-sm shadow-[0_32px_90px_rgba(0,0,0,0.55)]';
 
 const urlHasExtension = (value: string | null | undefined, extension: string) => {
   if (!value) return false;
@@ -570,7 +574,7 @@ function readStageSelection(): StageSelectionPayload | null {
       return parsed;
     }
   } catch (error) {
-    console.warn('Failed to parse stage selection', error);
+        logWarn('Failed to parse stage selection', error);
   }
   return null;
 }
@@ -595,7 +599,7 @@ function readCharacterSelection(): CharacterSelectionPayload | null {
       return parsed;
     }
   } catch (error) {
-    console.warn('Failed to parse character selection', error);
+        logWarn('Failed to parse character selection', error);
   }
   return null;
 }
@@ -621,7 +625,7 @@ function readCharacterOptions(): CharacterOption[] {
       return parsed as CharacterOption[];
     }
   } catch (error) {
-    console.warn('Failed to parse character options', error);
+        logWarn('Failed to parse character options', error);
   }
   return [];
 }
@@ -680,7 +684,7 @@ function readGenerationPayload(): StoredGenerationPayload | null {
 
     return normalized;
   } catch (error) {
-    console.warn('Failed to parse generation payload', error);
+    logWarn('Failed to parse generation payload', error);
   }
   return null;
 }
@@ -785,7 +789,7 @@ export default function EmokaiStepPage({ params }: Props) {
         return { lat: parsed.lat, lng: parsed.lng };
       }
     } catch (error) {
-      console.warn('Failed to parse stored geo coords', error);
+      logWarn('Failed to parse stored geo coords', error);
       window.sessionStorage.removeItem(GEO_COORDS_STORAGE_KEY);
     }
     return null;
@@ -1178,7 +1182,7 @@ useEffect(() => {
         setGeoStatus('success');
       },
       (error) => {
-        console.warn('Geolocation error', error);
+        logWarn('Geolocation error', error);
         setGeoStatus('error');
         setGeoError(
           error.message ||
@@ -1247,7 +1251,7 @@ useEffect(() => {
       );
       return null;
     } catch (error) {
-      console.warn('Failed to geocode place immediately', error);
+        logWarn('Failed to geocode place immediately', error);
       setGeoStatus('error');
       setGeoError(isJa ? '場所の検索に失敗しました。' : 'Failed to geocode this place.');
       return null;
@@ -1337,7 +1341,7 @@ useEffect(() => {
         setStageSelection(option);
         persistStageSelection(option);
       } catch (error) {
-        console.error('Failed to process background image', error);
+        logError('Failed to process background image', error);
         setBackgroundError(
           isJa
             ? '写真を読み込めませんでした。もう一度お試しください。'
@@ -1422,7 +1426,7 @@ useEffect(() => {
       trackEvent('generation_complete', { step: trackLabel, locale });
       return true;
     } catch (error) {
-      console.error(error);
+      logError(error);
       setCharacterGenerationError(
         isJa ? 'うまくいきませんでした。もう一度ためしてください。' : 'Failed to prepare options.',
       );
@@ -1652,7 +1656,7 @@ useEffect(() => {
               try {
                 derivedUrl = cacheImage(cacheKey, incoming.imageBase64, incoming.mimeType);
               } catch (error) {
-                console.warn('Failed to cache composite image', error);
+                logWarn('Failed to cache composite image', error);
               }
             } else {
               const cached = getCachedImage(cacheKey);
@@ -1736,7 +1740,7 @@ useEffect(() => {
         return model;
       })
           .catch((error) => {
-            console.error(error);
+            logError(error);
             setGenerationState((prev) => ({ ...prev, model: 'error' }));
             setGenerationError((prev) => prev ?? modelErrorMessage);
             trackError('jobs_step11_model', error);
@@ -1750,7 +1754,7 @@ useEffect(() => {
             return composite;
           })
           .catch((error) => {
-            console.error(error);
+            logError(error);
             setGenerationState((prev) => ({ ...prev, composite: 'error' }));
             setGenerationError((prev) => prev ?? compositeErrorMessage);
             trackError('jobs_step11_composite', error);
@@ -1764,7 +1768,7 @@ useEffect(() => {
             return story;
           })
           .catch((error) => {
-            console.error(error);
+            logError(error);
             setGenerationState((prev) => ({ ...prev, story: 'error' }));
             setGenerationError((prev) => prev ?? storyErrorMessage);
             trackError('jobs_step11_story', error);
@@ -1789,7 +1793,7 @@ useEffect(() => {
         }
         return false;
       } catch (error) {
-        console.error(error);
+        logError(error);
         setGenerationError(
           (prev) =>
             prev ??
@@ -1899,7 +1903,7 @@ useEffect(() => {
 
   useEffect(() => {
     if (step !== 14) return;
-    console.log('[step14] readiness snapshot', {
+    logDebug('[step14] readiness snapshot', {
       generationState,
       modelUrls,
       modelAvailable,
@@ -1992,7 +1996,7 @@ useEffect(() => {
           setGeoError(isJa ? '座標情報が取得できませんでした。' : 'Coordinates missing in response.');
         }
       } catch (error) {
-        console.warn('Failed to geocode place', error);
+        logWarn('Failed to geocode place', error);
         setGeoStatus('error');
         setGeoError(isJa ? '場所の検索に失敗しました。' : 'Failed to geocode this place.');
       }
@@ -2148,7 +2152,7 @@ useEffect(() => {
       };
 
       const payloadString = JSON.stringify(payload);
-      console.debug('[gallery-submit] payload bytes', payloadString.length);
+      logDebug('[gallery-submit] payload bytes', payloadString.length);
 
       const response = await fetch('/api/gallery/submissions', {
         method: 'POST',
@@ -2168,7 +2172,7 @@ useEffect(() => {
             message = body.error;
           }
         } catch (error) {
-          console.warn('Failed to parse submission error response', error);
+          logWarn('Failed to parse submission error response', error);
         }
         throw new Error(message);
       }
@@ -2199,7 +2203,7 @@ useEffect(() => {
 
       router.push(`/${locale}/gallery`);
     } catch (error) {
-      console.error('[gallery-submit]', error);
+      logError('[gallery-submit]', error);
       setSubmissionState('error');
       if (error instanceof Error) {
         setSubmissionError(error.message);
@@ -2262,7 +2266,7 @@ useEffect(() => {
           message={generationMessage}
           mode="overlay"
         />
-        <section className="space-y-4">
+        <section className={`${panelClass} space-y-4`}>
           <StepLabel text={stepLabelText} />
           <h2 className="text-base font-semibold text-textPrimary">
             {isJa ? '出会ったエモカイ' : 'Meet your Emokai'}
@@ -2379,7 +2383,7 @@ useEffect(() => {
             ? '素材を整理しています…'
             : 'Finalising the materials…';
       return (
-        <section className="space-y-6 rounded-3xl border border-divider bg-[rgba(237,241,241,0.04)] p-6 text-center">
+        <section className={`${panelClass} space-y-6 text-center`}>
           <div className="flex flex-col items-center space-y-3">
             <Image
               src="/loading/creation-loop.gif"
@@ -2404,7 +2408,7 @@ useEffect(() => {
 
     if (hasGenerationFailure) {
       return (
-        <section className="space-y-4 rounded-3xl border border-divider bg-[rgba(237,241,241,0.04)] p-4 text-center">
+        <section className={`${panelClass} space-y-4 p-5 text-center`}>
           <h2 className="text-base font-semibold text-textPrimary">
             {isJa ? 'もう一度ためしてみましょう' : 'Let’s try again'}
           </h2>
@@ -2454,7 +2458,7 @@ useEffect(() => {
           : 'AR is unavailable, but you can preview it in the 3D viewer.';
 
     return (
-      <section className="space-y-4 rounded-3xl border border-divider bg-[rgba(237,241,241,0.04)] p-6">
+      <section className={`${panelClass} space-y-4 p-6`}>
         <h2 className="text-base font-semibold text-textPrimary">
           {isJa ? '準備完了' : 'Ready to launch'}
         </h2>
@@ -2494,7 +2498,7 @@ useEffect(() => {
         : 'Send off';
 
     return (
-      <section className="space-y-4">
+      <section className={`${panelClass} space-y-4`}>
         <h2 className="text-base font-semibold text-textPrimary">
           {isJa ? 'エモカイを世界へ送り出す' : 'Send your Emokai off'}
         </h2>
@@ -2538,7 +2542,7 @@ useEffect(() => {
     switch (step) {
       case 1:
         return (
-          <section className="space-y-4">
+          <section className={`${panelClass} space-y-4`}>
             <h2 className="text-base font-semibold text-textPrimary">
               {isJa ? 'エモカイについて' : 'About Emokai'}
             </h2>
@@ -2577,7 +2581,7 @@ useEffect(() => {
         );
       case 2:
         return (
-          <section className="space-y-4">
+          <section className={`${panelClass} space-y-4`}>
             <StepLabel text={stepLabelText} />
             <h2 className="text-base font-semibold text-textPrimary">
               {isJa ? '場所の写真を用意する' : 'Capture the place'}
@@ -2681,7 +2685,7 @@ useEffect(() => {
         const canProceedPlaceStep = placeValid || Boolean(geoCoords);
 
         return (
-          <section className="flex h-full flex-col space-y-4">
+          <section className={`${panelClass} flex h-full flex-col space-y-4`}>
             <div className="space-y-3">
               <StepLabel text={stepLabelText} />
               <h2 className="text-base font-semibold text-textPrimary">
@@ -2777,7 +2781,7 @@ useEffect(() => {
       }
       case 5:
         return (
-          <section className="space-y-4">
+          <section className={`${panelClass} space-y-4`}>
             <StepLabel text={stepLabelText} />
             <h2 className="text-base font-semibold text-textPrimary">
               {isJa ? 'この場所で感じる気持ち' : 'Feelings in this place'}
@@ -2861,7 +2865,7 @@ useEffect(() => {
           );
         }
         return (
-          <section className="space-y-3">
+          <section className={`${panelClass} space-y-3`}>
             <StepLabel text={stepLabelText} />
             <h2 className="text-base font-semibold text-textPrimary">
               {isJa ? 'エモカイのすがた' : "The Emokai's form"}
@@ -2902,7 +2906,7 @@ useEffect(() => {
         return renderCharacterStep();
       case 14:
         return (
-          <section className="space-y-4">
+          <section className={`${panelClass} space-y-4`}>
             <StepLabel text={stepLabelText} />
             <p className="text-sm text-textSecondary">
               {isJa
@@ -2920,7 +2924,8 @@ useEffect(() => {
   })();
 
   return (
-    <main className="mx-auto flex h-screen w-full max-w-md flex-col bg-canvas">
+    <ScreenBackground>
+      <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 py-6 sm:px-6">
       <Header
         title="EMOKAI"
         hideTitle
@@ -2935,7 +2940,8 @@ useEffect(() => {
           />
         }
       />
-      <div className="flex-1 space-y-6 overflow-y-auto px-4 py-6 sm:px-6">{content}</div>
-    </main>
+        <div className="flex-1 space-y-6 overflow-y-auto">{content}</div>
+      </main>
+    </ScreenBackground>
   );
 }

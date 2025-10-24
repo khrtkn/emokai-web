@@ -17,3 +17,5 @@ export { Button } from "./button";
 export type { ButtonProps } from "./button";
 export { LoadingScreen } from "./loading-screen";
 export type { LoadingScreenProps, LoadingVariant } from "./loading-screen";
+export { ScreenBackground } from "./screen-background";
+export type {  } from "./screen-background";

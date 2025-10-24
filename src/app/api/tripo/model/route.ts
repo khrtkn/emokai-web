@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import { getServerEnv } from "@/lib/env";
 import { TripoClient } from "@/lib/tripo/serviceClient";
+import { logDebug, logError, logWarn } from "@/lib/logger";
 
 const imagePayloadSchema = z.object({
   imageBase64: z.string().min(1, "imageBase64 is required"),
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
       body.targetFormats && body.targetFormats.length > 0 ? [...body.targetFormats] : ["GLB"];
     const primaryFormat = requestedFormats[0] === "USDZ" ? "usdz" : "glb";
 
-    console.log("[tripo-model] request", {
+    logDebug("[tripo-model] request", {
       characterId: body.characterId,
       requestedFormats,
       primaryFormat
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
       const urls = collectModelUrls(result);
       let preferredUrl = selectPreferredUrl(result, urls, requestedFormats[0]);
 
-      console.log("[tripo-model] urls", {
+      logDebug("[tripo-model] urls", {
         urls,
         preferredUrl,
         requestedFormat: requestedFormats[0],
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest) {
       const requiresConversion = requestedUsd && !urls.usdz && !!urls.glb;
 
       if (requiresConversion) {
-        console.log("[tripo-model] attempting USDZ conversion", {
+        logDebug("[tripo-model] attempting USDZ conversion", {
           glbUrl: urls.glb,
           taskId
         });
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
             quad: true
           });
           const convertedUrl = findUrlByExtension(conversionOutput, "usdz") ?? extractModelUrl(conversionOutput);
-          console.log("[tripo-model] conversion output", {
+          logDebug("[tripo-model] conversion output", {
             conversionTaskId,
             convertedUrl
           });
@@ -95,15 +96,15 @@ export async function POST(req: NextRequest) {
               // ignore storage failures (server-side)
             }
           } else {
-            console.warn("[tripo-model] conversion did not return USDZ", { conversionTaskId, conversionOutput });
+            logWarn("[tripo-model] conversion did not return USDZ", { conversionTaskId, conversionOutput });
           }
         } catch (conversionError) {
-          console.error("[tripo-model] USDZ conversion failed", conversionError);
+          logError("[tripo-model] USDZ conversion failed", conversionError);
         }
       }
 
       if (!preferredUrl) {
-        console.warn("[tripo-model] missing preferred URL", {
+        logWarn("[tripo-model] missing preferred URL", {
           urls,
           requestedFormats
         });
@@ -117,7 +118,7 @@ export async function POST(req: NextRequest) {
 
       const alternates = buildAlternates(urls, preferredUrl);
 
-      console.log("[tripo-model] response", {
+      logDebug("[tripo-model] response", {
         preferredUrl,
         alternates,
         previewProvided: Boolean(previewUrl)
@@ -137,7 +138,7 @@ export async function POST(req: NextRequest) {
       await cleanup();
     }
   } catch (error) {
-    console.error("Tripo model generation failed", error);
+    logError("Tripo model generation failed", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
@@ -177,7 +178,7 @@ async function persistImageToTemp(image: BodyImage) {
       try {
         await fs.unlink(filePath);
       } catch (error) {
-        console.warn("Failed to remove temp file", error);
+        logWarn("Failed to remove temp file", error);
       }
       try {
         await fs.rm(dir, { recursive: true, force: true });

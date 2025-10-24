@@ -9,8 +9,12 @@ import { detectDeviceType, checkARCapability, ARSupport } from "@/lib/device";
 import { AR_SUMMON_KEY, GENERATION_RESULTS_KEY } from "@/lib/storage-keys";
 import { Button, Header, InstructionBanner } from "@/components/ui";
 import { trackEvent } from "@/lib/analytics";
+import { logDebug, logError, logWarn } from "@/lib/logger";
 
 const CAMERA_PERMISSION_KEY = "camera-permission";
+
+const panelClass =
+  'rounded-3xl border border-white/12 bg-[rgba(12,18,20,0.78)] backdrop-blur-sm shadow-[0_32px_90px_rgba(0,0,0,0.55)] px-5 py-6 sm:px-6';
 
 type PermissionState = "idle" | "granted" | "denied";
 
@@ -44,7 +48,7 @@ export function ARLauncher() {
     if (detected !== "ios") {
       setViewerMode(capability === "supported" ? "ar" : "fallback");
     }
-    console.log("[ar-launcher] init", {
+    logDebug("[ar-launcher] init", {
       detected,
       capability
     });
@@ -95,7 +99,7 @@ export function ARLauncher() {
 
       return { hasModel: true, hasUsdz, primaryUrl, usdzUrl };
     } catch (parseError) {
-      console.warn("[ar-launcher] failed to parse generation results", parseError);
+      logWarn("[ar-launcher] failed to parse generation results", parseError);
       return { hasModel: false, hasUsdz: false, primaryUrl: null, usdzUrl: null };
     }
   }, []);
@@ -103,23 +107,23 @@ export function ARLauncher() {
   useEffect(() => {
     const info = readModelInfo();
     setModelInfo(info);
-    console.log("[ar-launcher] model info", info);
+    logDebug("[ar-launcher] model info", info);
 
     if (deviceType !== "ios") {
       return undefined;
     }
 
     if (info.hasUsdz) {
-      console.log("[ar-launcher] USDZ ready on initial check");
+      logDebug("[ar-launcher] USDZ ready on initial check");
       return undefined;
     }
 
     const intervalId = window.setInterval(() => {
       const next = readModelInfo();
       setModelInfo(next);
-      console.log("[ar-launcher] polling model info", next);
+      logDebug("[ar-launcher] polling model info", next);
       if (next.hasUsdz) {
-        console.log("[ar-launcher] USDZ detected during polling");
+        logDebug("[ar-launcher] USDZ detected during polling");
         window.clearInterval(intervalId);
       }
     }, 3000);
@@ -175,7 +179,7 @@ export function ARLauncher() {
       setPermissionState("granted");
       trackEvent("ar_launch", { action: "camera_granted", locale });
     } catch (err) {
-      console.error(err);
+      logError(err);
       sessionStorage.setItem(CAMERA_PERMISSION_KEY, "denied");
       setPermissionState("denied");
       setError(t("permissionDenied"));
@@ -186,22 +190,22 @@ export function ARLauncher() {
   const handleLaunch = () => {
     if (pendingUsdz) {
       setError(t("status.pending"));
-      console.warn("[ar-launcher] launch blocked: pending usdz");
+      logWarn("[ar-launcher] launch blocked: pending usdz");
       return;
     }
 
     const raw = sessionStorage.getItem(GENERATION_RESULTS_KEY);
     if (!raw) {
       setError(t("missingResults"));
-      console.warn("[ar-launcher] launch blocked: missing results");
+      logWarn("[ar-launcher] launch blocked: missing results");
       return;
     }
     if (viewerMode === "ar" && requiresCameraPermission && permissionState !== "granted") {
       setError(t("permissionRequired"));
-      console.warn("[ar-launcher] launch blocked: camera permission", { viewerMode, permissionState });
+      logWarn("[ar-launcher] launch blocked: camera permission", { viewerMode, permissionState });
       return;
     }
-    console.log("[ar-launcher] launching", {
+    logDebug("[ar-launcher] launching", {
       viewerMode,
       permissionState,
       pendingUsdz,
@@ -226,7 +230,7 @@ export function ARLauncher() {
   const viewerHint = viewerMode === "ar" ? t("session.instructions") : t("session.fallbackInstructions");
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-canvas">
+    <div className="flex min-h-full flex-col">
       <Header
         title="EMOKAI"
         hideTitle
@@ -241,24 +245,31 @@ export function ARLauncher() {
           />
         }
       />
-      <div className="flex-1 space-y-6 px-4 py-6 sm:px-6">
+      <div className="mt-6 flex-1 space-y-6">
         <InstructionBanner tone={error ? "error" : "default"}>{statusMessage}</InstructionBanner>
-        {requiresCameraPermission && permissionState !== "granted" ? (
-          <Button onClick={handleRequestPermission} className="w-full">
-            {t("requestPermission")}
-          </Button>
-        ) : null}
-        <div className="space-y-2 text-sm text-textSecondary">
-          <p>{viewerHint}</p>
-          {isIOS && pendingUsdz ? (
-            <p className="text-xs text-[#ffb9b9]">{t("status.pending")}</p>
+        <div className={`${panelClass} space-y-6`}>
+          <div className="space-y-2 text-sm text-textSecondary">
+            <p className="text-textPrimary font-semibold">
+              {viewerMode === "ar" ? t("session.title") : t("session.fallbackTitle")}
+            </p>
+            <p>{viewerHint}</p>
+            {isIOS && pendingUsdz ? (
+              <p className="text-xs text-[#ffb9b9]">{t("status.pending")}</p>
+            ) : null}
+          </div>
+
+          {requiresCameraPermission && permissionState !== "granted" ? (
+            <Button onClick={handleRequestPermission} className="w-full">
+              {t("requestPermission")}
+            </Button>
           ) : null}
+
+          <Button onClick={handleLaunch} disabled={!canLaunch} className="w-full">
+            {launchLabel}
+          </Button>
         </div>
-        <Button onClick={handleLaunch} disabled={!canLaunch} className="w-full">
-          {launchLabel}
-        </Button>
       </div>
-    </main>
+    </div>
   );
 }
 

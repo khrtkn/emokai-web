@@ -5,10 +5,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { notFound, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 
-import { Button, Header, InstructionBanner } from "@/components/ui";
+import { Button, Header, InstructionBanner, ScreenBackground } from "@/components/ui";
 import { detectDeviceType } from "@/lib/device";
 import { AR_SUMMON_KEY, GENERATION_RESULTS_KEY } from "@/lib/storage-keys";
 import { FallbackViewer } from "@/components/fallback-viewer";
+import { logDebug, logError, logWarn } from "@/lib/logger";
 
 type StoredModel = {
   url?: string | null;
@@ -67,7 +68,7 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
   const quickLookAnchorRef = useRef<HTMLAnchorElement | null>(null);
 
   useEffect(() => {
-    console.log("[ar-session] init", {
+    logDebug("[ar-session] init", {
       mode: currentMode,
       device,
       isIOS
@@ -88,7 +89,7 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
       if (!raw) {
         setViewerError(t("session.viewerMissing"));
         setModelUrl(null);
-        console.warn("[ar-session] generation results missing");
+        logWarn("[ar-session] generation results missing");
       } else {
         const parsed = JSON.parse(raw) as {
           results?: {
@@ -102,20 +103,20 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
         if (url) {
           setModelUrl(url);
           setViewerError(null);
-          console.log("[ar-session] model url loaded", {
+          logDebug("[ar-session] model url loaded", {
             url,
             urls
           });
         } else {
           setModelUrl(null);
           setViewerError(t("session.viewerMissing"));
-          console.warn("[ar-session] model url missing", {
+          logWarn("[ar-session] model url missing", {
             model
           });
         }
       }
     } catch (error) {
-      console.error("Failed to read generation results", error);
+      logError("Failed to read generation results", error);
       setViewerError(t("session.viewerMissing"));
       setModelUrl(null);
     } finally {
@@ -199,7 +200,7 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
       const preferred = urls.usdz ?? urls.primary ?? null;
       return { launch: preferred, urls };
     } catch (error) {
-      console.warn("[ar-session] failed to parse model for AR", error);
+      logWarn("[ar-session] failed to parse model for AR", error);
       return { launch: null, urls: null };
     }
   }, []);
@@ -210,10 +211,10 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
     setLaunchUrl(launch);
     if (!launch) {
       setViewerError(t("session.viewerMissing"));
-      console.warn("[ar-session] launch url missing", { urls });
+      logWarn("[ar-session] launch url missing", { urls });
     } else {
       setViewerError(null);
-      console.log("[ar-session] launch url ready", { launch, urls });
+      logDebug("[ar-session] launch url ready", { launch, urls });
     }
   }, [currentMode, readLaunchUrl, t]);
 
@@ -239,10 +240,11 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
   }, [currentMode, isIOS, launchAttempted, locale, router]);
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-canvas">
-      <Header
-        title="EMOKAI"
-        hideTitle
+    <ScreenBackground>
+      <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 py-6 sm:px-6">
+        <Header
+          title="EMOKAI"
+          hideTitle
         leading={
           <Image
             src="/Logo.png"
@@ -254,9 +256,9 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
           />
         }
       />
-      <div className="flex-1 space-y-6 px-4 py-6 sm:px-6">
-        <InstructionBanner tone={viewerError ? "error" : "default"}>{bannerMessage}</InstructionBanner>
-        {viewerContent}
+        <div className="flex-1 space-y-6">
+          <InstructionBanner tone={viewerError ? "error" : "default"}>{bannerMessage}</InstructionBanner>
+          {viewerContent}
         <div className="space-y-3 pt-2">
           {currentMode === "ar" ? (
             <Button
@@ -289,16 +291,17 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
             {isJa ? '送り出しの画面へ進む' : 'Continue to send-off'}
           </Button>
         </div>
+        <a
+          ref={quickLookAnchorRef}
+          rel="ar"
+          href={launchUrl ?? undefined}
+          className="hidden"
+          aria-hidden="true"
+        >
+          Quick Look
+        </a>
       </div>
-      <a
-        ref={quickLookAnchorRef}
-        rel="ar"
-        href={launchUrl ?? undefined}
-        className="hidden"
-        aria-hidden="true"
-      >
-        Quick Look
-      </a>
-    </main>
+      </main>
+    </ScreenBackground>
   );
 }

@@ -19,6 +19,9 @@ import { trackEvent } from "@/lib/analytics";
 
 const PAGE_SIZE = 8;
 
+const panelClass =
+  'rounded-3xl border border-white/12 bg-[rgba(12,18,20,0.78)] backdrop-blur-sm shadow-[0_32px_90px_rgba(0,0,0,0.55)]';
+
 function deriveCompositeUrl(creation: CreationPayload) {
   const composite = (creation.results as any)?.composite;
   if (composite && typeof composite.url === "string") {
@@ -138,54 +141,56 @@ export function GalleryView() {
   };
 
   return (
-    <div className="flex flex-col pb-12">
+    <div className="flex min-h-screen flex-col px-4 py-6 sm:px-6">
       <Header
         title={t("title")}
         action={{ type: "button", label: t("back"), onClick: () => router.back() }}
       />
       <Divider />
-      <div className="space-y-6 px-4 py-6 sm:px-6">
+      <div className="mt-6 flex-1 space-y-6">
         <InstructionBanner tone="default">{t("instruction")}</InstructionBanner>
-        {visibleItems.length === 0 ? (
-          <MessageBlock title={t("emptyTitle")} body={<p>{t("emptyBody")}</p>} />
-        ) : (
-          <div className="grid grid-cols-2 gap-4">
-            {visibleItems.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className="overflow-hidden rounded-3xl border border-divider bg-[rgba(237,241,241,0.04)]"
-                onClick={() => handleOpenDetail(item)}
-              >
-                {item.compositeUrl ? (
-                  <img
-                    src={item.compositeUrl}
-                    alt={t("thumbnailAlt")}
-                    className="h-40 w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-40 w-full items-center justify-center text-xs text-textSecondary">
-                    {t("noImage")}
+        <div className={`${panelClass} space-y-6 px-5 py-6 sm:px-6`}>
+          {visibleItems.length === 0 ? (
+            <MessageBlock title={t("emptyTitle")} body={<p>{t("emptyBody")}</p>} />
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              {visibleItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="group overflow-hidden rounded-2xl border border-white/10 bg-[rgba(18,24,28,0.75)] text-left transition hover:border-accent/70"
+                  onClick={() => handleOpenDetail(item)}
+                >
+                  {item.compositeUrl ? (
+                    <img
+                      src={item.compositeUrl}
+                      alt={t("thumbnailAlt")}
+                      className="h-40 w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                    />
+                  ) : (
+                    <div className="flex h-40 w-full items-center justify-center text-xs text-textSecondary">
+                      {t("noImage")}
+                    </div>
+                  )}
+                  <div className="space-y-1 p-3 text-xs text-textSecondary">
+                    <p className="font-semibold text-textPrimary">{new Date(item.createdAt).toLocaleDateString()}</p>
+                    <p className="line-clamp-2">{item.story}</p>
                   </div>
-                )}
-                <div className="space-y-1 p-3 text-left text-xs text-textSecondary">
-                  <p className="font-semibold text-textPrimary">{new Date(item.createdAt).toLocaleDateString()}</p>
-                  <p className="line-clamp-2">{item.story}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-        {visibleItems.length < items.length ? (
-          <div ref={sentinelRef} className="py-6 text-center text-sm text-textSecondary">
-            {t("loadingMore")}
-          </div>
-        ) : null}
+                </button>
+              ))}
+            </div>
+          )}
+          {visibleItems.length < items.length ? (
+            <div ref={sentinelRef} className="text-center text-sm text-textSecondary/80">
+              {t("loadingMore")}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {selected ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 px-4 py-8">
-          <div className="flex w-full max-w-lg flex-col gap-4 rounded-[32px] border border-divider bg-canvas/95 p-6 text-textSecondary">
+          <div className="flex w-full max-w-lg flex-col gap-4 rounded-[32px] border border-white/12 bg-[rgba(12,18,20,0.92)] p-6 text-textSecondary shadow-[0_40px_90px_rgba(0,0,0,0.55)]">
             <header className="flex items-center justify-between">
               <h2 className="heading-prosty">{t("detailTitle")}</h2>
               <button type="button" onClick={handleCloseDetail} className="text-xs uppercase tracking-[0.2em]">
@@ -196,7 +201,7 @@ export function GalleryView() {
               <img
                 src={selected.compositeUrl}
                 alt={t("compositeAlt")}
-                className="w-full rounded-3xl border border-divider object-cover"
+                className="w-full rounded-3xl border border-white/10 object-cover"
               />
             ) : null}
             <div className="space-y-3 text-sm">

@@ -1,49 +1,19 @@
 /* eslint-disable no-console */
 
-type LogMethod = (...input: unknown[]) => void;
+const isDebugEnabled = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true';
 
-type Logger = {
-  info: LogMethod;
-  warn: LogMethod;
-  error: LogMethod;
-};
-
-type CreateLoggerOptions = {
-  enabled?: boolean;
-};
-
-const DEFAULT_NAMESPACE = "app";
-
-export function createLogger(namespace = DEFAULT_NAMESPACE, options: CreateLoggerOptions = {}): Logger {
-  const shouldLog = options.enabled ?? process.env.NANOBANANA_DEBUG === "true";
-  const prefix = `[${namespace}]`;
-
-  const info: LogMethod = (...input) => {
-    if (!shouldLog) return;
-    console.info(prefix, ...input);
-  };
-
-  const warn: LogMethod = (...input) => {
-    if (!shouldLog) return;
-    console.warn(prefix, ...input);
-  };
-
-  const error: LogMethod = (...input) => {
-    console.error(prefix, ...input);
-  };
-
-  if (!shouldLog) {
-    return {
-      info: () => {},
-      warn: () => {},
-      error
-    };
-  }
-
-  return { info, warn, error };
+export function logDebug(...args: unknown[]) {
+  if (!isDebugEnabled) return;
+  console.log(...args);
 }
 
-export function createDebugLogger(namespace: string, options: CreateLoggerOptions = {}): Logger {
-  const enabled = options.enabled ?? process.env.NODE_ENV === "development";
-  return createLogger(namespace, { enabled });
+export function logWarn(...args: unknown[]) {
+  if (!isDebugEnabled) return;
+  console.warn(...args);
 }
+
+export function logError(...args: unknown[]) {
+  if (!isDebugEnabled) return;
+  console.error(...args);
+}
+

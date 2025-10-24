@@ -1,4 +1,5 @@
 import GalleryPublicView from '@/components/gallery-public-view';
+import { ScreenBackground } from '@/components/ui';
 import { listCreations } from '@/lib/gallery/repository';
 import { buildPublicAssetUrl } from '@/lib/gallery/storage';
 import type { GalleryCardData } from '@/components/public-gallery-grid';
@@ -21,8 +22,10 @@ export default async function GalleryPage({ params }: { params: { locale: string
   }));
 
   return (
-    <main className="h-screen w-full bg-canvas">
-      <GalleryPublicView locale={locale} items={cards} />
-    </main>
+    <ScreenBackground className="h-screen">
+      <main className="relative h-screen w-full">
+        <GalleryPublicView locale={locale} items={cards} />
+      </main>
+    </ScreenBackground>
   );
 }

@@ -21,13 +21,13 @@ function buildLocaleOptions(recommended: string): string[] {
 function getHelperCopy(locale: string, isPrimary: boolean, isRecommended: boolean) {
   if (locale === 'ja') {
     if (isPrimary) {
-      return isRecommended ? '推奨設定に基づいて日本語をおすすめしています' : '日本語にも切り替えられます';
+      return isRecommended ? '推奨設定により日本語を選択しました' : '言語は設定からいつでも変更できます';
     }
     return '日本語に切り替える';
   }
 
   if (isPrimary) {
-    return isRecommended ? 'Recommended based on your device settings' : 'You can switch to English as well';
+    return isRecommended ? 'Suggested for your device settings' : 'You can change the language anytime';
   }
   return 'Switch to English';
 }
