@@ -146,9 +146,9 @@ export function GalleryView() {
         action={{ type: "button", label: t("back"), onClick: () => router.back() }}
       />
       <Divider />
-      <div className="mt-6 flex-1 space-y-6">
+      <div className="mt-6 flex-1 space-y-8">
         <InstructionBanner tone="default">{t("instruction")}</InstructionBanner>
-        <div className={`${panelClass} space-y-6 px-5 py-6 sm:px-6`}>
+        <div className={`${panelClass} space-y-8 px-5 py-6 sm:px-6`}>
           {visibleItems.length === 0 ? (
             <MessageBlock title={t("emptyTitle")} body={<p>{t("emptyBody")}</p>} />
           ) : (

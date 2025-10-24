@@ -2259,7 +2259,7 @@ useEffect(() => {
           message={generationMessage}
           mode="overlay"
         />
-        <section className={`${panelClass} space-y-6 pb-4`}>
+        <section className={`${panelClass} space-y-8 pb-4`}>
           <h2 className="text-base font-semibold text-textPrimary">
             {isJa ? '出会ったエモカイ' : 'Meet your Emokai'}
           </h2>
@@ -2376,7 +2376,7 @@ useEffect(() => {
             ? '素材を整理しています…'
             : 'Finalising the materials…';
       return (
-        <section className={`${panelClass} space-y-6 text-center`}>
+        <section className={`${panelClass} space-y-8 text-center`}>
           <div className="flex flex-col items-center space-y-3">
             <img
               src="/loading/creation-loop.gif"
@@ -2916,8 +2916,8 @@ useEffect(() => {
 
   return (
     <ScreenBackground>
-      <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 py-6 sm:px-6">
-        <div className="flex-1 space-y-6 overflow-y-auto">{content}</div>
+      <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-6 py-8 sm:px-8">
+        <div className="flex-1 space-y-8 overflow-y-auto">{content}</div>
       </main>
     </ScreenBackground>
   );

@@ -240,8 +240,8 @@ export default function ARSessionPage({ searchParams }: ARSessionPageProps) {
 
   return (
     <ScreenBackground>
-      <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 py-6 sm:px-6">
-        <div className="flex-1 space-y-6">
+      <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-6 py-8 sm:px-8">
+        <div className="flex-1 space-y-8">
           <InstructionBanner tone={viewerError ? "error" : "default"}>{bannerMessage}</InstructionBanner>
           {viewerContent}
         <div className="space-y-3 pt-2">

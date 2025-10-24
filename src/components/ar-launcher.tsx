@@ -230,9 +230,9 @@ export function ARLauncher() {
   return (
     <div className="flex min-h-full flex-col">
       <Header title="EMOKAI" hideTitle />
-      <div className="mt-6 flex-1 space-y-6">
+      <div className="mt-6 flex-1 space-y-8">
         <InstructionBanner tone={error ? "error" : "default"}>{statusMessage}</InstructionBanner>
-        <div className={`${panelClass} space-y-6`}>
+        <div className={`${panelClass} space-y-8`}>
           <div className="space-y-2 text-sm text-textSecondary">
             <p className="text-textPrimary font-semibold">
               {viewerMode === "ar" ? t("session.title") : t("session.fallbackTitle")}

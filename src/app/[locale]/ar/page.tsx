@@ -4,7 +4,7 @@ import { ScreenBackground } from "@/components/ui";
 export default function ARPage() {
   return (
     <ScreenBackground>
-      <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 py-6 sm:px-6">
+      <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-6 py-8 sm:px-8">
         <ARLauncher />
       </main>
     </ScreenBackground>
