@@ -36,7 +36,7 @@ export const RichInput = forwardRef<HTMLTextAreaElement, RichInputProps>(functio
         <textarea
           ref={ref}
           rows={textareaRows}
-          className={`${textareaHeightClass} w-full resize-none bg-transparent text-sm text-textPrimary outline-none`}
+          className={`${textareaHeightClass} w-full resize-none bg-transparent text-base leading-relaxed text-textPrimary outline-none`}
           placeholder={placeholder}
           value={value}
           onChange={(event) => onChange(event.target.value)}
