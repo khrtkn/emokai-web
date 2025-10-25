@@ -60,6 +60,7 @@ const MODEL_URL_STORAGE_KEY = 'emokai_last_model_url';
 const GENERATION_UPDATE_EVENT = 'emokai:generation-update';
 const MODEL_URL_UPDATE_EVENT = 'emokai:model-url-update';
 const PROGRESS_STORAGE_KEY = 'emokai-progress';
+const PROGRESS_RESUME_FLAG = 'emokai-progress-resumed';
 const PROGRESS_VERSION = 1;
 const PROGRESS_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24h
 
@@ -762,6 +763,21 @@ const saveSessionArray = (key: string, value: string[]) => {
   window.sessionStorage.setItem(key, JSON.stringify(value));
 };
 
+const markProgressResumed = () => {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.setItem(PROGRESS_RESUME_FLAG, '1');
+};
+
+const wasProgressResumed = () => {
+  if (typeof window === 'undefined') return false;
+  return window.sessionStorage.getItem(PROGRESS_RESUME_FLAG) === '1';
+};
+
+const clearProgressResumeFlag = () => {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.removeItem(PROGRESS_RESUME_FLAG);
+};
+
 const SUBMISSION_STATE_VALUES: readonly SubmissionState[] = ['idle', 'saving', 'success', 'error'];
 const GEO_STATUS_VALUES: readonly GeoStatus[] = ['idle', 'loading', 'success', 'error'];
 
@@ -839,6 +855,7 @@ function persistProgressSnapshot(snapshot: ProgressSnapshot) {
 function clearProgressSnapshot() {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(PROGRESS_STORAGE_KEY);
+  clearProgressResumeFlag();
 }
 
 const NAME_STORAGE_KEY = CHARACTER_NAME_KEY;
@@ -1139,6 +1156,9 @@ useEffect(() => {
   const characterLoadingMessage = isJa
     ? '場所と感情からエモカイの姿を再構築しています。'
     : 'Letting your Emokai take form from your feelings.';
+  const generationPrepMessage = isJa
+    ? 'ARモデル、合成画像、物語を順番に仕上げています。しばらくお待ちください。'
+    : 'Preparing the AR model, composite image, and story. Please hold on a moment.';
   const getEmotionLabel = useCallback(
     (emotion: string) => (isJa ? EMOTION_LABELS_JA[emotion] ?? emotion : emotion),
     [isJa],
@@ -1177,6 +1197,7 @@ useEffect(() => {
     const snapshot = readProgressSnapshot();
     if (!snapshot) {
       resumePerformedRef.current = false;
+      clearProgressResumeFlag();
       setProgressReady(true);
       return;
     }
@@ -1187,6 +1208,9 @@ useEffect(() => {
       setProgressReady(true);
       return;
     }
+
+    const resumeAlreadyHandled = wasProgressResumed();
+    resumePerformedRef.current = resumeAlreadyHandled;
 
     const syncSessionString = (key: string, value: string) => {
       if (value) {
@@ -1239,7 +1263,7 @@ useEffect(() => {
 
     const savedStep = snapshot.step;
     if (
-      !resumePerformedRef.current &&
+      !resumeAlreadyHandled &&
       savedStep > 1 &&
       savedStep !== step &&
       savedStep <= TOTAL_STEPS &&
@@ -1247,6 +1271,7 @@ useEffect(() => {
       flowSteps.includes(savedStep)
     ) {
       resumePerformedRef.current = true;
+      markProgressResumed();
       router.replace(`/${locale}/emokai/step/${savedStep}`);
     }
   }, [flowSteps, locale, localeKey, router, step]);
@@ -2574,22 +2599,6 @@ useEffect(() => {
       );
     }
 
-    const generationMessage = isJa
-      ? 'ARモデル、合成画像、物語を順番に仕上げています。しばらくお待ちください。'
-      : 'Preparing the AR model, composite image, and story. Please hold on a moment.';
-
-    if (generationRunning) {
-      return (
-        <LoadingScreen
-          visible
-          variant="creation"
-          title={isJa ? '観測データを整理しています…' : 'Preparing your Emokai…'}
-          message={generationMessage}
-          mode="page"
-        />
-      );
-    }
-
     return (
       <>
         <section className={`${panelClass} space-y-8 pb-4`}>
@@ -2642,22 +2651,6 @@ useEffect(() => {
           }
           error={undefined}
         />
-        <div className={ctaWrapperClass}>
-          <button
-            type="button"
-            className={primaryButtonClass}
-            onClick={handleCharacterNext}
-            disabled={!characterSelection || generationRunning}
-          >
-            {generationRunning
-              ? isJa
-                ? '準備中…'
-                : 'Preparing…'
-              : isJa
-                ? '生成をはじめる'
-                : 'Start generation'}
-          </button>
-        </div>
         {showCharacterAdjust ? (
           <div className="space-y-3 rounded-2xl border border-divider bg-transparent p-4">
             <p className="text-xs text-textSecondary">
@@ -2695,6 +2688,22 @@ useEffect(() => {
             </div>
           </div>
         ) : null}
+        <div className={ctaWrapperClass}>
+          <button
+            type="button"
+            className={primaryButtonClass}
+            onClick={handleCharacterNext}
+            disabled={!characterSelection || generationRunning}
+          >
+            {generationRunning
+              ? isJa
+                ? '準備中…'
+                : 'Preparing…'
+              : isJa
+                ? '生成をはじめる'
+                : 'Start generation'}
+          </button>
+        </div>
       </section>
       </>
     );
@@ -2867,6 +2876,34 @@ useEffect(() => {
   };
 
 // ====== 画面本体 ======
+
+  if (step === 9 && characterStatus === 'generating') {
+    return (
+      <ScreenBackground>
+        <LoadingScreen
+          visible
+          variant="character"
+          title={characterLoadingTitle}
+          message={characterLoadingMessage}
+          mode="page"
+        />
+      </ScreenBackground>
+    );
+  }
+
+  if (step === 10 && generationRunning) {
+    return (
+      <ScreenBackground>
+        <LoadingScreen
+          visible
+          variant="creation"
+          title={isJa ? '観測データを整理しています…' : 'Preparing your Emokai…'}
+          message={generationPrepMessage}
+          mode="page"
+        />
+      </ScreenBackground>
+    );
+  }
 
   const content = (() => {
     switch (step) {
