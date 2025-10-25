@@ -60,7 +60,7 @@ const MODEL_URL_STORAGE_KEY = 'emokai_last_model_url';
 const GENERATION_UPDATE_EVENT = 'emokai:generation-update';
 const MODEL_URL_UPDATE_EVENT = 'emokai:model-url-update';
 const PROGRESS_STORAGE_KEY = 'emokai-progress';
-const PROGRESS_RESUME_FLAG = 'emokai-progress-resumed';
+const PROGRESS_RESUME_FLAG = 'emokai-progress-resume-state';
 const PROGRESS_VERSION = 1;
 const PROGRESS_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24h
 
@@ -765,12 +765,22 @@ const saveSessionArray = (key: string, value: string[]) => {
 
 const markProgressResumed = () => {
   if (typeof window === 'undefined') return;
-  window.sessionStorage.setItem(PROGRESS_RESUME_FLAG, '1');
+  window.sessionStorage.setItem(PROGRESS_RESUME_FLAG, 'resumed');
+};
+
+const blockProgressResume = () => {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.setItem(PROGRESS_RESUME_FLAG, 'blocked');
 };
 
 const wasProgressResumed = () => {
   if (typeof window === 'undefined') return false;
-  return window.sessionStorage.getItem(PROGRESS_RESUME_FLAG) === '1';
+  return window.sessionStorage.getItem(PROGRESS_RESUME_FLAG) === 'resumed';
+};
+
+const isProgressResumeBlocked = () => {
+  if (typeof window === 'undefined') return false;
+  return window.sessionStorage.getItem(PROGRESS_RESUME_FLAG) === 'blocked';
 };
 
 const clearProgressResumeFlag = () => {
@@ -1180,6 +1190,7 @@ useEffect(() => {
   }, [locale, previousStep]);
 
   const handleBack = useCallback(() => {
+    blockProgressResume();
     if (previousStepPath) {
       router.push(previousStepPath);
     } else {
@@ -1209,7 +1220,8 @@ useEffect(() => {
       return;
     }
 
-    const resumeAlreadyHandled = wasProgressResumed();
+    const resumeBlocked = isProgressResumeBlocked();
+    const resumeAlreadyHandled = wasProgressResumed() || resumeBlocked;
     resumePerformedRef.current = resumeAlreadyHandled;
 
     const syncSessionString = (key: string, value: string) => {
@@ -1273,6 +1285,11 @@ useEffect(() => {
       resumePerformedRef.current = true;
       markProgressResumed();
       router.replace(`/${locale}/emokai/step/${savedStep}`);
+      return;
+    }
+
+    if (resumeBlocked && step === 1) {
+      clearProgressResumeFlag();
     }
   }, [flowSteps, locale, localeKey, router, step]);
 
@@ -2633,24 +2650,6 @@ useEffect(() => {
             {isJa ? '調整する' : 'Adjust'}
           </button>
         </div>
-        {characterGenerationError && !showCharacterAdjust ? (
-          <p className="text-xs text-[#ffb9b9]">{characterGenerationError}</p>
-        ) : null}
-        <RichInput
-          label={isJa ? 'エモカイの名前' : 'Name your Emokai'}
-          placeholder={isJa ? `例: ${defaultNameExample}` : `e.g. ${defaultNameExample}`}
-          value={characterName}
-          onChange={handleCharacterNameChange}
-          rows={1}
-          maxLength={60}
-          showCounter={false}
-          helperText={
-            isJa
-              ? `未入力のまま進むと、自動で「${defaultNameExample}」という名前になります。`
-              : `Leave it blank and we'll name it "${defaultNameExample}" automatically.`
-          }
-          error={undefined}
-        />
         {showCharacterAdjust ? (
           <div className="space-y-3 rounded-2xl border border-divider bg-transparent p-4">
             <p className="text-xs text-textSecondary">
@@ -2688,6 +2687,24 @@ useEffect(() => {
             </div>
           </div>
         ) : null}
+        {characterGenerationError && !showCharacterAdjust ? (
+          <p className="text-xs text-[#ffb9b9]">{characterGenerationError}</p>
+        ) : null}
+        <RichInput
+          label={isJa ? 'エモカイの名前' : 'Name your Emokai'}
+          placeholder={isJa ? `例: ${defaultNameExample}` : `e.g. ${defaultNameExample}`}
+          value={characterName}
+          onChange={handleCharacterNameChange}
+          rows={1}
+          maxLength={60}
+          showCounter={false}
+          helperText={
+            isJa
+              ? `未入力のまま進むと、自動で「${defaultNameExample}」という名前になります。`
+              : `Leave it blank and we'll name it "${defaultNameExample}" automatically.`
+          }
+          error={undefined}
+        />
         <div className={ctaWrapperClass}>
           <button
             type="button"
@@ -2878,6 +2895,20 @@ useEffect(() => {
 // ====== 画面本体 ======
 
   if (step === 9 && characterStatus === 'generating') {
+    return (
+      <ScreenBackground>
+        <LoadingScreen
+          visible
+          variant="character"
+          title={characterLoadingTitle}
+          message={characterLoadingMessage}
+          mode="page"
+        />
+      </ScreenBackground>
+    );
+  }
+
+  if (step === 10 && characterStatus === 'generating') {
     return (
       <ScreenBackground>
         <LoadingScreen
