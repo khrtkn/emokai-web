@@ -927,6 +927,7 @@ export default function EmokaiStepPage({ params }: Props) {
   const fallbackNameRef = useRef<string | null>(initialName.trim() ? initialName.trim() : null);
   const autoGeoRequestRef = useRef(false);
   const progressLoadedRef = useRef(false);
+  const resumePerformedRef = useRef(false);
   const lastProgressStringRef = useRef<string | null>(null);
   const defaultNameExample = useMemo(() => buildDefaultName(), []);
 
@@ -1175,12 +1176,14 @@ useEffect(() => {
     progressLoadedRef.current = true;
     const snapshot = readProgressSnapshot();
     if (!snapshot) {
+      resumePerformedRef.current = false;
       setProgressReady(true);
       return;
     }
     const expired = !snapshot.savedAt || Date.now() - snapshot.savedAt > PROGRESS_EXPIRY_MS;
     if (expired || snapshot.locale !== localeKey) {
       clearProgressSnapshot();
+      resumePerformedRef.current = false;
       setProgressReady(true);
       return;
     }
@@ -1236,12 +1239,14 @@ useEffect(() => {
 
     const savedStep = snapshot.step;
     if (
+      !resumePerformedRef.current &&
       savedStep > 1 &&
       savedStep !== step &&
       savedStep <= TOTAL_STEPS &&
       step === 1 &&
       flowSteps.includes(savedStep)
     ) {
+      resumePerformedRef.current = true;
       router.replace(`/${locale}/emokai/step/${savedStep}`);
     }
   }, [flowSteps, locale, localeKey, router, step]);
@@ -1438,23 +1443,59 @@ useEffect(() => {
       setGeoError(isJa ? '位置情報が利用できません。' : 'Location services unavailable.');
       return;
     }
+
+    const handleSuccess = (position: GeolocationPosition) => {
+      const { latitude, longitude } = position.coords;
+      setGeoCoords({ lat: latitude, lng: longitude });
+      setGeoStatus('success');
+      setGeoError(null);
+    };
+
+    const buildErrorMessage = (error: GeolocationPositionError) => {
+      if (error.code === 1) {
+        return isJa
+          ? '位置情報の利用が拒否されました。設定から許可してください。'
+          : 'Location permission was denied. Please allow it in Settings.';
+      }
+      if (error.code === 2) {
+        return isJa
+          ? '位置情報を取得できませんでした。電波状況の良い場所で再試行してください。'
+          : 'Your location is currently unavailable. Try again with better reception.';
+      }
+      if (error.code === 3) {
+        return isJa
+          ? '位置情報の取得がタイムアウトしました。もう一度お試しください。'
+          : 'Location lookup timed out. Please try again.';
+      }
+      return (
+        error.message ||
+        (isJa ? '位置情報を取得できませんでした。' : 'Failed to fetch your location.')
+      );
+    };
+
+    const handleFailure = (
+      error: GeolocationPositionError,
+      attemptedFallback: boolean,
+    ) => {
+      logWarn('Geolocation error', error);
+      if (!attemptedFallback) {
+        navigator.geolocation.getCurrentPosition(
+          handleSuccess,
+          (finalError) => handleFailure(finalError, true),
+          { enableHighAccuracy: false, timeout: 15_000, maximumAge: 15_000 },
+        );
+        return;
+      }
+      setGeoStatus('error');
+      setGeoError(buildErrorMessage(error));
+    };
+
     setGeoStatus('loading');
     setGeoError(null);
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setGeoCoords({ lat: latitude, lng: longitude });
-        setGeoStatus('success');
-      },
-      (error) => {
-        logWarn('Geolocation error', error);
-        setGeoStatus('error');
-        setGeoError(
-          error.message ||
-            (isJa ? '位置情報を取得できませんでした。' : 'Failed to fetch your location.'),
-        );
-      },
-      { enableHighAccuracy: true, timeout: 10_000 },
+      handleSuccess,
+      (error) => handleFailure(error, false),
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 5_000 },
     );
   }, [isJa]);
 
@@ -2537,20 +2578,25 @@ useEffect(() => {
       ? 'ARモデル、合成画像、物語を順番に仕上げています。しばらくお待ちください。'
       : 'Preparing the AR model, composite image, and story. Please hold on a moment.';
 
-    return (
-      <>
+    if (generationRunning) {
+      return (
         <LoadingScreen
-          visible={generationRunning}
+          visible
           variant="creation"
           title={isJa ? '観測データを整理しています…' : 'Preparing your Emokai…'}
           message={generationMessage}
-          mode="overlay"
+          mode="page"
         />
+      );
+    }
+
+    return (
+      <>
         <section className={`${panelClass} space-y-8 pb-4`}>
-          <h2 className="text-base font-semibold text-textPrimary mb-4">
-            {isJa ? '出会ったエモカイ' : 'Meet your Emokai'}
-          </h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <h2 className="text-base font-semibold text-textPrimary mb-4">
+          {isJa ? '出会ったエモカイ' : 'Meet your Emokai'}
+        </h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {characterOptions.map((option) => (
             <ImageOption
               key={option.id}
@@ -2568,6 +2614,15 @@ useEffect(() => {
               }
             />
           ))}
+        </div>
+        <div className="flex justify-start pt-3">
+          <button
+            type="button"
+            className="inline-flex min-h-[48px] items-center justify-center rounded-full border border-divider px-5 py-2.5 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            onClick={() => setShowCharacterAdjust((prev) => !prev)}
+          >
+            {isJa ? '調整する' : 'Adjust'}
+          </button>
         </div>
         {characterGenerationError && !showCharacterAdjust ? (
           <p className="text-xs text-[#ffb9b9]">{characterGenerationError}</p>
@@ -2587,15 +2642,6 @@ useEffect(() => {
           }
           error={undefined}
         />
-        <div className="flex justify-end pt-6">
-          <button
-            type="button"
-            className="inline-flex min-h-[48px] items-center justify-center rounded-full border border-divider px-5 py-2.5 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            onClick={() => setShowCharacterAdjust((prev) => !prev)}
-          >
-            {isJa ? '調整する' : 'Adjust'}
-          </button>
-        </div>
         <div className={ctaWrapperClass}>
           <button
             type="button"
@@ -3142,18 +3188,13 @@ useEffect(() => {
       case 9:
         if (characterStatus === 'generating') {
           return (
-            <>
-              <LoadingScreen
-                visible
-                variant="character"
-                title={characterLoadingTitle}
-                message={characterLoadingMessage}
-                mode="overlay"
-              />
-              <section className={`${panelClass} flex min-h-[320px] items-center justify-center`}>
-                <p className="text-sm text-textSecondary">{characterLoadingMessage}</p>
-              </section>
-            </>
+            <LoadingScreen
+              visible
+              variant="character"
+              title={characterLoadingTitle}
+              message={characterLoadingMessage}
+              mode="page"
+            />
           );
         }
         return (

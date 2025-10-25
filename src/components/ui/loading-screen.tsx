@@ -60,20 +60,20 @@ export function LoadingScreen({
 
   if (mode === 'page') {
     return (
-      <section
-        className="flex min-h-screen w-full flex-col items-center justify-center bg-[#080c0e] px-6 text-center"
+      <div
+        className="fixed inset-0 z-[1100] flex items-center justify-center bg-[#080c0e] px-6 text-center"
         role="status"
         aria-labelledby={titleId}
         aria-describedby={message ? descriptionId : undefined}
       >
         {content}
-      </section>
+      </div>
     );
   }
 
   return (
     <div
-      className="fixed inset-0 z-[1200] flex items-center justify-center bg-[#080c0e]"
+      className="fixed inset-0 z-[1200] flex items-center justify-center bg-[#080c0e]/95"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
