@@ -565,7 +565,9 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 const primaryButtonClass =
-  'inline-flex min-h-[48px] items-center justify-center rounded-full bg-accent px-6 py-3 text-sm font-semibold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60';
+  'inline-flex min-h-[56px] w-full items-center justify-center rounded-full bg-[#77FF9B] px-6 py-3 text-base font-semibold text-black shadow-[0_18px_45px_rgba(0,0,0,0.35)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60';
+
+const ctaWrapperClass = 'sticky bottom-14 z-30 pt-10';
 
 const panelClass = 'rounded-3xl';
 
@@ -2571,9 +2573,19 @@ useEffect(() => {
           }
           error={undefined}
         />
-        <div className="flex gap-3 pt-6">
-          <Button
+        <div className="flex justify-end pt-6">
+          <button
             type="button"
+            className="inline-flex min-h-[48px] items-center justify-center rounded-full border border-divider px-5 py-2.5 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            onClick={() => setShowCharacterAdjust((prev) => !prev)}
+          >
+            {isJa ? '調整する' : 'Adjust'}
+          </button>
+        </div>
+        <div className={ctaWrapperClass}>
+          <button
+            type="button"
+            className={primaryButtonClass}
             onClick={handleCharacterNext}
             disabled={!characterSelection || generationRunning}
           >
@@ -2584,13 +2596,6 @@ useEffect(() => {
               : isJa
                 ? '生成をはじめる'
                 : 'Start generation'}
-          </Button>
-          <button
-            type="button"
-            className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-full border border-divider px-5 py-2.5 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            onClick={() => setShowCharacterAdjust((prev) => !prev)}
-          >
-            {isJa ? '調整する' : 'Adjust'}
           </button>
         </div>
         {showCharacterAdjust ? (
@@ -2690,14 +2695,15 @@ useEffect(() => {
                   ? '再生成する'
                   : 'Try again'}
             </Button>
-            <Button
+          </div>
+          <div className={ctaWrapperClass}>
+            <button
               type="button"
-              variant="secondary"
-              className="w-full"
+              className={primaryButtonClass}
               onClick={handleProceedToGallery}
             >
               {isJa ? '送り出し画面へ進む' : 'Go to send-off'}
-            </Button>
+            </button>
           </div>
         </section>
       );
@@ -2725,22 +2731,24 @@ useEffect(() => {
           {isJa ? '準備完了' : 'Ready to launch'}
         </h2>
         <p className="text-sm text-textSecondary">{readyMessage}</p>
-        <div className="space-y-2">
-          <Button
-            type="button"
-            className="w-full"
-            onClick={handleOpenExperience}
-            disabled={!modelAvailable}
-          >
-            {isJa ? 'つぎへ' : 'Next'}
-          </Button>
-          {!modelAvailable ? (
-            <p className="text-xs text-[#ffb9b9]">
-              {isJa
-                ? 'モデルのURLを取得できませんでした。Step10に戻って再実行してください。'
-                : 'We could not locate the model URL. Please return to Step 10 and retry.'}
-            </p>
-          ) : null}
+        <div className={ctaWrapperClass}>
+          <div className="space-y-2">
+            <button
+              type="button"
+              className={primaryButtonClass}
+              onClick={handleOpenExperience}
+              disabled={!modelAvailable}
+            >
+              {isJa ? 'つぎへ' : 'Next'}
+            </button>
+            {!modelAvailable ? (
+              <p className="text-xs text-[#ffb9b9]">
+                {isJa
+                  ? 'モデルのURLを取得できませんでした。Step10に戻って再実行してください。'
+                  : 'We could not locate the model URL. Please return to Step 10 and retry.'}
+              </p>
+            ) : null}
+          </div>
         </div>
       </section>
     );
@@ -2781,7 +2789,7 @@ useEffect(() => {
           })()}
         </div>
         <p className="text-center text-sm text-textSecondary">{isJa ? `「${effectiveCharacterName}」` : effectiveCharacterName}</p>
-        <div className="pt-2">
+        <div className={ctaWrapperClass}>
           <button
             type="button"
             className={primaryButtonClass}
@@ -2825,11 +2833,11 @@ useEffect(() => {
                   ].map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
               </div>
             </section>
-            <div className="fixed bottom-6 left-1/2 z-40 w-full max-w-md -translate-x-1/2 px-6">
+            <div className="fixed bottom-14 left-1/2 z-40 w-full max-w-md -translate-x-1/2 px-6">
               <div className="space-y-3">
                 <button
                   type="button"
-                  className={`${primaryButtonClass} w-full`}
+                  className={primaryButtonClass}
                   onClick={() => router.push(`/${locale}/emokai/step/2`)}
                 >
                 {isJa ? 'エモカイをつくる' : 'Create your Emokai'}
@@ -2924,14 +2932,15 @@ useEffect(() => {
                 </div>
               )}
             </div>
-            <div className="pt-4">
-              <Button
+            <div className={ctaWrapperClass}>
+              <button
                 type="button"
+                className={primaryButtonClass}
                 onClick={() => router.push(`/${locale}/emokai/step/3`)}
                 disabled={!stageSelection || backgroundUploading}
               >
                 {isJa ? 'つづける' : 'Continue'}
-              </Button>
+              </button>
             </div>
           </section>
         );
@@ -3031,14 +3040,15 @@ useEffect(() => {
                 </button>
               </div>
             </div>
-            <div className="pt-2">
-              <Button
+            <div className={ctaWrapperClass}>
+              <button
                 type="button"
+                className={primaryButtonClass}
                 onClick={() => router.push(`/${locale}/emokai/step/5`)}
                 disabled={!canProceedPlaceStep}
               >
                 {isJa ? 'つづける' : 'Continue'}
-              </Button>
+              </button>
             </div>
           </section>
         );
@@ -3098,7 +3108,7 @@ useEffect(() => {
                 {isJa ? 'まだ気持ちが映っていません。ひとつ選んでみましょう。' : selectOneHint}
               </p>
             ) : null}
-            <div className="pt-2">
+            <div className={ctaWrapperClass}>
               <button
                 type="button"
                 className={primaryButtonClass}
@@ -3158,7 +3168,7 @@ useEffect(() => {
             {characterGenerationError ? (
               <p className="text-xs text-[#ffb9b9]">{characterGenerationError}</p>
             ) : null}
-            <div className="pt-2">
+            <div className={ctaWrapperClass}>
               <button
                 type="button"
                 className={primaryButtonClass}
@@ -3202,19 +3212,20 @@ useEffect(() => {
               <button
                 type="button"
                 onClick={() => router.push(previousStepPath)}
-                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-textSecondary transition hover:border-white/40 hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/80 transition hover:border-white/40 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
+                <span className="sr-only">{isJa ? '前の画面へ' : 'Go back'}</span>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="1.5"
-                  className="h-4 w-4"
+                  className="h-5 w-5"
+                  aria-hidden
                 >
                   <path d="M15 19l-7-7 7-7" />
                 </svg>
-                {isJa ? '戻る' : 'Back'}
               </button>
             </div>
           ) : null}
