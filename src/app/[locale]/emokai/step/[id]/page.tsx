@@ -2562,14 +2562,14 @@ useEffect(() => {
                   className={`${primaryButtonClass} w-full`}
                   onClick={() => router.push(`/${locale}/emokai/step/2`)}
                 >
-                  {isJa ? '観測をはじめる' : 'Start observation'}
+                {isJa ? 'エモカイをつくる' : 'Create your Emokai'}
                 </button>
                 <button
                   type="button"
                   className="inline-flex w-full min-h-[48px] items-center justify-center rounded-2xl border border-divider px-6 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   onClick={() => router.push(`/${locale}/gallery`)}
                 >
-                  {isJa ? 'これまでに観測されたエモカイを見る' : 'View observed Emokai'}
+                {isJa ? 'ほかのエモカイを見る' : "View other people's Emokai"}
                 </button>
               </div>
             </div>
@@ -2905,9 +2905,13 @@ useEffect(() => {
         return (
           <section className={`${panelClass} space-y-6`}>
             <p className="text-sm text-textSecondary">
-              {isJa
-                ? 'エモカイの姿が整うまで、このままお待ちください。'
-                : 'Hold tight while your Emokai finishes materialising.'}
+              {modelAvailable
+                ? isJa
+                  ? 'AR起動の準備ができました。'
+                  : 'Ready to launch your Emokai in AR.'
+                : isJa
+                  ? 'エモカイの姿が整うまで、このままお待ちください。'
+                  : 'Hold tight while your Emokai finishes materialising.'}
             </p>
             {renderSummonPanel()}
           </section>
