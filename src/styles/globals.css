@@ -44,3 +44,9 @@
     color: transparent;
   }
 }
+
+@layer utilities {
+  .rounded-full {
+    border-radius: 5rem !important;
+  }
+}
