@@ -59,6 +59,9 @@ const DEFAULT_COORD_QUERY = '35.681236,139.767125';
 const MODEL_URL_STORAGE_KEY = 'emokai_last_model_url';
 const GENERATION_UPDATE_EVENT = 'emokai:generation-update';
 const MODEL_URL_UPDATE_EVENT = 'emokai:model-url-update';
+const PROGRESS_STORAGE_KEY = 'emokai-progress';
+const PROGRESS_VERSION = 1;
+const PROGRESS_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24h
 
 function broadcastClientEvent(name: string) {
   if (typeof window === 'undefined') return;
@@ -263,6 +266,8 @@ function mergeCoordinates(
 }
 
 type CharacterFlowStatus = 'idle' | 'generating' | 'ready' | 'error';
+type SubmissionState = 'idle' | 'saving' | 'success' | 'error';
+type GeoStatus = 'idle' | 'loading' | 'success' | 'error';
 type JobStatus = 'pending' | 'active' | 'complete' | 'error';
 
 type GenerationResults = {
@@ -293,6 +298,33 @@ type CharacterSelectionPayload = {
   description: string;
   selectedOption: CharacterOption;
   timestamp: number;
+};
+
+type ProgressSerializable = {
+  locale: Locale;
+  step: number;
+  placeText: string;
+  placeTouched: boolean;
+  reasonText: string;
+  reasonTouched: boolean;
+  actionText: string;
+  actionTouched: boolean;
+  appearanceText: string;
+  appearanceTouched: boolean;
+  characterName: string;
+  selectedEmotions: string[];
+  emotionTouched: boolean;
+  geoCoords: { lat: number; lng: number } | null;
+  geoStatus: GeoStatus;
+  geoError: string | null;
+  showCharacterAdjust: boolean;
+  submissionState: SubmissionState;
+  submissionError: string | null;
+};
+
+type ProgressSnapshot = ProgressSerializable & {
+  version: number;
+  savedAt: number;
 };
 
 type EmotionLevelMap = {
@@ -728,6 +760,85 @@ const saveSessionArray = (key: string, value: string[]) => {
   window.sessionStorage.setItem(key, JSON.stringify(value));
 };
 
+const SUBMISSION_STATE_VALUES: readonly SubmissionState[] = ['idle', 'saving', 'success', 'error'];
+const GEO_STATUS_VALUES: readonly GeoStatus[] = ['idle', 'loading', 'success', 'error'];
+
+const sanitizeGeoCoords = (value: unknown): { lat: number; lng: number } | null => {
+  if (!value || typeof value !== 'object') return null;
+  const maybeCoords = value as { lat?: unknown; lng?: unknown };
+  if (typeof maybeCoords.lat === 'number' && typeof maybeCoords.lng === 'number') {
+    return { lat: maybeCoords.lat, lng: maybeCoords.lng };
+  }
+  return null;
+};
+
+function readProgressSnapshot(): ProgressSnapshot | null {
+  if (typeof window === 'undefined') return null;
+  const raw = window.localStorage.getItem(PROGRESS_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<ProgressSnapshot>;
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+    if (parsed.version !== PROGRESS_VERSION) {
+      return null;
+    }
+
+    const toStringValue = (value: unknown, fallback = '') =>
+      typeof value === 'string' ? value : fallback;
+    const toBooleanValue = (value: unknown, fallback = false) =>
+      typeof value === 'boolean' ? value : fallback;
+    const toSubmissionState = (value: unknown): SubmissionState =>
+      SUBMISSION_STATE_VALUES.includes(value as SubmissionState) ? (value as SubmissionState) : 'idle';
+    const toGeoStatus = (value: unknown): GeoStatus =>
+      GEO_STATUS_VALUES.includes(value as GeoStatus) ? (value as GeoStatus) : 'idle';
+
+    return {
+      version: PROGRESS_VERSION,
+      savedAt: typeof parsed.savedAt === 'number' ? parsed.savedAt : 0,
+      locale: (parsed.locale as Locale) ?? 'ja',
+      step: typeof parsed.step === 'number' ? parsed.step : 1,
+      placeText: toStringValue(parsed.placeText),
+      placeTouched: toBooleanValue(parsed.placeTouched),
+      reasonText: toStringValue(parsed.reasonText),
+      reasonTouched: toBooleanValue(parsed.reasonTouched),
+      actionText: toStringValue(parsed.actionText),
+      actionTouched: toBooleanValue(parsed.actionTouched),
+      appearanceText: toStringValue(parsed.appearanceText),
+      appearanceTouched: toBooleanValue(parsed.appearanceTouched),
+      characterName: toStringValue(parsed.characterName),
+      selectedEmotions: Array.isArray(parsed.selectedEmotions)
+        ? parsed.selectedEmotions.filter((item): item is string => typeof item === 'string')
+        : [],
+      emotionTouched: toBooleanValue(parsed.emotionTouched),
+      geoCoords: sanitizeGeoCoords(parsed.geoCoords),
+      geoStatus: toGeoStatus(parsed.geoStatus),
+      geoError: typeof parsed.geoError === 'string' ? parsed.geoError : null,
+      showCharacterAdjust: toBooleanValue(parsed.showCharacterAdjust),
+      submissionState: toSubmissionState(parsed.submissionState),
+      submissionError: typeof parsed.submissionError === 'string' ? parsed.submissionError : null,
+    } satisfies ProgressSnapshot;
+  } catch (error) {
+    logWarn('Failed to parse progress snapshot', error);
+    return null;
+  }
+}
+
+function persistProgressSnapshot(snapshot: ProgressSnapshot) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(snapshot));
+  } catch (error) {
+    logWarn('Failed to persist progress snapshot', error);
+  }
+}
+
+function clearProgressSnapshot() {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(PROGRESS_STORAGE_KEY);
+}
+
 const NAME_STORAGE_KEY = CHARACTER_NAME_KEY;
 const AR_SUMMON_STORAGE_KEY = AR_SUMMON_KEY;
 
@@ -789,9 +900,9 @@ export default function EmokaiStepPage({ params }: Props) {
     return null;
   }, []);
 
-  const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(
-    initialGeoCoords ? 'success' : 'idle',
-  );
+  const [geoStatus, setGeoStatus] = useState<GeoStatus>(
+      initialGeoCoords ? 'success' : 'idle',
+    );
   const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(initialGeoCoords);
   const [geoError, setGeoError] = useState<string | null>(null);
   const geocodeTimeoutRef = useRef<number | null>(null);
@@ -812,6 +923,8 @@ export default function EmokaiStepPage({ params }: Props) {
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const [showCharacterAdjust, setShowCharacterAdjust] = useState(false);
   const fallbackNameRef = useRef<string | null>(initialName.trim() ? initialName.trim() : null);
+  const progressLoadedRef = useRef(false);
+  const lastProgressStringRef = useRef<string | null>(null);
   const defaultNameExample = useMemo(() => buildDefaultName(), []);
 
   const storedCharacterSelection = useMemo(() => readCharacterSelection(), []);
@@ -854,10 +967,54 @@ export default function EmokaiStepPage({ params }: Props) {
     if (typeof window === 'undefined') return null;
     return window.sessionStorage.getItem(MODEL_URL_STORAGE_KEY);
   });
-  const [submissionState, setSubmissionState] = useState<'idle' | 'saving' | 'success' | 'error'>(
-    'idle',
-  );
+  const [submissionState, setSubmissionState] = useState<SubmissionState>('idle');
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [progressReady, setProgressReady] = useState(false);
+
+  const progressSerializable = useMemo<ProgressSerializable>(
+    () => ({
+      locale: localeKey,
+      step,
+      placeText,
+      placeTouched,
+      reasonText,
+      reasonTouched,
+      actionText,
+      actionTouched,
+      appearanceText,
+      appearanceTouched,
+      characterName,
+      selectedEmotions: [...selectedEmotions],
+      emotionTouched,
+      geoCoords: geoCoords ? { ...geoCoords } : null,
+      geoStatus,
+      geoError,
+      showCharacterAdjust,
+      submissionState,
+      submissionError,
+    }),
+    [
+      actionText,
+      actionTouched,
+      appearanceText,
+      appearanceTouched,
+      characterName,
+      emotionTouched,
+      geoCoords,
+      geoError,
+      geoStatus,
+      localeKey,
+      placeText,
+      placeTouched,
+      reasonText,
+      reasonTouched,
+      selectedEmotions,
+      showCharacterAdjust,
+      step,
+      submissionError,
+      submissionState,
+    ],
+  );
 
     useEffect(() => {
     if (typeof window === 'undefined') return () => {};
@@ -990,6 +1147,102 @@ useEffect(() => {
     if (stepIndex <= 0) return undefined;
     return `Step. ${stepIndex}/${totalFlowSteps}`;
   }, [stepIndex, totalFlowSteps]);
+
+  useEffect(() => {
+    if (progressLoadedRef.current) return;
+    if (typeof window === 'undefined') {
+      setProgressReady(true);
+      return;
+    }
+    progressLoadedRef.current = true;
+    const snapshot = readProgressSnapshot();
+    if (!snapshot) {
+      setProgressReady(true);
+      return;
+    }
+    const expired = !snapshot.savedAt || Date.now() - snapshot.savedAt > PROGRESS_EXPIRY_MS;
+    if (expired || snapshot.locale !== localeKey) {
+      clearProgressSnapshot();
+      setProgressReady(true);
+      return;
+    }
+
+    const syncSessionString = (key: string, value: string) => {
+      if (value) {
+        saveSessionString(key, value);
+      } else {
+        window.sessionStorage.removeItem(key);
+      }
+    };
+
+    syncSessionString(PLACE_STORAGE_KEY, snapshot.placeText);
+    setPlaceText(snapshot.placeText);
+    setPlaceTouched(snapshot.placeTouched ?? Boolean(snapshot.placeText.trim().length));
+
+    syncSessionString(REASON_STORAGE_KEY, snapshot.reasonText);
+    setReasonText(snapshot.reasonText);
+    setReasonTouched(snapshot.reasonTouched ?? Boolean(snapshot.reasonText.trim().length));
+
+    syncSessionString(ACTION_STORAGE_KEY, snapshot.actionText);
+    setActionText(snapshot.actionText);
+    setActionTouched(snapshot.actionTouched ?? Boolean(snapshot.actionText.trim().length));
+
+    syncSessionString(APPEARANCE_STORAGE_KEY, snapshot.appearanceText);
+    setAppearanceText(snapshot.appearanceText);
+    setAppearanceTouched(snapshot.appearanceTouched ?? Boolean(snapshot.appearanceText.trim().length));
+
+    syncSessionString(NAME_STORAGE_KEY, snapshot.characterName);
+    setCharacterName(snapshot.characterName);
+    fallbackNameRef.current = snapshot.characterName.trim() || null;
+
+    setSelectedEmotions(snapshot.selectedEmotions);
+    saveSessionArray(EMOTIONS_STORAGE_KEY, snapshot.selectedEmotions);
+    setEmotionTouched(snapshot.emotionTouched ?? snapshot.selectedEmotions.length > 0);
+
+    if (snapshot.geoCoords) {
+      setGeoCoords(snapshot.geoCoords);
+      window.sessionStorage.setItem(GEO_COORDS_STORAGE_KEY, JSON.stringify(snapshot.geoCoords));
+    } else {
+      setGeoCoords(null);
+      window.sessionStorage.removeItem(GEO_COORDS_STORAGE_KEY);
+    }
+    setGeoStatus(snapshot.geoStatus);
+    setGeoError(snapshot.geoError);
+
+    setShowCharacterAdjust(snapshot.showCharacterAdjust);
+    setSubmissionState(snapshot.submissionState);
+    setSubmissionError(snapshot.submissionError);
+
+    lastProgressStringRef.current = null;
+    setProgressReady(true);
+
+    const savedStep = snapshot.step;
+    if (
+      savedStep > 1 &&
+      savedStep !== step &&
+      savedStep <= TOTAL_STEPS &&
+      step === 1 &&
+      flowSteps.includes(savedStep)
+    ) {
+      router.replace(`/${locale}/emokai/step/${savedStep}`);
+    }
+  }, [flowSteps, locale, localeKey, router, step]);
+
+  useEffect(() => {
+    if (!progressReady) return;
+    if (typeof window === 'undefined') return;
+    const payload: ProgressSnapshot = {
+      ...progressSerializable,
+      version: PROGRESS_VERSION,
+      savedAt: Date.now(),
+    };
+    const serialized = JSON.stringify(payload);
+    if (lastProgressStringRef.current === serialized) {
+      return;
+    }
+    lastProgressStringRef.current = serialized;
+    persistProgressSnapshot(payload);
+  }, [progressReady, progressSerializable]);
 
   useEffect(() => {
     if (flowSteps.includes(step)) return;
@@ -1389,6 +1642,55 @@ useEffect(() => {
     setStageSelection(null);
     resetAfterBackgroundChange();
   }, [resetAfterBackgroundChange]);
+
+  const handleResetProgress = useCallback(() => {
+    clearProgressSnapshot();
+    if (typeof window !== 'undefined') {
+      [
+        PLACE_STORAGE_KEY,
+        REASON_STORAGE_KEY,
+        ACTION_STORAGE_KEY,
+        APPEARANCE_STORAGE_KEY,
+        EMOTIONS_STORAGE_KEY,
+        NAME_STORAGE_KEY,
+        AR_SUMMON_STORAGE_KEY,
+        MODEL_URL_STORAGE_KEY,
+        GEO_COORDS_STORAGE_KEY,
+        STAGE_SELECTION_KEY,
+        CHARACTER_SELECTION_KEY,
+        CHARACTER_OPTIONS_KEY,
+        GENERATION_RESULTS_KEY,
+      ].forEach((key) => window.sessionStorage.removeItem(key));
+      broadcastClientEvent(GENERATION_UPDATE_EVENT);
+      broadcastClientEvent(MODEL_URL_UPDATE_EVENT);
+    }
+    setPlaceText('');
+    setPlaceTouched(false);
+    setReasonText('');
+    setReasonTouched(false);
+    setActionText('');
+    setActionTouched(false);
+    setAppearanceText('');
+    setAppearanceTouched(false);
+    setCharacterName('');
+    fallbackNameRef.current = null;
+    setSelectedEmotions([]);
+    saveSessionArray(EMOTIONS_STORAGE_KEY, []);
+    setEmotionTouched(false);
+    setGeoCoords(null);
+    setGeoStatus('idle');
+    setGeoError(null);
+    setStageSelection(null);
+    setShowCharacterAdjust(false);
+    setSubmissionState('idle');
+    setSubmissionError(null);
+    setBackgroundError(null);
+    setBackgroundUploading(false);
+    resetAfterBackgroundChange();
+    setProgressReady(true);
+    lastProgressStringRef.current = null;
+    router.replace(`/${locale}/emokai/step/1`);
+  }, [locale, resetAfterBackgroundChange, router]);
 
   const runCharacterGeneration = async (trackLabel: string): Promise<boolean> => {
     setCharacterStatus('generating');
@@ -2187,6 +2489,9 @@ useEffect(() => {
         broadcastClientEvent(MODEL_URL_UPDATE_EVENT);
       }
 
+      clearProgressSnapshot();
+      lastProgressStringRef.current = null;
+
       clearCharacterOptions();
       setStageSelection(null);
       setCharacterSelection(null);
@@ -2933,7 +3238,20 @@ useEffect(() => {
   return (
     <ScreenBackground>
       <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-6 py-8 sm:px-8">
-        <div className="flex-1 space-y-8 overflow-y-auto">{content}</div>
+        <div className="flex-1 space-y-8 overflow-y-auto">
+          {step > 1 ? (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleResetProgress}
+                className="text-xs text-textSecondary underline decoration-dotted transition hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                {isJa ? '最初からやり直す' : 'Start over'}
+              </button>
+            </div>
+          ) : null}
+          {content}
+        </div>
       </main>
     </ScreenBackground>
   );
