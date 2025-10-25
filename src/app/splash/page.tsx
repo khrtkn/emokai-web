@@ -38,12 +38,7 @@ function SplashContent({ recommendedLocale }: { recommendedLocale: string }) {
               <Link
                 key={locale}
                 href={`/${locale}`}
-                aria-current={isRecommended ? 'true' : undefined}
-                className={`rounded-2xl border px-5 py-4 text-left transition hover:border-accent/80 hover:bg-[rgba(18,24,27,0.85)] ${
-                  isRecommended
-                    ? 'border-white/70 bg-[rgba(255,255,255,0.04)] shadow-[0_18px_50px_rgba(0,0,0,0.45)]'
-                    : 'border-white/20 bg-[rgba(12,18,20,0.65)]'
-                }`}
+                className="rounded-2xl border border-white/25 bg-[rgba(12,18,20,0.65)] px-5 py-4 text-left transition hover:border-accent/80 hover:bg-[rgba(18,24,27,0.85)]"
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-base font-semibold text-textPrimary">{label}</span>

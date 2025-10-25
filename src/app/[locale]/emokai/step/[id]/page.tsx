@@ -2068,17 +2068,17 @@ useEffect(() => {
 
       const stageImage =
         'base64' in stageImageRaw
-          ? await compressBase64Image(stageImageRaw, { maxDimension: 896, quality: 0.8 })
+          ? await compressBase64Image(stageImageRaw, { maxDimension: 512, quality: 0.6 })
           : stageImageRaw;
       const characterImage =
         'base64' in characterImageRaw
-          ? await compressBase64Image(characterImageRaw, { maxDimension: 896, quality: 0.8 })
+          ? await compressBase64Image(characterImageRaw, { maxDimension: 512, quality: 0.6 })
           : characterImageRaw;
 
       const compositePayloadRaw = await readCompositeImagePayload(compositeResult);
       const compositePayload =
         compositePayloadRaw && 'base64' in compositePayloadRaw
-          ? await compressBase64Image(compositePayloadRaw, { maxDimension: 1024, quality: 0.82 })
+          ? await compressBase64Image(compositePayloadRaw, { maxDimension: 640, quality: 0.6 })
           : compositePayloadRaw;
       if (!compositePayload) {
         throw new Error('composite-missing');
@@ -2199,14 +2199,21 @@ useEffect(() => {
     } catch (error) {
       logError('[gallery-submit]', error);
       setSubmissionState('error');
+      let fallbackMessage =
+        isJa
+          ? '保存に失敗しました。通信状況をご確認のうえ、もう一度お試しください。'
+          : 'We could not save your Emokai. Please check your connection and try again.';
       if (error instanceof Error) {
-        setSubmissionError(error.message);
-      } else {
-        setSubmissionError(
-          isJa
-            ? '保存に失敗しました。通信状況をご確認のうえ、もう一度お試しください。'
-            : 'We could not save your Emokai. Please check your connection and try again.',
-        );
+        fallbackMessage = error.message;
+      }
+
+      setSubmissionError(fallbackMessage);
+
+      const retryable = !fallbackMessage.toLowerCase().includes('storage limit');
+      if (retryable) {
+        setTimeout(() => {
+          setSubmissionState('idle');
+        }, 2000);
       }
     }
   }, [

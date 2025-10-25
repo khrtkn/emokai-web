@@ -120,10 +120,9 @@ export function GalleryPublicView({ locale, items }: GalleryPublicViewProps) {
 
       <Link
         href={`/${locale}/emokai/step/2`}
-        className="fixed bottom-6 left-1/2 z-40 flex min-h-[48px] -translate-x-1/2 items-center gap-2 rounded-2xl bg-accent px-6 text-sm font-semibold text-black shadow-lg transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="fixed bottom-14 left-1/2 z-40 flex min-h-[48px] -translate-x-1/2 items-center justify-center rounded-2xl bg-accent px-6 text-sm font-semibold text-black shadow-[0_18px_40px_rgba(0,0,0,0.55)] transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
-        <span aria-hidden className="text-lg leading-none">&gt;</span>
-        <span>{locale === "ja" ? '観測をはじめる' : 'Start observation'}</span>
+        {locale === "ja" ? '観測をはじめる' : 'Start observation'}
       </Link>
     </div>
   );
