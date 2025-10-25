@@ -2534,7 +2534,7 @@ useEffect(() => {
       case 1:
         return (
           <section className={`${panelClass} space-y-6`}>
-            <div className="space-y-4 text-[13px] leading-6 text-textSecondary">
+            <div className="space-y-4 text-sm leading-7 text-textSecondary sm:text-base">
               {isJa
                 ? [
                     '近年、世界各地で感情から生まれた妖怪「エモカイ」の発見が報告されている。エモカイは、人間の情動活動が外的環境に作用し、その場に一時的な情動的構造体として形成される現象と考えられている。',
