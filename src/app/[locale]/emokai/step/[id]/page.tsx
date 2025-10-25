@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import {
   useCallback,
@@ -2533,39 +2534,46 @@ useEffect(() => {
     switch (step) {
       case 1:
         return (
-          <section className={`${panelClass} space-y-6`}>
-            <div className="space-y-4 text-sm leading-7 text-textSecondary sm:text-base">
-              {isJa
-                ? [
-                    '近年、世界各地で感情から生まれた妖怪「エモカイ」の発見が報告されている。エモカイは、人間の情動活動が外的環境に作用し、その場に一時的な情動的構造体として形成される現象と考えられている。',
-                    '発生条件は未解明だが、個人の心理状態、場所の記憶、および周囲の社会的・気象的要因との相関が指摘されている。一部の研究機関では、これを「感情生成性存在（Emotionally Generated Entity）」として分類し、出現頻度や共鳴パターンの記録が進められている。',
-                    'そして、そのいくつかは——あなた自身から生まれる。',
-                    'このアプリは、あなたの内側から生じた感情の痕跡を追跡し、世界のどこかに漂う“あなた由来のエモカイ”を観測するための装置です。どこかで、かつて生まれたエモカイが、今も静かに息づいているかもしれません。',
-                  ]
-                    .map((paragraph) => <p key={paragraph}>{paragraph}</p>)
-                : [
-                    'Reports of yokai born from human emotion—known as Emokai—have surfaced across the world. Researchers believe they are emotional constructs that briefly manifest when our inner states resonate with the environment.',
-                    'Although the exact conditions remain unclear, strong feelings, memory-rich locations, and surrounding social or meteorological factors seem to play a role. Some institutes classify them as “Emotionally Generated Entities” and document their emergence patterns.',
-                    'And a few of them originate from you.',
-                    'This app helps you trace those emotional echoes and observe the Emokai that drifts somewhere in the world, born from your own feelings.',
-                ].map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+          <>
+            <section className={`${panelClass} space-y-6 pb-28`}>
+              <div className="flex justify-center">
+                <Image src="/Logo.png" alt="Emokai" width={124} height={60} className="h-[60px] w-auto" priority />
+              </div>
+              <div className="space-y-4 text-[14px] leading-7 text-textSecondary sm:text-base">
+                {isJa
+                  ? [
+                      '近年、世界各地で感情から生まれた妖怪「エモカイ」の発見が報告されている。エモカイは、人間の情動活動が外的環境に作用し、その場に一時的な情動的構造体として形成される現象と考えられている。',
+                      '発生条件は未解明だが、個人の心理状態、場所の記憶、および周囲の社会的・気象的要因との相関が指摘されている。一部の研究機関では、これを「感情生成性存在（Emotionally Generated Entity）」として分類し、出現頻度や共鳴パターンの記録が進められている。',
+                      'そして、そのいくつかは——あなた自身から生まれる。',
+                      'このアプリは、あなたの内側から生じた感情の痕跡を追跡し、世界のどこかに漂う“あなた由来のエモカイ”を観測するための装置です。どこかで、かつて生まれたエモカイが、今も静かに息づいているかもしれません。',
+                    ].map((paragraph) => <p key={paragraph}>{paragraph}</p>)
+                  : [
+                      'Reports of yokai born from human emotion—known as Emokai—have surfaced across the world. Researchers believe they are emotional constructs that briefly manifest when our inner states resonate with the environment.',
+                      'Although the exact conditions remain unclear, strong feelings, memory-rich locations, and surrounding social or meteorological factors seem to play a role. Some institutes classify them as “Emotionally Generated Entities” and document their emergence patterns.',
+                      'And a few of them originate from you.',
+                      'This app helps you trace those emotional echoes and observe the Emokai that drifts somewhere in the world, born from your own feelings.',
+                  ].map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+              </div>
+            </section>
+            <div className="fixed bottom-6 left-1/2 z-40 w-full max-w-md -translate-x-1/2 px-6">
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  className={`${primaryButtonClass} w-full`}
+                  onClick={() => router.push(`/${locale}/emokai/step/2`)}
+                >
+                  {isJa ? '観測をはじめる' : 'Start observation'}
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex w-full min-h-[48px] items-center justify-center rounded-2xl border border-divider px-6 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  onClick={() => router.push(`/${locale}/gallery`)}
+                >
+                  {isJa ? 'これまでに観測されたエモカイを見る' : 'View observed Emokai'}
+                </button>
+              </div>
             </div>
-            <div className="flex flex-col gap-3 pt-6">
-              <button
-                type="button"
-                className={primaryButtonClass}
-                onClick={() => router.push(`/${locale}/emokai/step/2`)}
-              >
-                {isJa ? '観測をはじめる' : 'Start observation'}
-              </button>
-              <Link
-                href={`/${locale}/gallery`}
-                className="inline-flex min-h-[48px] items-center justify-center rounded-2xl border border-divider px-6 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              >
-                {isJa ? '観測ギャラリーを見る' : 'View gallery'}
-              </Link>
-            </div>
-          </section>
+          </>
         );
       case 2:
         return (
