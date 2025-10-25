@@ -565,7 +565,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 const primaryButtonClass =
-  'inline-block min-h-[48px] rounded-lg bg-accent px-6 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed';
+  'inline-flex min-h-[48px] items-center justify-center rounded-full bg-accent px-6 py-3 text-sm font-semibold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60';
 
 const panelClass = 'rounded-3xl';
 
@@ -1141,12 +1141,19 @@ useEffect(() => {
   );
 
   const flowSteps = SIMPLIFIED_FLOW_STEPS as ReadonlyArray<number>;
-  const totalFlowSteps = flowSteps.length - 1;
-  const stepIndex = flowSteps.indexOf(step);
-  const stepLabelText = useMemo(() => {
-    if (stepIndex <= 0) return undefined;
-    return `Step. ${stepIndex}/${totalFlowSteps}`;
-  }, [stepIndex, totalFlowSteps]);
+
+  const previousStep = useMemo(() => {
+    const currentIndex = flowSteps.indexOf(step);
+    if (currentIndex > 0) {
+      return flowSteps[currentIndex - 1];
+    }
+    return null;
+  }, [flowSteps, step]);
+
+  const previousStepPath = useMemo(() => {
+    if (!previousStep) return null;
+    return `/${locale}/emokai/step/${previousStep}`;
+  }, [locale, previousStep]);
 
   useEffect(() => {
     if (progressLoadedRef.current) return;
@@ -1642,55 +1649,6 @@ useEffect(() => {
     setStageSelection(null);
     resetAfterBackgroundChange();
   }, [resetAfterBackgroundChange]);
-
-  const handleResetProgress = useCallback(() => {
-    clearProgressSnapshot();
-    if (typeof window !== 'undefined') {
-      [
-        PLACE_STORAGE_KEY,
-        REASON_STORAGE_KEY,
-        ACTION_STORAGE_KEY,
-        APPEARANCE_STORAGE_KEY,
-        EMOTIONS_STORAGE_KEY,
-        NAME_STORAGE_KEY,
-        AR_SUMMON_STORAGE_KEY,
-        MODEL_URL_STORAGE_KEY,
-        GEO_COORDS_STORAGE_KEY,
-        STAGE_SELECTION_KEY,
-        CHARACTER_SELECTION_KEY,
-        CHARACTER_OPTIONS_KEY,
-        GENERATION_RESULTS_KEY,
-      ].forEach((key) => window.sessionStorage.removeItem(key));
-      broadcastClientEvent(GENERATION_UPDATE_EVENT);
-      broadcastClientEvent(MODEL_URL_UPDATE_EVENT);
-    }
-    setPlaceText('');
-    setPlaceTouched(false);
-    setReasonText('');
-    setReasonTouched(false);
-    setActionText('');
-    setActionTouched(false);
-    setAppearanceText('');
-    setAppearanceTouched(false);
-    setCharacterName('');
-    fallbackNameRef.current = null;
-    setSelectedEmotions([]);
-    saveSessionArray(EMOTIONS_STORAGE_KEY, []);
-    setEmotionTouched(false);
-    setGeoCoords(null);
-    setGeoStatus('idle');
-    setGeoError(null);
-    setStageSelection(null);
-    setShowCharacterAdjust(false);
-    setSubmissionState('idle');
-    setSubmissionError(null);
-    setBackgroundError(null);
-    setBackgroundUploading(false);
-    resetAfterBackgroundChange();
-    setProgressReady(true);
-    lastProgressStringRef.current = null;
-    router.replace(`/${locale}/emokai/step/1`);
-  }, [locale, resetAfterBackgroundChange, router]);
 
   const runCharacterGeneration = async (trackLabel: string): Promise<boolean> => {
     setCharacterStatus('generating');
@@ -2613,7 +2571,7 @@ useEffect(() => {
           }
           error={undefined}
         />
-          <div className="flex gap-3 pt-6">
+        <div className="flex gap-3 pt-6">
           <Button
             type="button"
             onClick={handleCharacterNext}
@@ -2629,7 +2587,7 @@ useEffect(() => {
           </Button>
           <button
             type="button"
-            className="flex min-h-[48px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent"
+            className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-full border border-divider px-5 py-2.5 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             onClick={() => setShowCharacterAdjust((prev) => !prev)}
           >
             {isJa ? '調整する' : 'Adjust'}
@@ -2664,7 +2622,7 @@ useEffect(() => {
               </Button>
               <button
                 type="button"
-                className="flex min-h-[48px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent"
+                className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-full border border-divider px-5 py-2.5 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 onClick={() => setShowCharacterAdjust(false)}
               >
                 {isJa ? '閉じる' : 'Close'}
@@ -2878,7 +2836,7 @@ useEffect(() => {
                 </button>
                 <button
                   type="button"
-                  className="inline-flex w-full min-h-[48px] items-center justify-center rounded-2xl border border-divider px-6 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  className="inline-flex w-full min-h-[48px] items-center justify-center rounded-full border border-divider px-6 py-2.5 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   onClick={() => router.push(`/${locale}/gallery`)}
                 >
                 {isJa ? 'ほかのエモカイを見る' : "View other people's Emokai"}
@@ -2910,7 +2868,7 @@ useEffect(() => {
               </Button>
               <button
                 type="button"
-                className="flex min-h-[48px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-full border border-divider px-6 py-2.5 text-sm text-textSecondary transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 onClick={handleSelectFromLibrary}
                 disabled={backgroundUploading}
               >
@@ -3065,7 +3023,7 @@ useEffect(() => {
                 <span>{locationLabel}</span>
                 <button
                   type="button"
-                  className="flex min-h-[48px] items-center justify-center rounded-lg border border-divider px-6 text-sm text-textSecondary transition hover:border-accent"
+                  className="inline-flex min-h-[48px] items-center justify-center rounded-full border border-divider px-6 py-2.5 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   onClick={requestGeolocation}
                   disabled={geoStatus === 'loading'}
                 >
@@ -3239,14 +3197,24 @@ useEffect(() => {
     <ScreenBackground>
       <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-6 py-8 sm:px-8">
         <div className="flex-1 space-y-8 overflow-y-auto">
-          {step > 1 ? (
-            <div className="flex justify-end">
+          {previousStepPath ? (
+            <div className="flex justify-start">
               <button
                 type="button"
-                onClick={handleResetProgress}
-                className="text-xs text-textSecondary underline decoration-dotted transition hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                onClick={() => router.push(previousStepPath)}
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-textSecondary transition hover:border-white/40 hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
-                {isJa ? '最初からやり直す' : 'Start over'}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  className="h-4 w-4"
+                >
+                  <path d="M15 19l-7-7 7-7" />
+                </svg>
+                {isJa ? '戻る' : 'Back'}
               </button>
             </div>
           ) : null}
