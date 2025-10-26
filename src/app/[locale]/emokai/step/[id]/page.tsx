@@ -567,6 +567,8 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 
 const primaryButtonClass =
   'inline-flex min-h-[56px] w-full items-center justify-center rounded-full bg-[#77FF9B] px-6 py-3 text-base font-semibold text-black shadow-[0_18px_45px_rgba(0,0,0,0.35)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60';
+const secondaryButtonClass =
+  'inline-flex min-h-[56px] w-full items-center justify-center rounded-full border border-white/30 bg-white/10 px-6 py-3 text-base font-semibold text-white/90 shadow-[0_20px_40px_rgba(0,0,0,0.35)] transition hover:border-white/60 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#77FF9B]/60';
 
 const ctaWrapperClass = 'sticky bottom-14 z-30 pt-10';
 
@@ -2941,7 +2943,7 @@ useEffect(() => {
       case 1:
         return (
           <>
-            <section className={`${panelClass} space-y-6 pb-28`}>
+            <section className={`${panelClass} space-y-6 pb-10`}>
               <div className="flex justify-center">
                 <Image src="/Logo.png" alt="Emokai" width={124} height={60} className="h-[60px] w-auto" priority />
               </div>
@@ -2958,27 +2960,25 @@ useEffect(() => {
                       'Although the exact conditions remain unclear, strong feelings, memory-rich locations, and surrounding social or meteorological factors seem to play a role. Some institutes classify them as “Emotionally Generated Entities” and document their emergence patterns.',
                       'And a few of them originate from you.',
                       'This app helps you trace those emotional echoes and observe the Emokai that drifts somewhere in the world, born from your own feelings.',
-                  ].map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+                    ].map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
               </div>
-            </section>
-            <div className="fixed bottom-14 left-1/2 z-40 w-full max-w-md -translate-x-1/2 px-6">
-              <div className="space-y-3">
+              <div className="space-y-3 pt-8">
                 <button
                   type="button"
                   className={primaryButtonClass}
                   onClick={() => router.push(`/${locale}/emokai/step/2`)}
                 >
-                {isJa ? 'エモカイをつくる' : 'Create your Emokai'}
+                  {isJa ? 'エモカイをつくる' : 'Create your Emokai'}
                 </button>
                 <button
                   type="button"
-                  className="inline-flex w-full min-h-[48px] items-center justify-center rounded-full border border-divider px-6 py-2.5 text-sm text-textSecondary transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  className={secondaryButtonClass}
                   onClick={() => router.push(`/${locale}/gallery`)}
                 >
-                {isJa ? 'ほかのエモカイを見る' : "View other people's Emokai"}
+                  {isJa ? 'ほかのエモカイを見る' : "View other people's Emokai"}
                 </button>
               </div>
-            </div>
+            </section>
           </>
         );
       case 2:
