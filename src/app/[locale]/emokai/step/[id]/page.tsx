@@ -1191,6 +1191,8 @@ useEffect(() => {
     return `/${locale}/emokai/step/${previousStep}`;
   }, [locale, previousStep]);
 
+  const showBackButton = Boolean(previousStepPath && step !== 10 && step !== 15);
+
   const handleBack = useCallback(() => {
     blockProgressResume();
     if (previousStepPath) {
@@ -1298,6 +1300,11 @@ useEffect(() => {
   useEffect(() => {
     if (!progressReady) return;
     if (typeof window === 'undefined') return;
+    if (submissionState === 'success') {
+      clearProgressSnapshot();
+      lastProgressStringRef.current = null;
+      return;
+    }
     const payload: ProgressSnapshot = {
       ...progressSerializable,
       version: PROGRESS_VERSION,
@@ -1309,7 +1316,7 @@ useEffect(() => {
     }
     lastProgressStringRef.current = serialized;
     persistProgressSnapshot(payload);
-  }, [progressReady, progressSerializable]);
+  }, [progressReady, progressSerializable, submissionState]);
 
   useEffect(() => {
     if (flowSteps.includes(step)) return;
@@ -3344,7 +3351,7 @@ useEffect(() => {
     <ScreenBackground>
       <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-6 py-8 sm:px-8">
         <div className="flex-1 space-y-8 overflow-y-auto">
-          {previousStepPath ? (
+          {showBackButton ? (
             <div className="flex justify-start">
               <button
                 type="button"
