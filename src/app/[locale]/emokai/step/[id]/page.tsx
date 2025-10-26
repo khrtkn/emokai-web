@@ -1937,6 +1937,12 @@ useEffect(() => {
     ].join('\n');
   }, [actionText, appearanceText, effectiveCharacterName, isJa, localeKey, placeText, reasonText, storyEmotionsText]);
 
+  const hasCompletedGeneration = useMemo(() => {
+    if (!generationResults?.results) return false;
+    const { model, composite, story } = generationResults.results;
+    return Boolean(model && composite && story);
+  }, [generationResults]);
+
   const characterCtaLabel = useMemo(() => {
     if (generationRunning) {
       return isJa ? '準備中…' : 'Preparing…';
@@ -2225,12 +2231,6 @@ useEffect(() => {
     }
     return null;
   }, [modelUrls.glb, modelUrls.primary, storedModelUrl]);
-
-  const hasCompletedGeneration = useMemo(() => {
-    if (!generationResults?.results) return false;
-    const { model, composite, story } = generationResults.results;
-    return Boolean(model && composite && story);
-  }, [generationResults]);
 
   const modelAvailable = Boolean(quickLookUrl || fallbackModelUrl);
 
