@@ -1855,6 +1855,10 @@ useEffect(() => {
       return;
     }
     setShowCharacterAdjust(false);
+    if (hasCompletedGeneration) {
+      router.push(`/${locale}/emokai/step/14`);
+      return;
+    }
     const finalName = ensureCharacterName();
     const completed = await startGenerationJobs(finalName);
     if (!completed) {
@@ -1932,6 +1936,16 @@ useEffect(() => {
       '4. Close with a memorable caution, insight, or lingering image that summarises the encounter.'
     ].join('\n');
   }, [actionText, appearanceText, effectiveCharacterName, isJa, localeKey, placeText, reasonText, storyEmotionsText]);
+
+  const characterCtaLabel = useMemo(() => {
+    if (generationRunning) {
+      return isJa ? '準備中…' : 'Preparing…';
+    }
+    if (hasCompletedGeneration) {
+      return isJa ? '結果へ進む' : 'View results';
+    }
+    return isJa ? '生成をはじめる' : 'Start generation';
+  }, [generationRunning, hasCompletedGeneration, isJa]);
 
   const startGenerationJobs = useCallback(async (finalName: string): Promise<boolean> => {
     if (generationRunning) {
@@ -2211,6 +2225,12 @@ useEffect(() => {
     }
     return null;
   }, [modelUrls.glb, modelUrls.primary, storedModelUrl]);
+
+  const hasCompletedGeneration = useMemo(() => {
+    if (!generationResults?.results) return false;
+    const { model, composite, story } = generationResults.results;
+    return Boolean(model && composite && story);
+  }, [generationResults]);
 
   const modelAvailable = Boolean(quickLookUrl || fallbackModelUrl);
 
@@ -2714,13 +2734,7 @@ useEffect(() => {
             onClick={handleCharacterNext}
             disabled={!characterSelection || generationRunning}
           >
-            {generationRunning
-              ? isJa
-                ? '準備中…'
-                : 'Preparing…'
-              : isJa
-                ? '生成をはじめる'
-                : 'Start generation'}
+            {characterCtaLabel}
           </button>
         </div>
       </section>

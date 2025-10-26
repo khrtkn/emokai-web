@@ -80,6 +80,10 @@ export function GalleryPublicView({ locale, items }: GalleryPublicViewProps) {
             mapStyle={MAPBOX_STYLE_DARK}
             initialViewState={initialViewState}
             attributionControl={false}
+            dragRotate={false}
+            touchZoomRotate={false}
+            pitchWithRotate={false}
+            touchPitch={false}
             style={{ width: "100%", height: "100%" }}
           >
             {mapItems.map((item) => (

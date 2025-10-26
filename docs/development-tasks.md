@@ -31,3 +31,4 @@
   - Oct 10 2025: Added component tests for the public gallery grid to validate pagination success/failure branches.
 - [ ] Deployment & ops: backend functions/background workers, secrets management, CI/CD, performance monitoring.
   - Add GitHub Actions workflow for Vercel preview deploy + Playwright E2E (`.github/workflows/preview-e2e.yml`). Requires `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` secrets set in repo. E2E uses `PLAYWRIGHT_BASE_URL` from the deployed preview URL and runs with `VERCEL_ENV=preview`.
+  - Oct 25 2025: Added local downloader daemon (`pnpm emokai:sync`) that polls Supabase every 30 s for `pending`/`published` creations, saves GLB/USDZ files plus metadata JSON into a user-specified folder, and supports optional `--backfill` + `--dest` flags.

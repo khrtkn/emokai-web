@@ -48,6 +48,7 @@
   "include": [
     "next-env.d.ts",
     "src",
+    "scripts",
     "tests",
     "*.config.ts",
     "*.config.js",
