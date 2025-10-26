@@ -373,7 +373,7 @@ class EmokaiModelSyncer {
     if (error) {
       throw error;
     }
-    return (data as CreationRow) ?? null;
+    return (data as CreationRow | null) ?? null;
   }
 
   private async fetchByTimestamp(timestamp: string): Promise<CreationRow[]> {
