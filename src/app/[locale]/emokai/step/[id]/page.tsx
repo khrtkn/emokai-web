@@ -232,10 +232,13 @@ const EMOTION_GROUPS: EmotionGroup[] = [
 
 const EMOTION_DEFINITION_MAP: Record<string, EmotionDefinition & { groupId: string }> = {};
 const EMOTION_COLOR_MAP: Record<string, { solid: string; light: string; onSolid: string }> = {};
+const EMOTION_DEFINITIONS: Array<EmotionDefinition & { groupId: string }> = [];
 EMOTION_GROUPS.forEach((group) => {
   group.emotions.forEach((emotion) => {
-    EMOTION_DEFINITION_MAP[emotion.id] = { ...emotion, groupId: group.id };
+    const enriched = { ...emotion, groupId: group.id } as EmotionDefinition & { groupId: string };
+    EMOTION_DEFINITION_MAP[emotion.id] = enriched;
     EMOTION_COLOR_MAP[emotion.id] = group.color;
+    EMOTION_DEFINITIONS.push(enriched);
   });
 });
 
@@ -244,6 +247,9 @@ const DEFAULT_EMOTION_COLORS = {
   light: '#60A5FA',
   onSolid: '#EFF6FF',
 };
+
+const EMOTION_LANE_COUNT = 6;
+const EMOTION_STREAM_REPEAT = 2;
 
 const emotionButtonClass =
   'inline-flex min-h-[40px] items-center whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium tracking-wide transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
@@ -1011,6 +1017,18 @@ export default function EmokaiStepPage({ params }: Props) {
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>(initialEmotions);
   const [emotionTouched, setEmotionTouched] = useState(initialEmotions.length > 0);
   const emotionValid = selectedEmotions.length > 0;
+
+  const emotionStreams = useMemo(() => {
+    if (!EMOTION_DEFINITIONS.length) {
+      return [] as Array<Array<EmotionDefinition & { groupId: string }>>;
+    }
+    return Array.from({ length: EMOTION_LANE_COUNT }, (_, laneIndex) => {
+      const offset = Math.floor((laneIndex / EMOTION_LANE_COUNT) * EMOTION_DEFINITIONS.length);
+      return EMOTION_DEFINITIONS.map((_, idx) => {
+        return EMOTION_DEFINITIONS[(idx + offset) % EMOTION_DEFINITIONS.length];
+      });
+    });
+  }, []);
 
   const storedStageSelection = useMemo(() => readStageSelection(), []);
   const [stageSelection, setStageSelection] = useState<StageOption | null>(
@@ -3288,31 +3306,19 @@ useEffect(() => {
                 ? '流れてくる言葉のなかから、心当たりのあるものをタップしてください。いくつでも選べます。'
                 : 'Tap any drifting tags that resonate with the mood here. Choose as many as you like.'}
             </p>
-            <div className="space-y-4">
-              {EMOTION_GROUPS.map((group, index) => {
-                const marqueeClass = index % 2 === 0 ? 'emotion-stream' : 'emotion-stream emotion-stream--reverse';
-                const repeated = [...group.emotions, ...group.emotions];
-                return (
-                  <div
-                    key={group.id}
-                    className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur"
-                    style={{ backgroundColor: 'rgba(15,16,35,0.35)' }}
-                  >
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-textPrimary">
-                          {isJa ? group.label.ja : group.label.en}
-                        </p>
-                        <p className="text-xs text-textSecondary">
-                          {isJa ? group.description.ja : group.description.en}
-                        </p>
-                      </div>
-                      <span className="text-[11px] uppercase tracking-wide text-white/40">
-                        {isJa ? `${group.emotions.length} 語` : `${group.emotions.length} tags`}
-                      </span>
-                    </div>
-                    <div className="relative overflow-hidden">
-                      <div className={marqueeClass}>
+            <div className="rounded-3xl border border-white/10 bg-[rgba(8,12,24,0.55)] p-4 backdrop-blur">
+              <div className="space-y-3">
+                {emotionStreams.map((lane, laneIndex) => {
+                  const marqueeClass = laneIndex % 2 === 0 ? 'emotion-stream' : 'emotion-stream emotion-stream--reverse';
+                  const repeated = Array.from({ length: EMOTION_STREAM_REPEAT }, () => lane).flat();
+                  const duration = 35 + laneIndex * 4;
+                  return (
+                    <div
+                      key={`emotion-lane-${laneIndex}`}
+                      className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 px-2 py-2"
+                      style={{ backgroundColor: 'rgba(5,9,20,0.35)' }}
+                    >
+                      <div className={marqueeClass} style={{ animationDuration: `${duration}s` }}>
                         {repeated.map((emotion, emotionIndex) => {
                           const selected = selectedEmotions.includes(emotion.id);
                           const palette = EMOTION_COLOR_MAP[emotion.id] ?? DEFAULT_EMOTION_COLORS;
@@ -3321,17 +3327,17 @@ useEffect(() => {
                                 backgroundColor: palette.solid,
                                 color: palette.onSolid,
                                 borderColor: palette.solid,
-                                boxShadow: `0 12px 32px ${palette.solid}40`,
+                                boxShadow: `0 10px 28px ${palette.solid}45`,
                               }
                             : {
                                 borderColor: palette.light,
                                 color: palette.light,
-                                backgroundColor: 'rgba(8, 12, 24, 0.35)',
+                                backgroundColor: 'rgba(8, 12, 24, 0.25)',
                               };
-                          const buttonClass = `${emotionButtonClass} ${selected ? 'shadow-lg' : ''}`;
+                          const buttonClass = `${emotionButtonClass} ${selected ? 'shadow-lg' : 'opacity-90 hover:opacity-100'}`;
                           return (
                             <button
-                              key={`${emotion.id}-${emotionIndex}`}
+                              key={`${laneIndex}-${emotion.id}-${emotionIndex}`}
                               type="button"
                               className={buttonClass}
                               style={style}
@@ -3343,14 +3349,14 @@ useEffect(() => {
                         })}
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
             <p className="text-xs text-textSecondary opacity-80">
               {isJa
-                ? 'タグはゆっくり流れます。気になる言葉をタップして感情を映してください。'
-                : 'The tags drift slowly—tap anything that resonates with how this place feels.'}
+                ? 'タグはゆっくり流れ続けます。気になる言葉をタップして感情を映してください。'
+                : 'Tags keep drifting by—tap anything that mirrors how this place feels.'}
             </p>
             {!emotionValid && emotionTouched ? (
               <p className="text-xs text-[#ffb9b9]">
