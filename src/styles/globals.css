@@ -82,3 +82,10 @@
     transform: translateX(0);
   }
 }
+
+.emotion-lane {
+  scrollbar-width: none;
+}
+.emotion-lane::-webkit-scrollbar {
+  display: none;
+}

@@ -99,136 +99,184 @@ type EmotionGroup = {
   emotions: EmotionDefinition[];
 };
 
+
 const EMOTION_GROUPS: EmotionGroup[] = [
   {
-    id: 'social-pressure',
-    plutchikKey: 'trust',
-    label: { en: 'Relational & Social', ja: '対人・社会的' },
+    id: 'joy',
+    plutchikKey: 'joy',
+    label: { en: 'Joy', ja: '喜び' },
     description: {
-      en: 'Feelings stirred by relationships, expectations, and social air.',
-      ja: '場の空気や関係性に揺れる感情。',
+      en: 'Soothing, plentiful warmth—quiet happiness and relief.',
+      ja: '静かに満ちる喜びや安堵。',
+    },
+    color: { solid: '#F59E0B', light: '#FCD34D', onSolid: '#1F2937' },
+    emotions: [
+      { id: 'joy-ecstasy', ja: '有頂天', en: 'Ecstatic' },
+      { id: 'joy-joyful', ja: '喜び', en: 'Joyful' },
+      { id: 'joy-serenity', ja: '穏やかさ', en: 'Serene' },
+      { id: 'joy-relief', ja: '安心', en: 'Relieved' },
+      { id: 'joy-release', ja: '安堵', en: 'Released' },
+      { id: 'joy-ease', ja: 'ほっとする', en: 'At ease' },
+      { id: 'joy-calm', ja: '落ち着く', en: 'Calm' },
+      { id: 'joy-soothe', ja: '和む', en: 'Soothing' },
+      { id: 'joy-healed', ja: '癒される', en: 'Healed' },
+      { id: 'joy-fulfilled', ja: '満ち足りる', en: 'Fulfilled' },
+      { id: 'joy-quietly-moved', ja: 'しみじみ', en: 'Quietly moved' },
+    ],
+  },
+  {
+    id: 'trust',
+    plutchikKey: 'trust',
+    label: { en: 'Trust & Social', ja: '信頼・関係' },
+    description: {
+      en: 'Feelings that surface when navigating people, duty, and care.',
+      ja: '人との距離感や義理・思いやりに揺れる感情。',
     },
     color: { solid: '#7C3AED', light: '#C4B5FD', onSolid: '#F9FAFB' },
     emotions: [
-      { id: 'embarrassed', ja: '恥ずかしい', en: 'Embarrassed' },
-      { id: 'bashful', ja: '照れくさい', en: 'Bashful' },
-      { id: 'awkward', ja: '気まずい', en: 'Awkward' },
-      { id: 'out-of-place', ja: 'いたたまれない', en: 'Out of place' },
-      { id: 'apologetic', ja: '申し訳ない', en: 'Apologetic' },
-      { id: 'guilty', ja: '後ろめたい', en: 'Guilty' },
-      { id: 'disgraced', ja: '面目ない', en: 'Loss of face' },
-      { id: 'ashamed', ja: '情けない', en: 'Ashamed' },
-      { id: 'indebted', ja: '負い目がある', en: 'Indebted' },
-      { id: 'grateful', ja: 'ありがたい', en: 'Grateful' },
-      { id: 'troublesome-help', ja: 'ありがた迷惑', en: 'Grateful yet troubled' },
-      { id: 'restraint', ja: '遠慮', en: 'Holding back' },
-      { id: 'considerate', ja: '気遣い', en: 'Considerate' },
-      { id: 'self-conscious', ja: '気にする', en: 'Self-conscious' },
-      { id: 'amae', ja: '甘え', en: 'Seeking indulgence' },
-      { id: 'duty', ja: '義理', en: 'Sense of duty' },
-      { id: 'favor-debt', ja: '恩', en: 'Owing a favor' },
+      { id: 'trust-embarrassed', ja: '恥ずかしい', en: 'Embarrassed' },
+      { id: 'trust-bashful', ja: '照れくさい', en: 'Bashful' },
+      { id: 'trust-awkward', ja: '気まずい', en: 'Awkward' },
+      { id: 'trust-out-of-place', ja: 'いたたまれない', en: 'Out of place' },
+      { id: 'trust-apologetic', ja: '申し訳ない', en: 'Apologetic' },
+      { id: 'trust-guilty', ja: '後ろめたい', en: 'Guilty' },
+      { id: 'trust-disgraced', ja: '面目ない', en: 'Loss of face' },
+      { id: 'trust-ashamed', ja: '情けない', en: 'Ashamed' },
+      { id: 'trust-indebted', ja: '負い目がある', en: 'Indebted' },
+      { id: 'trust-grateful', ja: 'ありがたい', en: 'Grateful' },
+      { id: 'trust-troublesome-blessing', ja: 'ありがた迷惑', en: 'Grateful yet troubled' },
+      { id: 'trust-restraint', ja: '遠慮', en: 'Holding back' },
+      { id: 'trust-considerate', ja: '気遣い', en: 'Considerate' },
+      { id: 'trust-self-conscious', ja: '気にする', en: 'Self-conscious' },
+      { id: 'trust-amae', ja: '甘え', en: 'Seeking indulgence' },
+      { id: 'trust-duty', ja: '義理', en: 'Sense of duty' },
+      { id: 'trust-favor-debt', ja: '恩', en: 'Owing a favor' },
     ],
   },
   {
-    id: 'hazy-friction',
-    plutchikKey: 'anger',
-    label: { en: 'Vague Discomfort', ja: 'もやもや不快' },
+    id: 'fear',
+    plutchikKey: 'fear',
+    label: { en: 'Fear & Anxiety', ja: '恐れ・不安' },
     description: {
-      en: 'Lingering irritation that is hard to name.',
-      ja: 'はっきり言えないまま積もる不快感。',
-    },
-    color: { solid: '#EA580C', light: '#FDBA74', onSolid: '#FFF7ED' },
-    emotions: [
-      { id: 'haze', ja: 'もやもや', en: 'Hazy unease' },
-      { id: 'irritated', ja: 'イライラ', en: 'Irritated' },
-      { id: 'pissed', ja: 'むかつく', en: 'Pissed off' },
-      { id: 'fed-up', ja: 'うんざり', en: 'Fed up' },
-      { id: 'drained', ja: 'げんなり', en: 'Drained' },
-      { id: 'sluggish', ja: 'だるい', en: 'Sluggish' },
-      { id: 'bothersome', ja: 'めんどくさい', en: 'Can’t be bothered' },
-      { id: 'overwhelmed', ja: 'しんどい', en: 'Overwhelmed' },
-      { id: 'depleted', ja: '消耗している', en: 'Depleted' },
-    ],
-  },
-  {
-    id: 'acceptance',
-    plutchikKey: 'sadness',
-    label: { en: 'Acceptance & Endurance', ja: '受容・諦め・耐える' },
-    description: {
-      en: 'The quiet effort of enduring and letting go.',
-      ja: '受け入れて耐えるときの気持ち。',
-    },
-    color: { solid: '#475569', light: '#9CA3AF', onSolid: '#F8FAFC' },
-    emotions: [
-      { id: 'endure', ja: '我慢', en: 'Enduring' },
-      { id: 'shoganai', ja: 'しょうがない', en: 'It can’t be helped' },
-      { id: 'resignation', ja: '諦め', en: 'Resigned' },
-      { id: 'compartmentalise', ja: '割り切る', en: 'Compartmentalise' },
-      { id: 'numbed', ja: '慣れた', en: 'Grown numb' },
-      { id: 'powerless', ja: '無力感', en: 'Powerless' },
-    ],
-  },
-  {
-    id: 'calm-positive',
-    plutchikKey: 'joy',
-    label: { en: 'Calm Positivity', ja: '低刺激のポジティブ' },
-    description: {
-      en: 'Gentle, quiet forms of feeling good.',
-      ja: '静かに「いい」と感じるニュアンス。',
-    },
-    color: { solid: '#059669', light: '#34D399', onSolid: '#ECFDF5' },
-    emotions: [
-      { id: 'relief', ja: '安心', en: 'Relief' },
-      { id: 'release', ja: '安堵', en: 'Release' },
-      { id: 'unwind', ja: 'ほっとする', en: 'At ease' },
-      { id: 'calm', ja: '落ち着く', en: 'Calm' },
-      { id: 'soothe', ja: '和む', en: 'Soothing' },
-      { id: 'healed', ja: '癒される', en: 'Healed' },
-      { id: 'fulfilled', ja: '満ち足りる', en: 'Fulfilled' },
-      { id: 'quietly-moved', ja: 'しみじみ', en: 'Quietly moved' },
-    ],
-  },
-  {
-    id: 'bittersweet',
-    plutchikKey: 'sadness',
-    label: { en: 'Bittersweet & Longing', ja: '切なさ・空虚・恋慕' },
-    description: {
-      en: 'Shades of sadness unique to Japanese nuance.',
-      ja: '悲しさと恋しさが混ざる感覚。',
+      en: 'Unease, dread, and the urge to protect yourself.',
+      ja: '身を縮めるような恐れやざわめき。',
     },
     color: { solid: '#4338CA', light: '#A5B4FC', onSolid: '#EEF2FF' },
     emotions: [
-      { id: 'bittersweet', ja: '切ない', en: 'Bittersweet' },
-      { id: 'futile', ja: 'やるせない', en: 'Helpless sorrow' },
-      { id: 'hollow', ja: '虚しい', en: 'Hollow' },
-      { id: 'melancholic', ja: '憂鬱', en: 'Melancholic' },
-      { id: 'insecure', ja: '心細い', en: 'Insecure' },
-      { id: 'lonely', ja: '寂しい', en: 'Lonely' },
-      { id: 'longing', ja: '恋しい', en: 'Longing' },
-      { id: 'lingering', ja: '未練', en: 'Lingering attachment' },
+      { id: 'fear-terror', ja: '恐怖', en: 'Terror' },
+      { id: 'fear-fear', ja: '恐れ', en: 'Fearful' },
+      { id: 'fear-apprehension', ja: '不安', en: 'Apprehensive' },
+      { id: 'fear-nervous', ja: '緊張', en: 'Tense' },
+      { id: 'fear-shiver', ja: 'ぞくっとする', en: 'Shiver' },
+      { id: 'fear-wary', ja: '警戒', en: 'Wary' },
+      { id: 'fear-startled', ja: 'ハッとする', en: 'Startled' },
+      { id: 'fear-shrinking', ja: '身がすくむ', en: 'Shrinking' },
     ],
   },
   {
-    id: 'excitement',
-    plutchikKey: 'anticipation',
-    label: { en: 'Thrill & Awe', ja: 'ときめき・高揚・圧倒' },
+    id: 'surprise',
+    plutchikKey: 'surprise',
+    label: { en: 'Surprise & Wonder', ja: '驚き・まばゆさ' },
     description: {
-      en: 'High-energy joy, awe, and anticipation.',
-      ja: '期待や圧倒に近い熱量。',
+      en: 'Moments that jolt or dazzle before you find words.',
+      ja: 'ハッとする驚きや、圧倒される瞬間。',
+    },
+    color: { solid: '#0EA5E9', light: '#7DD3FC', onSolid: '#082F49' },
+    emotions: [
+      { id: 'surprise-amazement', ja: '驚嘆', en: 'Amazed' },
+      { id: 'surprise-surprise', ja: '驚き', en: 'Surprised' },
+      { id: 'surprise-confused', ja: '戸惑い', en: 'Confused' },
+      { id: 'surprise-dazzled', ja: '目を奪われる', en: 'Dazzled' },
+      { id: 'surprise-overwhelmed', ja: '圧倒される', en: 'Overwhelmed' },
+      { id: 'surprise-spark', ja: 'ひらめき', en: 'Spark' },
+    ],
+  },
+  {
+    id: 'sadness',
+    plutchikKey: 'sadness',
+    label: { en: 'Bittersweet & Hollow', ja: '切なさ・空虚' },
+    description: {
+      en: 'Lingering sorrow, longing, and tender emptiness.',
+      ja: '胸の奥で静かに響く悲しさや恋しさ。',
+    },
+    color: { solid: '#2563EB', light: '#93C5FD', onSolid: '#EFF6FF' },
+    emotions: [
+      { id: 'sadness-grief', ja: '深い悲しみ', en: 'Grief' },
+      { id: 'sadness-sadness', ja: '悲しみ', en: 'Sad' },
+      { id: 'sadness-pensive', ja: '物思い', en: 'Pensive' },
+      { id: 'sadness-bittersweet', ja: '切ない', en: 'Bittersweet' },
+      { id: 'sadness-helpless', ja: 'やるせない', en: 'Helpless' },
+      { id: 'sadness-hollow', ja: '虚しい', en: 'Hollow' },
+      { id: 'sadness-melancholy', ja: '憂鬱', en: 'Melancholic' },
+      { id: 'sadness-insecure', ja: '心細い', en: 'Insecure' },
+      { id: 'sadness-lonely', ja: '寂しい', en: 'Lonely' },
+      { id: 'sadness-longing', ja: '恋しい', en: 'Longing' },
+      { id: 'sadness-attachment', ja: '未練', en: 'Lingering attachment' },
+    ],
+  },
+  {
+    id: 'disgust',
+    plutchikKey: 'disgust',
+    label: { en: 'Muddle & Weariness', ja: 'もやもや・疲れ' },
+    description: {
+      en: 'Diffuse discomfort, burnout, and subtle repulsion.',
+      ja: 'もやもやと積もる不快感や消耗。',
+    },
+    color: { solid: '#0F766E', light: '#34D399', onSolid: '#ECFDF5' },
+    emotions: [
+      { id: 'disgust-haze', ja: 'もやもや', en: 'Hazy unease' },
+      { id: 'disgust-irritated', ja: 'イライラ', en: 'Irritated' },
+      { id: 'disgust-pissed', ja: 'むかつく', en: 'Pissed off' },
+      { id: 'disgust-fed-up', ja: 'うんざり', en: 'Fed up' },
+      { id: 'disgust-drained', ja: 'げんなり', en: 'Drained' },
+      { id: 'disgust-sluggish', ja: 'だるい', en: 'Sluggish' },
+      { id: 'disgust-bothersome', ja: 'めんどくさい', en: 'Bothered' },
+      { id: 'disgust-overloaded', ja: 'しんどい', en: 'Overloaded' },
+      { id: 'disgust-depleted', ja: '消耗している', en: 'Depleted' },
+    ],
+  },
+  {
+    id: 'anger',
+    plutchikKey: 'anger',
+    label: { en: 'Heat & Frustration', ja: '怒り・苛立ち' },
+    description: {
+      en: 'Sharp sparks of protest and irritation.',
+      ja: '噴き出す怒りや苛立ちの熱。',
+    },
+    color: { solid: '#DC2626', light: '#FCA5A5', onSolid: '#FEF2F2' },
+    emotions: [
+      { id: 'anger-rage', ja: '激怒', en: 'Rage' },
+      { id: 'anger-anger', ja: '怒り', en: 'Anger' },
+      { id: 'anger-annoyance', ja: '苛立ち', en: 'Annoyed' },
+      { id: 'anger-frustrated', ja: 'フラストレーション', en: 'Frustrated' },
+      { id: 'anger-grit', ja: '噛みしめる', en: 'Grinding teeth' },
+      { id: 'anger-impatient', ja: '焦れったい', en: 'Impatient' },
+    ],
+  },
+  {
+    id: 'anticipation',
+    plutchikKey: 'anticipation',
+    label: { en: 'Thrill & Foresight', ja: 'ときめき・期待' },
+    description: {
+      en: 'Fluttering excitement, awe, and forward pull.',
+      ja: '胸が高鳴る期待や畏敬。',
     },
     color: { solid: '#DB2777', light: '#F9A8D4', onSolid: '#FFF5F7' },
     emotions: [
-      { id: 'flutter', ja: 'ときめき', en: 'Flutter' },
-      { id: 'excited', ja: 'ワクワク', en: 'Excited' },
-      { id: 'thrill', ja: 'ドキドキ', en: 'Thrilled' },
-      { id: 'uplifted', ja: '高揚', en: 'Uplifted' },
-      { id: 'moved', ja: '感動', en: 'Moved' },
-      { id: 'awe', ja: '畏敬', en: 'Awestruck' },
-      { id: 'overwhelmed', ja: '圧倒される', en: 'Overwhelmed' },
-      { id: 'full-heart', ja: '胸がいっぱい', en: 'Heart full' },
+      { id: 'anticipation-vigilance', ja: '警戒', en: 'Vigilant' },
+      { id: 'anticipation-anticipation', ja: '期待', en: 'Anticipating' },
+      { id: 'anticipation-interest', ja: '興味', en: 'Curious' },
+      { id: 'anticipation-flutter', ja: 'ときめき', en: 'Fluttering' },
+      { id: 'anticipation-excited', ja: 'ワクワク', en: 'Excited' },
+      { id: 'anticipation-thrill', ja: 'ドキドキ', en: 'Thrilled' },
+      { id: 'anticipation-uplift', ja: '高揚', en: 'Uplifted' },
+      { id: 'anticipation-moved', ja: '感動', en: 'Moved' },
+      { id: 'anticipation-awe', ja: '畏敬', en: 'Awestruck' },
+      { id: 'anticipation-full-heart', ja: '胸がいっぱい', en: 'Heart full' },
     ],
   },
 ];
+const EMOTION_LANE_COUNT = EMOTION_GROUPS.length;
 
 const EMOTION_DEFINITION_MAP: Record<string, EmotionDefinition & { groupId: string }> = {};
 const EMOTION_COLOR_MAP: Record<string, { solid: string; light: string; onSolid: string }> = {};
@@ -248,7 +296,6 @@ const DEFAULT_EMOTION_COLORS = {
   onSolid: '#EFF6FF',
 };
 
-const EMOTION_LANE_COUNT = 6;
 const EMOTION_STREAM_REPEAT = 2;
 
 const emotionButtonClass =
@@ -1019,15 +1066,7 @@ export default function EmokaiStepPage({ params }: Props) {
   const emotionValid = selectedEmotions.length > 0;
 
   const emotionStreams = useMemo(() => {
-    if (!EMOTION_DEFINITIONS.length) {
-      return [] as Array<Array<EmotionDefinition & { groupId: string }>>;
-    }
-    return Array.from({ length: EMOTION_LANE_COUNT }, (_, laneIndex) => {
-      const offset = Math.floor((laneIndex / EMOTION_LANE_COUNT) * EMOTION_DEFINITIONS.length);
-      return EMOTION_DEFINITIONS.map((_, idx) => {
-        return EMOTION_DEFINITIONS[(idx + offset) % EMOTION_DEFINITIONS.length];
-      });
-    });
+    return EMOTION_GROUPS.map((group) => group.emotions);
   }, []);
 
   const storedStageSelection = useMemo(() => readStageSelection(), []);
@@ -3306,57 +3345,54 @@ useEffect(() => {
                 ? '流れてくる言葉のなかから、心当たりのあるものをタップしてください。いくつでも選べます。'
                 : 'Tap any drifting tags that resonate with the mood here. Choose as many as you like.'}
             </p>
-            <div className="rounded-3xl border border-white/10 bg-[rgba(8,12,24,0.55)] p-4 backdrop-blur">
-              <div className="space-y-3">
-                {emotionStreams.map((lane, laneIndex) => {
-                  const marqueeClass = laneIndex % 2 === 0 ? 'emotion-stream' : 'emotion-stream emotion-stream--reverse';
-                  const repeated = Array.from({ length: EMOTION_STREAM_REPEAT }, () => lane).flat();
-                  const duration = 35 + laneIndex * 4;
-                  return (
-                    <div
-                      key={`emotion-lane-${laneIndex}`}
-                      className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 px-2 py-2"
-                      style={{ backgroundColor: 'rgba(5,9,20,0.35)' }}
-                    >
-                      <div className={marqueeClass} style={{ animationDuration: `${duration}s` }}>
-                        {repeated.map((emotion, emotionIndex) => {
-                          const selected = selectedEmotions.includes(emotion.id);
-                          const palette = EMOTION_COLOR_MAP[emotion.id] ?? DEFAULT_EMOTION_COLORS;
-                          const style: CSSProperties = selected
-                            ? {
-                                backgroundColor: palette.solid,
-                                color: palette.onSolid,
-                                borderColor: palette.solid,
-                                boxShadow: `0 10px 28px ${palette.solid}45`,
-                              }
-                            : {
-                                borderColor: palette.light,
-                                color: palette.light,
-                                backgroundColor: 'rgba(8, 12, 24, 0.25)',
-                              };
-                          const buttonClass = `${emotionButtonClass} ${selected ? 'shadow-lg' : 'opacity-90 hover:opacity-100'}`;
-                          return (
-                            <button
-                              key={`${laneIndex}-${emotion.id}-${emotionIndex}`}
-                              type="button"
-                              className={buttonClass}
-                              style={style}
-                              onClick={() => toggleEmotion(emotion.id)}
-                            >
-                              {getEmotionLabel(emotion.id)}
-                            </button>
-                          );
-                        })}
-                      </div>
+            <div className="space-y-3 rounded-3xl border border-white/10 bg-[rgba(8,12,24,0.6)] p-4 backdrop-blur">
+              {emotionStreams.map((lane, laneIndex) => {
+                const repeated = Array.from({ length: EMOTION_STREAM_REPEAT }, () => lane).flat();
+                const duration = 80 + laneIndex * 8;
+                return (
+                  <div
+                    key={`emotion-lane-${laneIndex}`}
+                    className="emotion-lane overflow-x-auto rounded-2xl border border-white/10 bg-white/5 px-2 py-2"
+                    style={{ backgroundColor: 'rgba(5,9,20,0.35)' }}
+                  >
+                    <div className="emotion-stream" style={{ animationDuration: `${duration}s` }}>
+                      {repeated.map((emotion, emotionIndex) => {
+                        const selected = selectedEmotions.includes(emotion.id);
+                        const palette = EMOTION_COLOR_MAP[emotion.id] ?? DEFAULT_EMOTION_COLORS;
+                        const style: CSSProperties = selected
+                          ? {
+                              backgroundColor: palette.solid,
+                              color: palette.onSolid,
+                              borderColor: palette.solid,
+                              boxShadow: `0 10px 28px ${palette.solid}3d`,
+                            }
+                          : {
+                              borderColor: palette.light,
+                              color: palette.light,
+                              backgroundColor: 'rgba(8, 12, 24, 0.2)',
+                            };
+                        const buttonClass = `${emotionButtonClass} ${selected ? 'shadow-lg' : 'opacity-85 hover:opacity-100'}`;
+                        return (
+                          <button
+                            key={`${laneIndex}-${emotion.id}-${emotionIndex}`}
+                            type="button"
+                            className={buttonClass}
+                            style={style}
+                            onClick={() => toggleEmotion(emotion.id)}
+                          >
+                            {getEmotionLabel(emotion.id)}
+                          </button>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })}
             </div>
             <p className="text-xs text-textSecondary opacity-80">
               {isJa
-                ? 'タグはゆっくり流れ続けます。気になる言葉をタップして感情を映してください。'
-                : 'Tags keep drifting by—tap anything that mirrors how this place feels.'}
+                ? 'タグはとてもゆっくり右から左へ流れます。指で横スクロールして眺めながら、ぴったり来る言葉をタップしてください。'
+                : 'Tags glide slowly from right to left—drag the rows if you like and tap anything that fits.'}
             </p>
             {!emotionValid && emotionTouched ? (
               <p className="text-xs text-[#ffb9b9]">
