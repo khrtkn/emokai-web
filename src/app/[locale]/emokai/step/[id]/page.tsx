@@ -84,96 +84,160 @@ function buildDefaultName() {
   return `Emokai-${year}${month}${day}${hours}${minutes}`;
 }
 
-type EmotionGroup = {
+type EmotionDefinition = {
   id: string;
-  label: { en: string; ja: string };
-  emotions: string[];
+  ja: string;
+  en: string;
 };
 
-const EMOTION_LABELS_JA: Record<string, string> = {
-  Ecstasy: '有頂天',
-  Joy: '喜び',
-  Serenity: '穏やかさ',
-  Admiration: '賞賛',
-  Trust: '信頼',
-  Acceptance: '受容',
-  Terror: '恐怖',
-  Fear: '恐れ',
-  Apprehension: '不安',
-  Amazement: '驚嘆',
-  Surprise: '驚き',
-  Distraction: '戸惑い',
-  Grief: '深い悲しみ',
-  Sadness: '悲しみ',
-  Pensiveness: '物思い',
-  Loathing: '激しい嫌悪',
-  Disgust: '嫌悪',
-  Boredom: '退屈',
-  Rage: '激怒',
-  Anger: '怒り',
-  Annoyance: '苛立ち',
-  Vigilance: '警戒',
-  Anticipation: '期待',
-  Interest: '興味',
+type EmotionGroup = {
+  id: string;
+  plutchikKey: keyof EmotionLevelMap;
+  label: { en: string; ja: string };
+  description: { en: string; ja: string };
+  color: { solid: string; light: string; onSolid: string };
+  emotions: EmotionDefinition[];
 };
 
 const EMOTION_GROUPS: EmotionGroup[] = [
-  { id: 'joy', label: { en: 'Joy', ja: '喜び' }, emotions: ['Ecstasy', 'Joy', 'Serenity'] },
   {
-    id: 'trust',
-    label: { en: 'Trust', ja: '信頼' },
-    emotions: ['Admiration', 'Trust', 'Acceptance'],
+    id: 'social-pressure',
+    plutchikKey: 'trust',
+    label: { en: 'Relational & Social', ja: '対人・社会的' },
+    description: {
+      en: 'Feelings stirred by relationships, expectations, and social air.',
+      ja: '場の空気や関係性に揺れる感情。',
+    },
+    color: { solid: '#7C3AED', light: '#C4B5FD', onSolid: '#F9FAFB' },
+    emotions: [
+      { id: 'embarrassed', ja: '恥ずかしい', en: 'Embarrassed' },
+      { id: 'bashful', ja: '照れくさい', en: 'Bashful' },
+      { id: 'awkward', ja: '気まずい', en: 'Awkward' },
+      { id: 'out-of-place', ja: 'いたたまれない', en: 'Out of place' },
+      { id: 'apologetic', ja: '申し訳ない', en: 'Apologetic' },
+      { id: 'guilty', ja: '後ろめたい', en: 'Guilty' },
+      { id: 'disgraced', ja: '面目ない', en: 'Loss of face' },
+      { id: 'ashamed', ja: '情けない', en: 'Ashamed' },
+      { id: 'indebted', ja: '負い目がある', en: 'Indebted' },
+      { id: 'grateful', ja: 'ありがたい', en: 'Grateful' },
+      { id: 'troublesome-help', ja: 'ありがた迷惑', en: 'Grateful yet troubled' },
+      { id: 'restraint', ja: '遠慮', en: 'Holding back' },
+      { id: 'considerate', ja: '気遣い', en: 'Considerate' },
+      { id: 'self-conscious', ja: '気にする', en: 'Self-conscious' },
+      { id: 'amae', ja: '甘え', en: 'Seeking indulgence' },
+      { id: 'duty', ja: '義理', en: 'Sense of duty' },
+      { id: 'favor-debt', ja: '恩', en: 'Owing a favor' },
+    ],
   },
-  { id: 'fear', label: { en: 'Fear', ja: '恐れ' }, emotions: ['Terror', 'Fear', 'Apprehension'] },
   {
-    id: 'surprise',
-    label: { en: 'Surprise', ja: '驚き' },
-    emotions: ['Amazement', 'Surprise', 'Distraction'],
+    id: 'hazy-friction',
+    plutchikKey: 'anger',
+    label: { en: 'Vague Discomfort', ja: 'もやもや不快' },
+    description: {
+      en: 'Lingering irritation that is hard to name.',
+      ja: 'はっきり言えないまま積もる不快感。',
+    },
+    color: { solid: '#EA580C', light: '#FDBA74', onSolid: '#FFF7ED' },
+    emotions: [
+      { id: 'haze', ja: 'もやもや', en: 'Hazy unease' },
+      { id: 'irritated', ja: 'イライラ', en: 'Irritated' },
+      { id: 'pissed', ja: 'むかつく', en: 'Pissed off' },
+      { id: 'fed-up', ja: 'うんざり', en: 'Fed up' },
+      { id: 'drained', ja: 'げんなり', en: 'Drained' },
+      { id: 'sluggish', ja: 'だるい', en: 'Sluggish' },
+      { id: 'bothersome', ja: 'めんどくさい', en: 'Can’t be bothered' },
+      { id: 'overwhelmed', ja: 'しんどい', en: 'Overwhelmed' },
+      { id: 'depleted', ja: '消耗している', en: 'Depleted' },
+    ],
   },
   {
-    id: 'sadness',
-    label: { en: 'Sadness', ja: '悲しみ' },
-    emotions: ['Grief', 'Sadness', 'Pensiveness'],
+    id: 'acceptance',
+    plutchikKey: 'sadness',
+    label: { en: 'Acceptance & Endurance', ja: '受容・諦め・耐える' },
+    description: {
+      en: 'The quiet effort of enduring and letting go.',
+      ja: '受け入れて耐えるときの気持ち。',
+    },
+    color: { solid: '#475569', light: '#9CA3AF', onSolid: '#F8FAFC' },
+    emotions: [
+      { id: 'endure', ja: '我慢', en: 'Enduring' },
+      { id: 'shoganai', ja: 'しょうがない', en: 'It can’t be helped' },
+      { id: 'resignation', ja: '諦め', en: 'Resigned' },
+      { id: 'compartmentalise', ja: '割り切る', en: 'Compartmentalise' },
+      { id: 'numbed', ja: '慣れた', en: 'Grown numb' },
+      { id: 'powerless', ja: '無力感', en: 'Powerless' },
+    ],
   },
   {
-    id: 'disgust',
-    label: { en: 'Disgust', ja: '嫌悪' },
-    emotions: ['Loathing', 'Disgust', 'Boredom'],
+    id: 'calm-positive',
+    plutchikKey: 'joy',
+    label: { en: 'Calm Positivity', ja: '低刺激のポジティブ' },
+    description: {
+      en: 'Gentle, quiet forms of feeling good.',
+      ja: '静かに「いい」と感じるニュアンス。',
+    },
+    color: { solid: '#059669', light: '#34D399', onSolid: '#ECFDF5' },
+    emotions: [
+      { id: 'relief', ja: '安心', en: 'Relief' },
+      { id: 'release', ja: '安堵', en: 'Release' },
+      { id: 'unwind', ja: 'ほっとする', en: 'At ease' },
+      { id: 'calm', ja: '落ち着く', en: 'Calm' },
+      { id: 'soothe', ja: '和む', en: 'Soothing' },
+      { id: 'healed', ja: '癒される', en: 'Healed' },
+      { id: 'fulfilled', ja: '満ち足りる', en: 'Fulfilled' },
+      { id: 'quietly-moved', ja: 'しみじみ', en: 'Quietly moved' },
+    ],
   },
-  { id: 'anger', label: { en: 'Anger', ja: '怒り' }, emotions: ['Rage', 'Anger', 'Annoyance'] },
   {
-    id: 'anticipation',
-    label: { en: 'Anticipation', ja: '期待' },
-    emotions: ['Vigilance', 'Anticipation', 'Interest'],
+    id: 'bittersweet',
+    plutchikKey: 'sadness',
+    label: { en: 'Bittersweet & Longing', ja: '切なさ・空虚・恋慕' },
+    description: {
+      en: 'Shades of sadness unique to Japanese nuance.',
+      ja: '悲しさと恋しさが混ざる感覚。',
+    },
+    color: { solid: '#4338CA', light: '#A5B4FC', onSolid: '#EEF2FF' },
+    emotions: [
+      { id: 'bittersweet', ja: '切ない', en: 'Bittersweet' },
+      { id: 'futile', ja: 'やるせない', en: 'Helpless sorrow' },
+      { id: 'hollow', ja: '虚しい', en: 'Hollow' },
+      { id: 'melancholic', ja: '憂鬱', en: 'Melancholic' },
+      { id: 'insecure', ja: '心細い', en: 'Insecure' },
+      { id: 'lonely', ja: '寂しい', en: 'Lonely' },
+      { id: 'longing', ja: '恋しい', en: 'Longing' },
+      { id: 'lingering', ja: '未練', en: 'Lingering attachment' },
+    ],
+  },
+  {
+    id: 'excitement',
+    plutchikKey: 'anticipation',
+    label: { en: 'Thrill & Awe', ja: 'ときめき・高揚・圧倒' },
+    description: {
+      en: 'High-energy joy, awe, and anticipation.',
+      ja: '期待や圧倒に近い熱量。',
+    },
+    color: { solid: '#DB2777', light: '#F9A8D4', onSolid: '#FFF5F7' },
+    emotions: [
+      { id: 'flutter', ja: 'ときめき', en: 'Flutter' },
+      { id: 'excited', ja: 'ワクワク', en: 'Excited' },
+      { id: 'thrill', ja: 'ドキドキ', en: 'Thrilled' },
+      { id: 'uplifted', ja: '高揚', en: 'Uplifted' },
+      { id: 'moved', ja: '感動', en: 'Moved' },
+      { id: 'awe', ja: '畏敬', en: 'Awestruck' },
+      { id: 'overwhelmed', ja: '圧倒される', en: 'Overwhelmed' },
+      { id: 'full-heart', ja: '胸がいっぱい', en: 'Heart full' },
+    ],
   },
 ];
 
-const EMOTION_COLORS: Record<string, { solid: string; light: string; onSolid: string }> = {
-  Ecstasy: { solid: '#B45309', light: '#F59E0B', onSolid: '#FFFBEB' },
-  Joy: { solid: '#F59E0B', light: '#FCD34D', onSolid: '#1F2937' },
-  Serenity: { solid: '#FEF3C7', light: '#FDE68A', onSolid: '#92400E' },
-  Admiration: { solid: '#0F766E', light: '#2DD4BF', onSolid: '#ECFEFF' },
-  Trust: { solid: '#14B8A6', light: '#5EEAD4', onSolid: '#022C22' },
-  Acceptance: { solid: '#99F6E4', light: '#5EEAD4', onSolid: '#0F172A' },
-  Terror: { solid: '#312E81', light: '#6366F1', onSolid: '#E0E7FF' },
-  Fear: { solid: '#4338CA', light: '#818CF8', onSolid: '#E0E7FF' },
-  Apprehension: { solid: '#A5B4FC', light: '#C7D2FE', onSolid: '#1E1B4B' },
-  Amazement: { solid: '#1E3A8A', light: '#60A5FA', onSolid: '#DBEAFE' },
-  Surprise: { solid: '#2563EB', light: '#60A5FA', onSolid: '#DBEAFE' },
-  Distraction: { solid: '#93C5FD', light: '#BFDBFE', onSolid: '#1E3A8A' },
-  Grief: { solid: '#1D4ED8', light: '#60A5FA', onSolid: '#EFF6FF' },
-  Sadness: { solid: '#3B82F6', light: '#93C5FD', onSolid: '#EFF6FF' },
-  Pensiveness: { solid: '#BFDBFE', light: '#DBEAFE', onSolid: '#1E3A8A' },
-  Loathing: { solid: '#166534', light: '#34D399', onSolid: '#ECFDF5' },
-  Disgust: { solid: '#15803D', light: '#4ADE80', onSolid: '#ECFDF5' },
-  Boredom: { solid: '#BBF7D0', light: '#A7F3D0', onSolid: '#064E3B' },
-  Rage: { solid: '#7F1D1D', light: '#F87171', onSolid: '#FEF2F2' },
-  Anger: { solid: '#B91C1C', light: '#F87171', onSolid: '#FEF2F2' },
-  Annoyance: { solid: '#FCA5A5', light: '#FECACA', onSolid: '#7F1D1D' },
-  Vigilance: { solid: '#7C2D12', light: '#FB923C', onSolid: '#FFF7ED' },
-  Anticipation: { solid: '#EA580C', light: '#FDBA74', onSolid: '#FFF7ED' },
-  Interest: { solid: '#FED7AA', light: '#FDE68A', onSolid: '#7C2D12' },
-};
+const EMOTION_DEFINITION_MAP: Record<string, EmotionDefinition & { groupId: string }> = {};
+const EMOTION_COLOR_MAP: Record<string, { solid: string; light: string; onSolid: string }> = {};
+EMOTION_GROUPS.forEach((group) => {
+  group.emotions.forEach((emotion) => {
+    EMOTION_DEFINITION_MAP[emotion.id] = { ...emotion, groupId: group.id };
+    EMOTION_COLOR_MAP[emotion.id] = group.color;
+  });
+});
 
 const DEFAULT_EMOTION_COLORS = {
   solid: '#2563EB',
@@ -182,7 +246,7 @@ const DEFAULT_EMOTION_COLORS = {
 };
 
 const emotionButtonClass =
-  'rounded-full border px-3 py-2 text-xs transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
+  'inline-flex min-h-[40px] items-center whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium tracking-wide transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
 
 function formatCoordinates(lat: number, lng: number, isJa: boolean) {
   const latAbs = Math.abs(lat).toFixed(4);
@@ -939,7 +1003,11 @@ export default function EmokaiStepPage({ params }: Props) {
   const geocodeTimeoutRef = useRef<number | null>(null);
   const lastGeocodeQueryRef = useRef<string | null>(null);
 
-  const initialEmotions = useMemo(() => loadSessionArray(EMOTIONS_STORAGE_KEY), []);
+  const initialEmotions = useMemo(() => {
+    const stored = loadSessionArray(EMOTIONS_STORAGE_KEY);
+    if (!stored.length) return [] as string[];
+    return stored.filter((value) => EMOTION_DEFINITION_MAP[value]);
+  }, []);
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>(initialEmotions);
   const [emotionTouched, setEmotionTouched] = useState(initialEmotions.length > 0);
   const emotionValid = selectedEmotions.length > 0;
@@ -1172,7 +1240,13 @@ useEffect(() => {
     ? 'ARモデル、合成画像、物語を順番に仕上げています。しばらくお待ちください。'
     : 'Preparing the AR model, composite image, and story. Please hold on a moment.';
   const getEmotionLabel = useCallback(
-    (emotion: string) => (isJa ? EMOTION_LABELS_JA[emotion] ?? emotion : emotion),
+    (emotionId: string) => {
+      const definition = EMOTION_DEFINITION_MAP[emotionId];
+      if (!definition) {
+        return emotionId;
+      }
+      return isJa ? definition.ja : definition.en;
+    },
     [isJa],
   );
 
@@ -2405,17 +2479,18 @@ useEffect(() => {
 
     EMOTION_GROUPS.forEach((group) => {
       let level = 0;
+      const maxIndex = Math.max(1, group.emotions.length - 1);
       group.emotions.forEach((emotion, index) => {
-        if (selectedEmotions.includes(emotion)) {
-          const value = Math.max(0, 3 - index);
+        if (selectedEmotions.includes(emotion.id)) {
+          const ratio = index / maxIndex;
+          const tier = Math.min(2, Math.floor(ratio * 3));
+          const value = Math.max(1, 3 - tier);
           if (value > level) {
             level = value;
           }
         }
       });
-      if (group.id in levels) {
-        levels[group.id as keyof EmotionLevelMap] = level;
-      }
+      levels[group.plutchikKey] = Math.max(levels[group.plutchikKey], level);
     });
 
     return levels;
@@ -3210,47 +3285,72 @@ useEffect(() => {
             </h2>
             <p className="text-sm text-textSecondary">
               {isJa
-                ? '当てはまるものをえらんでください。（いくつでも）'
-                : 'Choose what fits (any number).'}
+                ? '流れてくる言葉のなかから、心当たりのあるものをタップしてください。いくつでも選べます。'
+                : 'Tap any drifting tags that resonate with the mood here. Choose as many as you like.'}
             </p>
-            <div className="space-y-3">
-              {EMOTION_GROUPS.map((group) => (
-                <div key={group.id} className="space-y-2">
-                  <div className="flex flex-wrap gap-2">
-                    {group.emotions.map((emotion) => {
-                      const selected = selectedEmotions.includes(emotion);
-                      const palette = EMOTION_COLORS[emotion] ?? DEFAULT_EMOTION_COLORS;
-                      const style: CSSProperties = selected
-                        ? {
-                            backgroundColor: palette.solid,
-                            color: palette.onSolid,
-                            borderColor: palette.solid,
-                          }
-                        : {
-                            borderColor: palette.light,
-                            color: palette.light,
-                          };
-                      const buttonClass = `${emotionButtonClass} ${selected ? 'shadow-sm' : ''}`;
-                      return (
-                        <button
-                          key={emotion}
-                          type="button"
-                          className={buttonClass}
-                          style={style}
-                          onClick={() => toggleEmotion(emotion)}
-                        >
-                          {getEmotionLabel(emotion)}
-                        </button>
-                      );
-                    })}
+            <div className="space-y-4">
+              {EMOTION_GROUPS.map((group, index) => {
+                const marqueeClass = index % 2 === 0 ? 'emotion-stream' : 'emotion-stream emotion-stream--reverse';
+                const repeated = [...group.emotions, ...group.emotions];
+                return (
+                  <div
+                    key={group.id}
+                    className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur"
+                    style={{ backgroundColor: 'rgba(15,16,35,0.35)' }}
+                  >
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-textPrimary">
+                          {isJa ? group.label.ja : group.label.en}
+                        </p>
+                        <p className="text-xs text-textSecondary">
+                          {isJa ? group.description.ja : group.description.en}
+                        </p>
+                      </div>
+                      <span className="text-[11px] uppercase tracking-wide text-white/40">
+                        {isJa ? `${group.emotions.length} 語` : `${group.emotions.length} tags`}
+                      </span>
+                    </div>
+                    <div className="relative overflow-hidden">
+                      <div className={marqueeClass}>
+                        {repeated.map((emotion, emotionIndex) => {
+                          const selected = selectedEmotions.includes(emotion.id);
+                          const palette = EMOTION_COLOR_MAP[emotion.id] ?? DEFAULT_EMOTION_COLORS;
+                          const style: CSSProperties = selected
+                            ? {
+                                backgroundColor: palette.solid,
+                                color: palette.onSolid,
+                                borderColor: palette.solid,
+                                boxShadow: `0 12px 32px ${palette.solid}40`,
+                              }
+                            : {
+                                borderColor: palette.light,
+                                color: palette.light,
+                                backgroundColor: 'rgba(8, 12, 24, 0.35)',
+                              };
+                          const buttonClass = `${emotionButtonClass} ${selected ? 'shadow-lg' : ''}`;
+                          return (
+                            <button
+                              key={`${emotion.id}-${emotionIndex}`}
+                              type="button"
+                              className={buttonClass}
+                              style={style}
+                              onClick={() => toggleEmotion(emotion.id)}
+                            >
+                              {getEmotionLabel(emotion.id)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
-            <p className="text-xs text-textSecondary opacity-70">
+            <p className="text-xs text-textSecondary opacity-80">
               {isJa
-                ? '左から強い感情で、右にいくほど穏やかなニュアンスになります。'
-                : 'Left is the strongest tone and it softens toward the right.'}
+                ? 'タグはゆっくり流れます。気になる言葉をタップして感情を映してください。'
+                : 'The tags drift slowly—tap anything that resonates with how this place feels.'}
             </p>
             {!emotionValid && emotionTouched ? (
               <p className="text-xs text-[#ffb9b9]">

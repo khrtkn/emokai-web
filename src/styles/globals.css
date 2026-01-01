@@ -50,3 +50,35 @@
     border-radius: 5rem !important;
   }
 }
+
+@keyframes emotion-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.emotion-stream {
+  display: inline-flex;
+  gap: 0.75rem;
+  animation: emotion-scroll 45s linear infinite;
+  will-change: transform;
+}
+
+.emotion-stream--reverse {
+  animation-direction: reverse;
+}
+
+.emotion-stream:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .emotion-stream,
+  .emotion-stream--reverse {
+    animation: none;
+    transform: translateX(0);
+  }
+}
