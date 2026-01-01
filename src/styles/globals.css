@@ -51,41 +51,16 @@
   }
 }
 
-@keyframes emotion-scroll {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
+.emotion-flow-container {
+  scrollbar-width: none;
+  touch-action: pan-x;
+}
+.emotion-flow-container::-webkit-scrollbar {
+  display: none;
 }
 
-.emotion-stream {
+.emotion-flow-track {
   display: inline-flex;
   gap: 0.75rem;
-  animation: emotion-scroll 45s linear infinite;
-  will-change: transform;
-}
-
-.emotion-stream--reverse {
-  animation-direction: reverse;
-}
-
-.emotion-stream:hover {
-  animation-play-state: paused;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .emotion-stream,
-  .emotion-stream--reverse {
-    animation: none;
-    transform: translateX(0);
-  }
-}
-
-.emotion-lane {
-  scrollbar-width: none;
-}
-.emotion-lane::-webkit-scrollbar {
-  display: none;
+  min-height: 40px;
 }

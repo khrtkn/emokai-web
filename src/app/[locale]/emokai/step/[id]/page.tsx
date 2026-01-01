@@ -280,13 +280,10 @@ const EMOTION_LANE_COUNT = EMOTION_GROUPS.length;
 
 const EMOTION_DEFINITION_MAP: Record<string, EmotionDefinition & { groupId: string }> = {};
 const EMOTION_COLOR_MAP: Record<string, { solid: string; light: string; onSolid: string }> = {};
-const EMOTION_DEFINITIONS: Array<EmotionDefinition & { groupId: string }> = [];
 EMOTION_GROUPS.forEach((group) => {
   group.emotions.forEach((emotion) => {
-    const enriched = { ...emotion, groupId: group.id } as EmotionDefinition & { groupId: string };
-    EMOTION_DEFINITION_MAP[emotion.id] = enriched;
+    EMOTION_DEFINITION_MAP[emotion.id] = { ...emotion, groupId: group.id };
     EMOTION_COLOR_MAP[emotion.id] = group.color;
-    EMOTION_DEFINITIONS.push(enriched);
   });
 });
 
@@ -296,7 +293,7 @@ const DEFAULT_EMOTION_COLORS = {
   onSolid: '#EFF6FF',
 };
 
-const EMOTION_STREAM_REPEAT = 2;
+const EMOTION_FLOW_REPEAT = 3;
 
 const emotionButtonClass =
   'inline-flex min-h-[40px] items-center whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium tracking-wide transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
@@ -1065,8 +1062,12 @@ export default function EmokaiStepPage({ params }: Props) {
   const [emotionTouched, setEmotionTouched] = useState(initialEmotions.length > 0);
   const emotionValid = selectedEmotions.length > 0;
 
-  const emotionStreams = useMemo(() => {
-    return EMOTION_GROUPS.map((group) => group.emotions);
+  const emotionFlowItems = useMemo(() => {
+    const base = EMOTION_GROUPS.flatMap((group) =>
+      group.emotions.map((emotion) => ({ ...emotion, groupId: group.id })),
+    );
+    if (!base.length) return [] as Array<EmotionDefinition & { groupId: string }>;
+    return Array.from({ length: EMOTION_FLOW_REPEAT }, () => base).flat();
   }, []);
 
   const storedStageSelection = useMemo(() => readStageSelection(), []);
@@ -1084,6 +1085,9 @@ export default function EmokaiStepPage({ params }: Props) {
   const resumePerformedRef = useRef(false);
   const lastProgressStringRef = useRef<string | null>(null);
   const defaultNameExample = useMemo(() => buildDefaultName(), []);
+
+  const emotionFlowContainerRef = useRef<HTMLDivElement | null>(null);
+  const emotionFlowTrackRef = useRef<HTMLDivElement | null>(null);
 
   const storedCharacterSelection = useMemo(() => readCharacterSelection(), []);
   const storedCharacterOptions = useMemo(() => readCharacterOptions(), []);
@@ -1448,6 +1452,34 @@ useEffect(() => {
     lastProgressStringRef.current = serialized;
     persistProgressSnapshot(payload);
   }, [progressReady, progressSerializable, submissionState]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (media.matches) return;
+    const container = emotionFlowContainerRef.current;
+    const track = emotionFlowTrackRef.current;
+    if (!container || !track) return;
+    let rafId: number;
+    let lastTimestamp: number | null = null;
+    const speed = 12; // px per second
+    const loop = (timestamp: number) => {
+      if (lastTimestamp !== null) {
+        const deltaSeconds = (timestamp - lastTimestamp) / 1000;
+        const segmentWidth = track.scrollWidth / Math.max(1, EMOTION_FLOW_REPEAT);
+        container.scrollLeft += deltaSeconds * speed;
+        if (segmentWidth > 0 && container.scrollLeft >= segmentWidth) {
+          container.scrollLeft -= segmentWidth;
+        }
+      }
+      lastTimestamp = timestamp;
+      rafId = window.requestAnimationFrame(loop);
+    };
+    rafId = window.requestAnimationFrame(loop);
+    return () => {
+      window.cancelAnimationFrame(rafId);
+    };
+  }, []);
 
   useEffect(() => {
     if (flowSteps.includes(step)) return;
@@ -3345,54 +3377,50 @@ useEffect(() => {
                 ? '流れてくる言葉のなかから、心当たりのあるものをタップしてください。いくつでも選べます。'
                 : 'Tap any drifting tags that resonate with the mood here. Choose as many as you like.'}
             </p>
-            <div className="space-y-3 rounded-3xl border border-white/10 bg-[rgba(8,12,24,0.6)] p-4 backdrop-blur">
-              {emotionStreams.map((lane, laneIndex) => {
-                const repeated = Array.from({ length: EMOTION_STREAM_REPEAT }, () => lane).flat();
-                const duration = 80 + laneIndex * 8;
-                return (
-                  <div
-                    key={`emotion-lane-${laneIndex}`}
-                    className="emotion-lane overflow-x-auto rounded-2xl border border-white/10 bg-white/5 px-2 py-2"
-                    style={{ backgroundColor: 'rgba(5,9,20,0.35)' }}
-                  >
-                    <div className="emotion-stream" style={{ animationDuration: `${duration}s` }}>
-                      {repeated.map((emotion, emotionIndex) => {
-                        const selected = selectedEmotions.includes(emotion.id);
-                        const palette = EMOTION_COLOR_MAP[emotion.id] ?? DEFAULT_EMOTION_COLORS;
-                        const style: CSSProperties = selected
-                          ? {
-                              backgroundColor: palette.solid,
-                              color: palette.onSolid,
-                              borderColor: palette.solid,
-                              boxShadow: `0 10px 28px ${palette.solid}3d`,
-                            }
-                          : {
-                              borderColor: palette.light,
-                              color: palette.light,
-                              backgroundColor: 'rgba(8, 12, 24, 0.2)',
-                            };
-                        const buttonClass = `${emotionButtonClass} ${selected ? 'shadow-lg' : 'opacity-85 hover:opacity-100'}`;
-                        return (
-                          <button
-                            key={`${laneIndex}-${emotion.id}-${emotionIndex}`}
-                            type="button"
-                            className={buttonClass}
-                            style={style}
-                            onClick={() => toggleEmotion(emotion.id)}
-                          >
-                            {getEmotionLabel(emotion.id)}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="space-y-3 rounded-3xl border border-white/10 bg-[rgba(8,12,24,0.65)] p-4 backdrop-blur">
+              <div
+                ref={emotionFlowContainerRef}
+                className="emotion-flow-container overflow-x-auto rounded-2xl border border-white/10 bg-[rgba(5,9,20,0.35)] px-2 py-3"
+              >
+                <div
+                  ref={emotionFlowTrackRef}
+                  className="emotion-flow-track flex w-max items-center gap-3"
+                >
+                  {emotionFlowItems.map((emotion, emotionIndex) => {
+                    const selected = selectedEmotions.includes(emotion.id);
+                    const palette = EMOTION_COLOR_MAP[emotion.id] ?? DEFAULT_EMOTION_COLORS;
+                    const style: CSSProperties = selected
+                      ? {
+                          backgroundColor: palette.solid,
+                          color: palette.onSolid,
+                          borderColor: palette.solid,
+                          boxShadow: `0 12px 28px ${palette.solid}30`,
+                        }
+                      : {
+                          borderColor: palette.light,
+                          color: palette.light,
+                          backgroundColor: 'rgba(8, 12, 24, 0.2)',
+                        };
+                    const buttonClass = `${emotionButtonClass} ${selected ? 'shadow-lg' : 'opacity-85 hover:opacity-100'}`;
+                    return (
+                      <button
+                        key={`${emotion.id}-${emotionIndex}`}
+                        type="button"
+                        className={buttonClass}
+                        style={style}
+                        onClick={() => toggleEmotion(emotion.id)}
+                      >
+                        {getEmotionLabel(emotion.id)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
             <p className="text-xs text-textSecondary opacity-80">
               {isJa
-                ? 'タグはとてもゆっくり右から左へ流れます。指で横スクロールして眺めながら、ぴったり来る言葉をタップしてください。'
-                : 'Tags glide slowly from right to left—drag the rows if you like and tap anything that fits.'}
+                ? 'タグはとてもゆっくり右から左へ流れ続けます。指で横スクロールしながら、ぴったり来る言葉をタップしてください。'
+                : 'Tags drift slowly from right to left—swipe through them and tap anything that feels right.'}
             </p>
             {!emotionValid && emotionTouched ? (
               <p className="text-xs text-[#ffb9b9]">
