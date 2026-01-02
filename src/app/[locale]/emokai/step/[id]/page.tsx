@@ -294,7 +294,6 @@ const DEFAULT_EMOTION_COLORS = {
 };
 
 const EMOTION_FLOW_REPEAT = 3;
-const EMOTION_ROW_REPEAT = 3;
 
 const emotionButtonClass =
   'inline-flex min-h-[40px] items-center whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium tracking-wide transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
@@ -1066,7 +1065,7 @@ export default function EmokaiStepPage({ params }: Props) {
   const emotionFlowRows = useMemo(() => {
     return EMOTION_GROUPS.map((group) => ({
       ...group,
-      items: Array.from({ length: EMOTION_ROW_REPEAT }, () => group.emotions).flat(),
+      items: group.emotions,
     }));
   }, []);
 
